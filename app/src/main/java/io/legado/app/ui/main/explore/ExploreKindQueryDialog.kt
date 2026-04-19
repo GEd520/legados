@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
 import androidx.appcompat.widget.SearchView
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import io.legado.app.R
 import io.legado.app.base.BaseDialogFragment
@@ -28,7 +29,7 @@ import kotlinx.coroutines.Dispatchers.IO
  * 发现分类查询对话框
  * 用于显示书源的所有发现分类，支持搜索过滤
  */
-class ExploreKindQueryDialog : BaseDialogFragment(R.layout.dialog_explore_kind_query) {
+class ExploreKindQueryDialog() : BaseDialogFragment(R.layout.dialog_explore_kind_query) {
 
     private val binding by viewBinding(DialogExploreKindQueryBinding::bind)
     private val adapter by lazy { KindAdapter(requireContext()) }
