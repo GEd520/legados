@@ -1,6 +1,5 @@
 package io.legado.app.ui.main.explore
 
-import android.content.Context
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
@@ -37,7 +36,7 @@ class ExploreKindQueryDialog() : BaseDialogFragment(R.layout.dialog_explore_kind
     private var sourceName: String = ""
     private var kinds: List<ExploreKind> = emptyList()
     private var filteredKinds: List<ExploreKind> = emptyList()
-    private var callBack: CallBack? = null
+    private var callBack: ExploreAdapter.CallBack? = null
 
     constructor(sourceUrl: String, sourceName: String) : this() {
         arguments = Bundle().apply {
@@ -46,9 +45,9 @@ class ExploreKindQueryDialog() : BaseDialogFragment(R.layout.dialog_explore_kind
         }
     }
 
-    override fun onAttach(context: Context) {
+    override fun onAttach(context: android.content.Context) {
         super.onAttach(context)
-        if (context is CallBack) {
+        if (context is ExploreAdapter.CallBack) {
             callBack = context
         }
     }
@@ -146,7 +145,7 @@ class ExploreKindQueryDialog() : BaseDialogFragment(R.layout.dialog_explore_kind
      * 分类列表适配器
      * 用于显示发现分类项
      */
-    private inner class KindAdapter(context: Context) :
+    private inner class KindAdapter(context: android.content.Context) :
         RecyclerAdapter<ExploreKind, ItemExploreKindBinding>(context) {
 
         override fun getViewBinding(parent: ViewGroup): ItemExploreKindBinding {
@@ -171,14 +170,6 @@ class ExploreKindQueryDialog() : BaseDialogFragment(R.layout.dialog_explore_kind
                 }
             }
         }
-    }
-
-    /**
-     * 回调接口
-     * 用于打开发现页面
-     */
-    interface CallBack {
-        fun openExplore(sourceUrl: String, title: String, exploreUrl: String?)
     }
 
 }
