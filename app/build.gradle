@@ -12,6 +12,7 @@ plugins {
     alias libs.plugins.room
     alias libs.plugins.ksp
     alias libs.plugins.google.services
+
 }
 apply from: 'download.gradle'
 
@@ -21,10 +22,17 @@ static def releaseTime() {
 
 def name = "legado"
 def version = "3." + releaseTime()
-def gitCommits = Integer.parseInt('git rev-list HEAD --count'.execute().text.trim())
+def gitCommits = 0
+try {
+    def result = 'git rev-list HEAD --count'.execute().text.trim()
+    if (result && result.isNumber()) {
+        gitCommits = Integer.parseInt(result)
+    }
+} catch (Exception ignored) {
+}
 
 android {
-    compileSdk = compile_sdk_version
+    compileSdk 36
     namespace = 'io.legado.app'
     kotlin {
         jvmToolchain {
@@ -54,10 +62,10 @@ android {
         versionName version
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         project.ext.set("archivesBaseName", name + "_" + version)
-
+    
         buildConfigField "String", "Cronet_Version", "\"$CronetVersion\""
         buildConfigField "String", "Cronet_Main_Version", "\"$CronetMainVersion\""
-
+    
         javaCompileOptions {
             annotationProcessorOptions {
                 arguments += [
@@ -85,7 +93,7 @@ android {
             } else {
                 manifestPlaceholders.put("app_name", "@string/app_name")
             }
-
+    
             minifyEnabled true
             shrinkResources = true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro', 'cronet-proguard-rules.pro'
@@ -95,7 +103,7 @@ android {
                 signingConfig signingConfigs.myConfig
             }
             manifestPlaceholders.put("app_name", "@string/app_name")
-
+    
             applicationIdSuffix '.debug'
             versionNameSuffix 'debug'
             minifyEnabled false
@@ -110,7 +118,7 @@ android {
             manifestPlaceholders.put("APP_CHANNEL_VALUE", "app")
         }
     }
-
+    
     android.applicationVariants.configureEach { variant ->
         variant.outputs.configureEach {
             def flavor = variant.productFlavors[0].name
@@ -128,9 +136,9 @@ android {
         arg("room.expandProjection", "true")
         arg("room.generateKotlin", "false")
         //arg("room.schemaLocation", "$projectDir/schemas")
-
+        arg("skipPrivatePreviews", "true")
     }
-
+    
     compileOptions {
         // Flag to enable support for the new language APIs
         coreLibraryDesugaringEnabled = true
@@ -141,7 +149,7 @@ android {
     packaging {
         resources.excludes.add('META-INF/*')
     }
-
+    
     sourceSets {
         // Adds exported schema location as test app assets.
         androidTest.assets.srcDirs += files("$projectDir/schemas".toString())
@@ -157,6 +165,7 @@ android {
     lint { //忽略string翻译缺失，后面需要翻译时去掉，todo
         disable 'MissingTranslation'
     }
+
 }
 
 dependencies {
@@ -181,7 +190,7 @@ dependencies {
 
     //图像处理库Toolkit
     implementation(libs.renderscript.intrinsics.replacement.toolkit)
-
+    
     //androidX
     implementation(libs.core.ktx)
     implementation(libs.appcompat.appcompat)
@@ -194,16 +203,16 @@ dependencies {
     implementation(libs.androidx.viewpager2)
     implementation(libs.androidx.webkit)
     implementation(libs.androidx.documentfile)
-
+    
     //google
     implementation(libs.material)
     implementation(libs.flexbox)
     implementation(libs.gson)
-
+    
     //lifecycle
     implementation(libs.lifecycle.common.java8)
     implementation(libs.lifecycle.service)
-
+    
     //media
     implementation(libs.media.media)
     // For media playback using ExoPlayer
@@ -214,92 +223,97 @@ dependencies {
     implementation(libs.media3.datasource.okhttp)
     // For exposing and controlling media sessions
     //implementation "androidx.media3:media3-session:$media3_version"
-
+    
     //videoPlayer
     implementation(libs.gsyVideoPlayer.java)
     implementation(libs.gsyVideoPlayer.exo2)
     //弹幕
     implementation (libs.danmakuFlameMaster)
-
+    
     //Splitties
     implementation(libs.splitties.appctx)
     implementation(libs.splitties.systemservices)
     implementation(libs.splitties.views)
-
+    
     //room sql语句不高亮解决方法https://issuetracker.google.com/issues/234612964#comment6
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     //kapt("androidx.room:room-compiler:$room_version")
     ksp(libs.room.compiler)
     androidTestImplementation(libs.room.testing)
-
+    
     //liveEventBus
     implementation(libs.liveeventbus)
-
+    
     //规则相关
     implementation(libs.jsoup)
     implementation(libs.json.path)
     implementation(libs.jsoupxpath)
     implementation(project(path: ':modules:book'))
     implementation(project(path: ':modules:rhino'))
-
+    
     //JS rhino
-
+    
     //网络
     implementation(libs.okhttp)
     implementation(fileTree(dir: 'cronetlib', include: ['*.jar', '*.aar']))
     implementation(libs.protobuf.javalite)
-
+    
     //Glide
     implementation(libs.glide.glide)
     implementation(libs.glide.okhttp)
     ksp(libs.glide.ksp)
-
+    
     //Svg
     implementation(libs.androidsvg)
-    //Glide svg plugin
-    implementation(libs.glide.svg)
-
+    //Glide svg plugin - 排除Glide注解避免KSP冲突
+    implementation(libs.glide.svg) {
+        exclude group: 'com.github.bumptech.glide', module: 'annotations'
+        exclude group: 'com.github.bumptech.glide', module: 'glide'
+    }
+    // 重新添加glide核心库以保持兼容
+    implementation(libs.glide.glide)
+    
     //webServer
     implementation(libs.nanohttpd.nanohttpd)
     implementation(libs.nanohttpd.websocket)
-
+    
     //二维码
     //noinspection GradleDependency
     implementation(libs.zxing.lite)
-
+    
     //颜色选择
     implementation(libs.colorpicker)
-
+    
     //压缩解压
     implementation libs.libarchive
-
+    
     //apache
     implementation(libs.commons.text)
-
+    
     //MarkDown
     implementation(libs.markwon.core)
     implementation(libs.markwon.image.glide)
     implementation(libs.markwon.ext.tables)
     implementation(libs.markwon.html)
-
+    
     //转换繁体
     implementation(libs.quick.chinese.transfer.core)
-
+    
     //加解密类库,有些书源使用
     //noinspection GradleDependency,GradlePackageUpdate
     implementation(libs.hutool.crypto)
-
+    
     //firebase, 崩溃统计和性能统计
     implementation platform(libs.firebase.bom)
     implementation libs.firebase.analytics
     implementation libs.firebase.perf
-
+    
     implementation libs.glide.recyclerview
-
+    
     //LeakCanary, 内存泄露检测
     //debugImplementation('com.squareup.leakcanary:leakcanary-android:2.7')
-
+    
     //com.github.AmrDeveloper:CodeView代码编辑已集成到应用内
     //epubLib集成到应用内
     // 椒盐歌词
@@ -308,4 +322,5 @@ dependencies {
     implementation(platform(libs.soraEditor.bom))
     implementation(libs.soraEditor.core)
     implementation(libs.soraEditor.language.textmate)
+
 }
