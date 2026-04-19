@@ -31,9 +31,37 @@ import kotlinx.coroutines.currentCoroutineContext
 
 /**
  * 获取正文
+ * 正文解析器
+ *
+ * 负责解析书籍的正文内容，支持：
+ * - 单页/多页正文解析
+ * - 多页正文串行/并发获取
+ * - 副内容（歌词/弹幕）提取
+ * - 全文替换规则
+ * - 章节标题规则
+ * - HTML格式化与净化
+ * - 封面图片提取
+ *
+ * @see WebBook.getContent 网络请求入口
+ * @see ContentRule 正文规则定义
  */
 object BookContent {
 
+    /**
+     * 解析章节正文
+     *
+     * @param bookSource 书源
+     * @param book 书籍对象
+     * @param bookChapter 章节对象
+     * @param baseUrl 基础URL
+     * @param redirectUrl 重定向后的URL
+     * @param body 页面内容
+     * @param nextChapterUrl 下一章URL（用于多页正文判断终止）
+     * @param needSave 是否保存到本地缓存
+     * @return 正文内容字符串
+     * @throws NoStackTraceException 当内容为空时抛出
+     * @throws ContentEmptyException 当正文为空时抛出
+     */
     @Throws(Exception::class)
     suspend fun analyzeContent(
         bookSource: BookSource,
@@ -210,6 +238,21 @@ object BookContent {
         return contentStr
     }
 
+    /**
+     * 解析单页正文内容
+     *
+     * @param book 书籍对象
+     * @param baseUrl 基础URL
+     * @param redirectUrl 重定向后的URL
+     * @param body 页面内容
+     * @param contentRule 正文规则
+     * @param chapter 章节对象
+     * @param bookSource 书源
+     * @param nextChapterUrl 下一章URL
+     * @param getNextPageUrl 是否获取下一页URL
+     * @param printLog 是否输出调试日志
+     * @return 正文内容和下一页URL列表的Pair
+     */
     @Throws(Exception::class)
     private suspend fun analyzeContent(
         book: Book,

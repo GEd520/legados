@@ -120,7 +120,37 @@ class DictRuleEditDialog() : BaseDialogFragment(R.layout.dialog_dict_rule_edit, 
         }
         // 先保存规则，再进行调试
         viewModel.save(dictRule) {
-            viewModel.debug(dictRule)
+            showDebugDialog(dictRule)
+        }
+    }
+
+    /**
+     * 显示调试对话框
+     * 弹出输入框让用户输入关键词，然后调用规则的search方法进行搜索
+     */
+    private fun showDebugDialog(dictRule: DictRule) {
+        alert("调试字典规则") {
+            val input = EditText(requireContext()).apply {
+                hint = "输入关键词"
+            }
+            customView { input }
+            okButton {
+                val word = input.text.toString()
+                // 关键词不能为空
+                if (word.isBlank()) {
+                    toastOnUi("关键词不能为空")
+                    return@okButton
+                }
+                // 执行搜索并显示结果
+                viewModel.debugSearch(dictRule, word) { result ->
+                    // 显示调试结果对话框
+                    alert("调试结果") {
+                        setMessage(result)
+                        okButton()
+                    }
+                }
+            }
+            cancelButton()
         }
     }
 
@@ -211,39 +241,19 @@ class DictRuleEditDialog() : BaseDialogFragment(R.layout.dialog_dict_rule_edit, 
 
         /**
          * 调试字典规则
-         * 弹出对话框让用户输入关键词，然后调用规则的search方法进行搜索
-         * 搜索结果在对话框中显示
+         * 执行搜索并通过回调返回结果
+         * @param dictRule 字典规则
+         * @param word 搜索关键词
+         * @param onSuccess 成功回调
          */
-        fun debug(dictRule: DictRule) {
-            // 弹出输入对话框，让用户输入搜索关键词
-            context.alert("调试字典规则") {
-                val input = android.widget.EditText(context).apply {
-                    hint = "输入关键词"
-                }
-                customView { input }
-                okButton {
-                    val word = input.text.toString()
-                    // 关键词不能为空
-                    if (word.isBlank()) {
-                        context.toastOnUi("关键词不能为空")
-                        return@okButton
-                    }
-                    // 执行搜索并显示结果
-                    execute {
-                        dictRule.search(word)
-                    }.onSuccess {
-                        // 显示调试结果对话框
-                        context.alert("调试结果") {
-                            setMessage(it)
-                            okButton()
-                        }.show()
-                    }.onError {
-                        // 显示错误提示
-                        context.toastOnUi("调试失败: ${it.localizedMessage}")
-                    }
-                }
-                cancelButton()
-            }.show()
+        fun debugSearch(dictRule: DictRule, word: String, onSuccess: (String) -> Unit) {
+            execute {
+                dictRule.search(word)
+            }.onSuccess {
+                onSuccess.invoke(it)
+            }.onError {
+                context.toastOnUi("调试失败: ${it.localizedMessage}")
+            }
         }
 
     }

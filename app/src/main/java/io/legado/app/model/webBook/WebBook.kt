@@ -26,11 +26,41 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Semaphore
 import kotlin.coroutines.CoroutineContext
 
+/**
+ * 书源网络请求核心入口
+ *
+ * 提供书源相关的所有网络请求操作，包括：
+ * - 搜索书籍 [searchBook]
+ * - 发现书籍 [exploreBook]
+ * - 获取书籍详情 [getBookInfo]
+ * - 获取章节目录 [getChapterList]
+ * - 获取章节正文 [getContent]
+ * - 精准搜索 [preciseSearch]
+ *
+ * 所有请求方法都支持：
+ * - 登录检测 JS 脚本执行
+ * - 重定向检测与日志记录
+ * - 协程上下文切换
+ *
+ * @see BookList 书籍列表解析
+ * @see BookInfo 书籍详情解析
+ * @see BookChapterList 章节目录解析
+ * @see BookContent 章节正文解析
+ */
 @Suppress("MemberVisibilityCanBePrivate")
 object WebBook {
 
     /**
-     * 搜索
+     * 搜索书籍（异步回调方式）
+     *
+     * @param scope 协程作用域
+     * @param bookSource 书源
+     * @param key 搜索关键词
+     * @param page 页码，默认为1
+     * @param context 协程上下文
+     * @param start 协程启动模式
+     * @param executeContext 执行上下文
+     * @return Coroutine 包装的搜索结果列表
      */
     fun searchBook(
         scope: CoroutineScope,
@@ -46,6 +76,20 @@ object WebBook {
         }
     }
 
+    /**
+     * 搜索书籍（挂起函数方式）
+     *
+     * 根据书源的搜索URL规则发起网络请求，解析返回的书籍列表。
+     * 支持登录检测JS脚本，用于验证书源登录状态。
+     *
+     * @param bookSource 书源
+     * @param key 搜索关键词
+     * @param page 页码，默认为1
+     * @param filter 过滤函数，用于筛选搜索结果（书名、作者、分类）
+     * @param shouldBreak 提前终止条件，当返回结果满足条件时停止解析
+     * @return 搜索结果列表
+     * @throws NoStackTraceException 当搜索URL为空时抛出
+     */
     suspend fun searchBookAwait(
         bookSource: BookSource,
         key: String,
@@ -107,7 +151,14 @@ object WebBook {
     }
 
     /**
-     * 发现
+     * 发现书籍（异步回调方式）
+     *
+     * @param scope 协程作用域
+     * @param bookSource 书源
+     * @param url 发现URL
+     * @param page 页码，默认为1
+     * @param context 协程上下文
+     * @return Coroutine 包装的发现结果列表
      */
     fun exploreBook(
         scope: CoroutineScope,
@@ -121,6 +172,17 @@ object WebBook {
         }
     }
 
+    /**
+     * 发现书籍（挂起函数方式）
+     *
+     * 根据书源的发现URL规则发起网络请求，解析返回的书籍列表。
+     * 与搜索不同，发现是根据书源预设的分类URL获取书籍列表。
+     *
+     * @param bookSource 书源
+     * @param url 发现URL（从exploreKinds中获取）
+     * @param page 页码，默认为1
+     * @return 发现结果列表
+     */
     suspend fun exploreBookAwait(
         bookSource: BookSource,
         url: String,
@@ -175,7 +237,14 @@ object WebBook {
     }
 
     /**
-     * 书籍信息
+     * 获取书籍详情（异步回调方式）
+     *
+     * @param scope 协程作用域
+     * @param bookSource 书源
+     * @param book 书籍对象（需包含bookUrl）
+     * @param context 协程上下文
+     * @param canReName 是否允许重命名书名和作者
+     * @return Coroutine 包装的书籍对象（已填充详情信息）
      */
     fun getBookInfo(
         scope: CoroutineScope,
@@ -189,6 +258,19 @@ object WebBook {
         }
     }
 
+    /**
+     * 获取书籍详情（挂起函数方式）
+     *
+     * 请求书籍详情页，解析并填充书籍的详细信息，包括：
+     * - 书名、作者、分类、字数
+     * - 最新章节、简介、封面
+     * - 目录链接或下载链接
+     *
+     * @param bookSource 书源
+     * @param book 书籍对象（需包含bookUrl）
+     * @param canReName 是否允许重命名书名和作者（受书源canReName规则控制）
+     * @return 已填充详情信息的书籍对象
+     */
     suspend fun getBookInfoAwait(
         bookSource: BookSource,
         book: Book,
@@ -252,7 +334,15 @@ object WebBook {
     }
 
     /**
-     * 目录
+     * 获取章节目录（异步回调方式）
+     *
+     * @param scope 协程作用域
+     * @param bookSource 书源
+     * @param book 书籍对象（需包含tocUrl）
+     * @param runPerJs 是否执行目录前置JS
+     * @param context 协程上下文
+     * @param isFromBookInfo 是否从详情页跳转
+     * @return Coroutine 包装的章节列表
      */
     fun getChapterList(
         scope: CoroutineScope,
@@ -267,6 +357,16 @@ object WebBook {
         }
     }
 
+    /**
+     * 执行目录前置JS脚本
+     *
+     * 在获取目录前执行的JS脚本，用于预处理书籍数据或环境。
+     *
+     * @param bookSource 书源
+     * @param book 书籍对象
+     * @param isFromBookInfo 是否从详情页跳转
+     * @return 执行结果
+     */
     suspend fun runPreUpdateJs(bookSource: BookSource, book: Book, isFromBookInfo : Boolean = false): Result<Unit> {
         return kotlin.runCatching {
             val preUpdateJs = bookSource.ruleToc?.preUpdateJs
@@ -281,6 +381,21 @@ object WebBook {
         }
     }
 
+    /**
+     * 获取章节目录（挂起函数方式）
+     *
+     * 请求目录页，解析并返回章节列表。支持：
+     * - 多页目录（串行/并发）
+     * - 目录反转
+     * - 章节标题格式化JS
+     * - 去重处理
+     *
+     * @param bookSource 书源
+     * @param book 书籍对象（需包含tocUrl）
+     * @param runPerJs 是否执行目录前置JS
+     * @param isFromBookInfo 是否从详情页跳转
+     * @return 章节列表的Result包装
+     */
     suspend fun getChapterListAwait(
         bookSource: BookSource,
         book: Book,
@@ -351,7 +466,19 @@ object WebBook {
     }
 
     /**
-     * 章节内容
+     * 获取章节正文（异步回调方式）
+     *
+     * @param scope 协程作用域
+     * @param bookSource 书源
+     * @param book 书籍对象
+     * @param bookChapter 章节对象
+     * @param nextChapterUrl 下一章URL（用于多页正文判断终止）
+     * @param needSave 是否保存到本地缓存
+     * @param context 协程上下文
+     * @param start 协程启动模式
+     * @param executeContext 执行上下文
+     * @param semaphore 并发信号量（用于控制并发数）
+     * @return Coroutine 包装的正文内容
      */
     fun getContent(
         scope: CoroutineScope,
@@ -376,6 +503,24 @@ object WebBook {
         }
     }
 
+    /**
+     * 获取章节正文（挂起函数方式）
+     *
+     * 请求正文页，解析并返回正文内容。支持：
+     * - 多页正文（串行/并发）
+     * - 副内容（歌词/弹幕）
+     * - 全文替换规则
+     * - 章节标题规则
+     * - HTML格式化
+     *
+     * @param bookSource 书源
+     * @param book 书籍对象
+     * @param bookChapter 章节对象
+     * @param nextChapterUrl 下一章URL（用于多页正文判断终止）
+     * @param needSave 是否保存到本地缓存
+     * @return 正文内容字符串
+     * @throws ContentEmptyException 当正文为空时抛出
+     */
     suspend fun getContentAwait(
         bookSource: BookSource,
         book: Book,
@@ -455,7 +600,18 @@ object WebBook {
     }
 
     /**
-     * 精准搜索
+     * 精准搜索（异步回调方式）
+     *
+     * 遍历书源列表，按书名+作者精确匹配书籍。
+     * 找到第一个匹配结果后立即返回。
+     *
+     * @param scope 协程作用域
+     * @param bookSourceParts 待搜索的书源列表
+     * @param name 书名
+     * @param author 作者
+     * @param context 协程上下文
+     * @param semaphore 并发信号量
+     * @return Coroutine 包装的书籍和书源对
      */
     fun preciseSearch(
         scope: CoroutineScope,
@@ -477,6 +633,17 @@ object WebBook {
         }
     }
 
+    /**
+     * 精准搜索（挂起函数方式）
+     *
+     * 在单个书源中按书名+作者精确匹配书籍。
+     * 使用filter过滤结果，shouldBreak在找到第一个匹配后停止。
+     *
+     * @param bookSource 书源
+     * @param name 书名
+     * @param author 作者
+     * @return 搜索结果的Result包装
+     */
     suspend fun preciseSearchAwait(
         bookSource: BookSource,
         name: String,
@@ -500,6 +667,11 @@ object WebBook {
 
     /**
      * 检测重定向
+     *
+     * 检查响应是否发生重定向，并记录调试日志。
+     *
+     * @param bookSource 书源（用于日志记录）
+     * @param response 响应对象
      */
     private fun checkRedirect(bookSource: BookSource, response: StrResponse) {
         response.raw.priorResponse?.let {

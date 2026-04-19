@@ -15,9 +15,35 @@ import kotlinx.coroutines.currentCoroutineContext
 import splitties.init.appCtx
 import java.util.Locale
 
+/**
+ * RSS规则解析器
+ *
+ * 根据订阅源定义的规则解析文章列表，支持：
+ * - 列表规则解析（HTML/XML/JSON）
+ * - 标题、时间、描述、图片、链接规则
+ * - 下一页规则
+ * - 列表反转
+ *
+ * 当列表规则为空时，回退到 [RssParserDefault] 使用标准XML解析。
+ *
+ * @see Rss.getArticles 网络请求入口
+ * @see RssParserDefault 默认XML解析器
+ */
 @Keep
 object RssParserByRule {
 
+    /**
+     * 解析RSS内容
+     *
+     * @param sortName 分类名称
+     * @param sortUrl 分类URL
+     * @param redirectUrl 重定向后的URL
+     * @param body 页面内容
+     * @param rssSource 订阅源
+     * @param ruleData 规则数据对象
+     * @return 文章列表和下一页URL的Pair
+     * @throws NoStackTraceException 当内容为空时抛出
+     */
     @Throws(Exception::class)
     suspend fun parseXML(
         sortName: String,
@@ -88,6 +114,27 @@ object RssParserByRule {
         }
     }
 
+    /**
+     * 解析单个文章项
+     *
+     * 从列表元素中解析单个文章信息，包括：
+     * - 标题、发布时间
+     * - 描述、图片链接
+     * - 文章链接
+     *
+     * @param sourceUrl 源URL
+     * @param item 列表元素
+     * @param analyzeRule 规则解析器
+     * @param variable 变量值
+     * @param type 文章类型
+     * @param log 是否输出调试日志
+     * @param ruleTitle 标题规则
+     * @param rulePubDate 发布时间规则
+     * @param ruleDescription 描述规则
+     * @param ruleImage 图片规则
+     * @param ruleLink 链接规则
+     * @return 文章对象，如果标题为空则返回null
+     */
     private fun getItem(
         sourceUrl: String,
         item: Any,

@@ -31,6 +31,25 @@ import splitties.init.appCtx
 import java.util.concurrent.Executors
 import kotlin.math.min
 
+/**
+ * 多源并发搜索模型
+ *
+ * 管理多书源并发搜索，支持：
+ * - 线程池并发搜索
+ * - 搜索结果合并与去重
+ * - 精确搜索模式
+ * - 搜索暂停/恢复/取消
+ * - 分页搜索
+ *
+ * 搜索结果按匹配度排序：
+ * 1. 精确匹配（书名或作者完全等于搜索词）
+ * 2. 标签匹配（分类包含搜索词）
+ * 3. 包含匹配（书名或作者包含搜索词）
+ * 4. 其他结果
+ *
+ * @property scope 协程作用域
+ * @property callBack 搜索回调接口
+ */
 class SearchModel(private val scope: CoroutineScope, private val callBack: CallBack) {
     val threadCount = AppConfig.threadCount
     private var searchPool: ExecutorCoroutineDispatcher? = null
@@ -43,12 +62,23 @@ class SearchModel(private val scope: CoroutineScope, private val callBack: CallB
     private var workingState = MutableStateFlow(true)
 
 
+    /**
+     * 初始化搜索线程池
+     *
+     * 创建固定大小的线程池，线程数取配置值和最大线程数的较小值。
+     */
     private fun initSearchPool() {
         searchPool?.close()
         searchPool = Executors
             .newFixedThreadPool(min(threadCount, AppConst.MAX_THREAD)).asCoroutineDispatcher()
     }
 
+    /**
+     * 执行搜索
+     *
+     * @param searchId 搜索ID，用于区分不同搜索请求
+     * @param key 搜索关键词
+     */
     fun search(searchId: Long, key: String) {
         if (searchId != mSearchId) {
             if (key.isEmpty()) {
@@ -73,6 +103,12 @@ class SearchModel(private val scope: CoroutineScope, private val callBack: CallB
         startSearch()
     }
 
+    /**
+     * 启动并发搜索
+     *
+     * 使用Flow并发执行多书源搜索，每个书源搜索超时30秒。
+     * 搜索结果实时合并并回调通知UI更新。
+     */
     private fun startSearch() {
         val precision = appCtx.getPrefBoolean(PreferKey.precisionSearch)
         var hasMore = false
@@ -113,6 +149,20 @@ class SearchModel(private val scope: CoroutineScope, private val callBack: CallB
         }
     }
 
+    /**
+     * 合并搜索结果
+     *
+     * 将新搜索结果按匹配度分类并合并到已有结果中：
+     * - 精确匹配：书名或作者完全等于搜索词
+     * - 标签匹配：分类包含搜索词
+     * - 包含匹配：书名或作者包含搜索词
+     * - 其他结果：非精确搜索模式下保留
+     *
+     * 同名同作者的书籍会合并来源信息。
+     *
+     * @param newDataS 新搜索结果列表
+     * @param precision 是否启用精确搜索模式
+     */
     private suspend fun mergeItems(newDataS: List<SearchBook>, precision: Boolean) {
         if (newDataS.isNotEmpty()) {
             val copyData = ArrayList(searchBooks)
@@ -196,19 +246,33 @@ class SearchModel(private val scope: CoroutineScope, private val callBack: CallB
         }
     }
 
+    /**
+     * 暂停搜索
+     */
     fun pause() {
         workingState.value = false
     }
 
+    /**
+     * 恢复搜索
+     */
     fun resume() {
         workingState.value = true
     }
 
+    /**
+     * 取消搜索
+     */
     fun cancelSearch() {
         close()
         callBack.onSearchCancel()
     }
 
+    /**
+     * 关闭搜索资源
+     *
+     * 取消搜索任务并关闭线程池。
+     */
     fun close() {
         searchJob?.cancel()
         searchPool?.close()
@@ -216,11 +280,19 @@ class SearchModel(private val scope: CoroutineScope, private val callBack: CallB
         mSearchId = 0L
     }
 
+    /**
+     * 搜索回调接口
+     */
     interface CallBack {
+        /** 获取搜索范围（书源列表） */
         fun getSearchScope(): SearchScope
+        /** 搜索开始回调 */
         fun onSearchStart()
+        /** 搜索成功回调（实时更新） */
         fun onSearchSuccess(searchBooks: List<SearchBook>)
+        /** 搜索完成回调 */
         fun onSearchFinish(isEmpty: Boolean, hasMore: Boolean)
+        /** 搜索取消回调 */
         fun onSearchCancel(exception: Throwable? = null)
     }
 

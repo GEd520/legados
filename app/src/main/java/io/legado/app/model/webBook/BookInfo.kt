@@ -20,10 +20,34 @@ import splitties.init.appCtx
 
 
 /**
- * 获取详情
+ * 获取书籍详情
+ * 书籍详情解析器
+ *
+ * 负责解析书籍的详情页信息，包括：
+ * - 书名、作者
+ * - 分类、字数
+ * - 最新章节、简介
+ * - 封面链接
+ * - 目录链接/下载链接
+ *
+ * 支持详情页初始化规则（init），用于预处理页面结构。
+ *
+ * @see WebBook.getBookInfo 网络请求入口
+ * @see BookInfoRule 详情规则定义
  */
 object BookInfo {
 
+    /**
+     * 解析书籍详情
+     *
+     * @param bookSource 书源
+     * @param book 书籍对象（需包含bookUrl）
+     * @param baseUrl 基础URL
+     * @param redirectUrl 重定向后的URL
+     * @param body 页面内容
+     * @param canReName 是否允许重命名书名和作者
+     * @throws NoStackTraceException 当内容为空时抛出
+     */
     @Throws(Exception::class)
     suspend fun analyzeBookInfo(
         bookSource: BookSource,
@@ -45,6 +69,20 @@ object BookInfo {
         analyzeBookInfo(book, body, analyzeRule, bookSource, baseUrl, redirectUrl, canReName)
     }
 
+    /**
+     * 解析书籍详情（内部方法）
+     *
+     * 使用已有的AnalyzeRule对象解析详情页，避免重复创建。
+     * 支持详情页初始化规则（init），用于预处理页面结构。
+     *
+     * @param book 书籍对象
+     * @param body 页面内容
+     * @param analyzeRule 规则解析器
+     * @param bookSource 书源
+     * @param baseUrl 基础URL
+     * @param redirectUrl 重定向后的URL
+     * @param canReName 是否允许重命名书名和作者
+     */
     suspend fun analyzeBookInfo(
         book: Book,
         body: String,

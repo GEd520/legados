@@ -30,9 +30,35 @@ import kotlinx.coroutines.currentCoroutineContext
 
 /**
  * 获取目录
+ * 章节目录解析器
+ *
+ * 负责解析书籍的章节目录列表，支持：
+ * - 单页/多页目录解析
+ * - 目录反转（倒序排列）
+ * - 多页目录串行/并发获取
+ * - 章节标题格式化JS
+ * - VIP/付费章节标记
+ * - 分卷标题识别
+ * - 章节信息（字数、更新时间）提取
+ *
+ * @see WebBook.getChapterList 网络请求入口
+ * @see TocRule 目录规则定义
  */
 object BookChapterList {
 
+    /**
+     * 解析章节目录
+     *
+     * @param bookSource 书源
+     * @param book 书籍对象（需包含tocUrl）
+     * @param baseUrl 基础URL
+     * @param redirectUrl 重定向后的URL
+     * @param body 页面内容
+     * @param isFromBookInfo 是否从详情页跳转
+     * @return 章节列表
+     * @throws NoStackTraceException 当内容为空时抛出
+     * @throws TocEmptyException 当目录为空时抛出
+     */
     suspend fun analyzeChapterList(
         bookSource: BookSource,
         book: Book,
@@ -181,6 +207,21 @@ object BookChapterList {
         return list
     }
 
+    /**
+     * 解析单页目录内容
+     *
+     * @param book 书籍对象
+     * @param baseUrl 基础URL
+     * @param redirectUrl 重定向后的URL
+     * @param body 页面内容
+     * @param tocRule 目录规则
+     * @param listRule 列表规则
+     * @param bookSource 书源
+     * @param getNextUrl 是否获取下一页URL
+     * @param log 是否输出调试日志
+     * @param isFromBookInfo 是否从详情页跳转
+     * @return 章节列表和下一页URL列表的Pair
+     */
     private suspend fun analyzeChapterList(
         book: Book,
         baseUrl: String,
@@ -302,6 +343,15 @@ object BookChapterList {
         return Pair(chapterList, nextUrlList)
     }
 
+    /**
+     * 更新章节信息
+     *
+     * 从数据库中读取已有的章节信息（字数、变量、图片URL），
+     * 合并到新解析的章节列表中，保留历史数据。
+     *
+     * @param list 新解析的章节列表
+     * @param book 书籍对象
+     */
     private fun upChapterInfo(list: ArrayList<BookChapter>, book: Book) {
         if (!AppConfig.tocCountWords) {
             return

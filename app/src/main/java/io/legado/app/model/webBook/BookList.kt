@@ -28,9 +28,38 @@ import splitties.init.appCtx
 
 /**
  * 获取书籍列表
+ * 书籍列表解析器
+ *
+ * 负责解析搜索和发现的书籍列表，支持：
+ * - 搜索结果列表解析
+ * - 发现分类列表解析
+ * - 书籍详情页URL模式匹配（bookUrlPattern）
+ * - 列表反转（倒序排列）
+ * - 结果过滤与提前终止
+ *
+ * 当列表规则为空时，会尝试按详情页解析（适用于搜索结果直接跳转详情页的情况）。
+ *
+ * @see WebBook.searchBook 搜索请求入口
+ * @see WebBook.exploreBook 发现请求入口
+ * @see BookListRule 列表规则定义
  */
 object BookList {
 
+    /**
+     * 解析书籍列表
+     *
+     * @param bookSource 书源
+     * @param ruleData 规则数据对象
+     * @param analyzeUrl URL分析器
+     * @param baseUrl 基础URL
+     * @param body 页面内容
+     * @param isSearch 是否为搜索（false表示发现）
+     * @param isRedirect 是否发生重定向
+     * @param filter 过滤函数，用于筛选结果（书名、作者、分类）
+     * @param shouldBreak 提前终止条件，当返回结果满足条件时停止解析
+     * @return 搜索结果列表
+     * @throws NoStackTraceException 当内容为空时抛出
+     */
     @Throws(Exception::class)
     suspend fun analyzeBookList(
         bookSource: BookSource,
@@ -150,6 +179,22 @@ object BookList {
         return bookList
     }
 
+    /**
+     * 获取单个书籍信息（详情页模式）
+     *
+     * 当URL匹配bookUrlPattern或列表规则为空时，
+     * 直接按详情页解析返回单个书籍信息。
+     *
+     * @param bookSource 书源
+     * @param analyzeRule 规则解析器
+     * @param analyzeUrl URL分析器
+     * @param body 页面内容
+     * @param baseUrl 基础URL
+     * @param variable 变量值
+     * @param isRedirect 是否发生重定向
+     * @param filter 过滤函数
+     * @return 搜索结果对象，如果过滤不通过则返回null
+     */
     @Throws(Exception::class)
     private suspend fun getInfoItem(
         bookSource: BookSource,
@@ -190,6 +235,32 @@ object BookList {
         return null
     }
 
+    /**
+     * 获取单个搜索结果项
+     *
+     * 从列表元素中解析单个书籍信息，包括：
+     * - 书名、作者、分类
+     * - 字数、最新章节
+     * - 简介、封面链接
+     * - 详情页链接
+     *
+     * @param bookSource 书源
+     * @param analyzeRule 规则解析器
+     * @param item 列表元素
+     * @param baseUrl 基础URL
+     * @param variable 变量值
+     * @param log 是否输出调试日志
+     * @param filter 过滤函数
+     * @param ruleName 书名规则
+     * @param ruleBookUrl 详情页URL规则
+     * @param ruleAuthor 作者规则
+     * @param ruleKind 分类规则
+     * @param ruleCoverUrl 封面URL规则
+     * @param ruleWordCount 字数规则
+     * @param ruleIntro 简介规则
+     * @param ruleLastChapter 最新章节规则
+     * @return 搜索结果对象，如果书名为空或过滤不通过则返回null
+     */
     @Throws(Exception::class)
     private suspend fun getSearchItem(
         bookSource: BookSource,
@@ -288,6 +359,14 @@ object BookList {
         return null
     }
 
+    /**
+     * 检查发现地址JSON格式
+     *
+     * 在调试模式下检查发现地址规则的JSON格式是否规范，
+     * 如果不规范则输出警告日志。
+     *
+     * @param bookSource 书源
+     */
     private fun checkExploreJson(bookSource: BookSource) {
         if (Debug.callback == null) {
             return

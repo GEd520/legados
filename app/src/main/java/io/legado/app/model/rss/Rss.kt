@@ -15,9 +15,36 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlin.coroutines.CoroutineContext
 
+/**
+ * RSS订阅源网络请求核心入口
+ *
+ * 提供订阅源相关的所有网络请求操作，包括：
+ * - 获取文章列表 [getArticles]
+ * - 获取文章正文 [getContent]
+ *
+ * 所有请求方法都支持：
+ * - 登录检测 JS 脚本执行
+ * - 重定向检测与日志记录
+ * - 协程上下文切换
+ *
+ * @see RssParserByRule 规则解析器
+ * @see RssParserDefault 默认XML解析器
+ */
 @Suppress("MemberVisibilityCanBePrivate")
 object Rss {
 
+    /**
+     * 获取文章列表（异步回调方式）
+     *
+     * @param scope 协程作用域
+     * @param sortName 分类名称
+     * @param sortUrl 分类URL
+     * @param rssSource 订阅源
+     * @param page 页码
+     * @param key 搜索关键词
+     * @param context 协程上下文
+     * @return Coroutine 包装的文章列表和下一页URL
+     */
     fun getArticles(
         scope: CoroutineScope,
         sortName: String,
@@ -32,6 +59,19 @@ object Rss {
         }
     }
 
+    /**
+     * 获取文章列表（挂起函数方式）
+     *
+     * 请求订阅源URL，解析返回的文章列表。
+     * 支持登录检测JS脚本，用于验证源登录状态。
+     *
+     * @param sortName 分类名称
+     * @param sortUrl 分类URL
+     * @param rssSource 订阅源
+     * @param page 页码
+     * @param key 搜索关键词
+     * @return 文章列表和下一页URL的Pair
+     */
     suspend fun getArticlesAwait(
         sortName: String,
         sortUrl: String,
@@ -80,6 +120,16 @@ object Rss {
         return RssParserByRule.parseXML(sortName, sortUrl, res.url, res.body, rssSource, ruleData)
     }
 
+    /**
+     * 获取文章正文（异步回调方式）
+     *
+     * @param scope 协程作用域
+     * @param rssArticle 文章对象
+     * @param ruleContent 正文规则
+     * @param rssSource 订阅源
+     * @param context 协程上下文
+     * @return Coroutine 包装的正文内容
+     */
     fun getContent(
         scope: CoroutineScope,
         rssArticle: RssArticle,
@@ -92,6 +142,16 @@ object Rss {
         }
     }
 
+    /**
+     * 获取文章正文（挂起函数方式）
+     *
+     * 请求文章链接，使用规则解析正文内容。
+     *
+     * @param rssArticle 文章对象
+     * @param ruleContent 正文规则
+     * @param rssSource 订阅源
+     * @return 正文内容字符串
+     */
     suspend fun getContentAwait(
         rssArticle: RssArticle,
         ruleContent: String,
@@ -143,6 +203,11 @@ object Rss {
 
     /**
      * 检测重定向
+     *
+     * 检查响应是否发生重定向，并记录调试日志。
+     *
+     * @param rssSource 订阅源（用于日志记录）
+     * @param response 响应对象
      */
     private fun checkRedirect(rssSource: RssSource, response: StrResponse) {
         response.raw.priorResponse?.let {
