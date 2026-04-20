@@ -1,7 +1,9 @@
 *.iml
+.android-sdk-home
 .codex-home
 .gradle
 .gradle-user-home
+.kotlin-home
 local.properties
 .DS_Store
 /build
