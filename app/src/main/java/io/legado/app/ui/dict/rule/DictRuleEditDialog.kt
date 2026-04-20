@@ -5,6 +5,7 @@ import android.app.Application
 import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
@@ -21,14 +22,20 @@ import io.legado.app.data.entities.DictRule
 import io.legado.app.databinding.DialogDictRuleDebugBinding
 import io.legado.app.databinding.DialogDictRuleEditBinding
 import io.legado.app.help.config.DictDebugConfig
+import io.legado.app.model.analyzeRule.AnalyzeUrl
+import io.legado.app.model.analyzeRule.AnalyzeRule
 import io.legado.app.lib.dialogs.alert
+import io.legado.app.lib.theme.accentColor
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.ui.code.CodeEditActivity
 import io.legado.app.ui.widget.code.addJsPattern
 import io.legado.app.ui.widget.code.addJsonPattern
 import io.legado.app.ui.widget.code.addLegadoPattern
+import io.legado.app.ui.widget.dialog.TextDialog
 import io.legado.app.utils.*
 import io.legado.app.utils.viewbindingdelegate.viewBinding
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
 
 class DictRuleEditDialog() : BaseDialogFragment(R.layout.dialog_dict_rule_edit, true),
     Toolbar.OnMenuItemClickListener {
@@ -138,6 +145,9 @@ class DictRuleEditDialog() : BaseDialogFragment(R.layout.dialog_dict_rule_edit, 
         val history = DictDebugConfig.getSearchHistory()
         dialogBinding.inputView.setFilterValues(history)
 
+        var urlSrc: String = ""
+        var resultSrc: String = ""
+
         val performSearch = {
             val word = dialogBinding.inputView.text.toString()
             if (word.isBlank()) {
@@ -145,8 +155,10 @@ class DictRuleEditDialog() : BaseDialogFragment(R.layout.dialog_dict_rule_edit, 
             } else {
                 DictDebugConfig.addSearchHistory(word)
                 dialogBinding.viewResult.text = "正在搜索..."
-                viewModel.debugSearch(dictRule, word) { result ->
-                    dialogBinding.viewResult.text = result
+                viewModel.debugSearch(dictRule, word) { result, urlResponse ->
+                    urlSrc = urlResponse
+                    resultSrc = result
+                    dialogBinding.viewResult.text = resultSrc
                 }
             }
         }
@@ -164,17 +176,33 @@ class DictRuleEditDialog() : BaseDialogFragment(R.layout.dialog_dict_rule_edit, 
             performSearch()
         }
 
-        alert("调试字典规则") {
-            customView { dialogBinding.root }
-            okButton {
-                val word = dialogBinding.inputView.text.toString()
-                if (word.isNotBlank()) {
-                    DictDebugConfig.addSearchHistory(word)
-                    dialogBinding.viewResult.text = "正在搜索..."
-                    viewModel.debugSearch(dictRule, word) { result ->
-                        dialogBinding.viewResult.text = result
+        dialogBinding.toolBar.setBackgroundColor(primaryColor)
+        dialogBinding.toolBar.inflateMenu(R.menu.dict_rule_debug)
+        dialogBinding.toolBar.menu.applyTint(requireContext())
+        dialogBinding.toolBar.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                R.id.menu_url_src -> {
+                    if (urlSrc.isNotEmpty()) {
+                        showDialogFragment(TextDialog("URL源码", urlSrc))
+                    } else {
+                        toastOnUi("请先执行搜索")
                     }
                 }
+                R.id.menu_result_src -> {
+                    if (resultSrc.isNotEmpty()) {
+                        showDialogFragment(TextDialog("结果源码", resultSrc))
+                    } else {
+                        toastOnUi("请先执行搜索")
+                    }
+                }
+            }
+            true
+        }
+
+        alert {
+            customView { dialogBinding.root }
+            okButton {
+                performSearch()
             }
             cancelButton()
         }
@@ -267,16 +295,34 @@ class DictRuleEditDialog() : BaseDialogFragment(R.layout.dialog_dict_rule_edit, 
 
         /**
          * 调试字典规则
-         * 执行搜索并通过回调返回结果
+         * 执行搜索并通过回调返回结果和URL源码
          * @param dictRule 字典规则
          * @param word 搜索关键词
-         * @param onSuccess 成功回调
+         * @param onSuccess 成功回调 (result, urlResponse)
          */
-        fun debugSearch(dictRule: DictRule, word: String, onSuccess: (String) -> Unit) {
+        fun debugSearch(
+            dictRule: DictRule,
+            word: String,
+            onSuccess: (String, String) -> Unit
+        ) {
             execute {
-                dictRule.search(word)
+                val analyzeUrl = AnalyzeUrl(
+                    dictRule.urlRule,
+                    key = word,
+                    coroutineContext = currentCoroutineContext()
+                )
+                val response = analyzeUrl.getStrResponseAwait()
+                val body = response.body ?: ""
+                val result = if (dictRule.showRule.isBlank()) {
+                    body
+                } else {
+                    val analyzeRule = AnalyzeRule().setCoroutineContext(currentCoroutineContext())
+                    analyzeRule.setRuleName(dictRule.name)
+                    analyzeRule.getString(dictRule.showRule, mContent = body)
+                }
+                result to body
             }.onSuccess {
-                onSuccess.invoke(it)
+                onSuccess.invoke(it.first, it.second)
             }.onError {
                 context.toastOnUi("调试失败: ${it.localizedMessage}")
             }
