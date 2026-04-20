@@ -67,7 +67,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:layout_marginTop="24dp"
-                android:background="@color/separator" />
+                android:background="@color/divider" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -114,7 +114,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:layout_marginTop="24dp"
-                android:background="@color/separator" />
+                android:background="@color/divider" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -147,7 +147,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:layout_marginTop="24dp"
-                android:background="@color/separator" />
+                android:background="@color/divider" />
 
             <Button
                 android:id="@+id/btn_now"

@@ -16,8 +16,10 @@ import io.legado.app.utils.toastOnUi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 
 class HttpDebugActivity : BaseActivity<ActivityHttpDebugBinding>() {
 
@@ -100,12 +102,13 @@ class HttpDebugActivity : BaseActivity<ActivityHttpDebugBinding>() {
         val bodyText = binding.etBody.text.toString()
 
         return client.newCallStrResponse {
+            url(url)
             when (methodIndex) {
-                0 -> get(url)
+                0 -> get()
                 1 -> {
-                    url(url)
                     if (bodyText.isNotEmpty()) {
-                        postJson(bodyText)
+                        val requestBody = bodyText.toRequestBody("application/json; charset=UTF-8".toMediaType())
+                        post(requestBody)
                     }
                 }
             }
@@ -130,9 +133,9 @@ class HttpDebugActivity : BaseActivity<ActivityHttpDebugBinding>() {
 
     private fun showResponse(response: StrResponse) {
         val sb = StringBuilder()
-        sb.append("状态码: ${response.code}\n")
-        sb.append("消息: ${response.message}\n")
-        sb.append("耗时: ${response.response.receivedResponseAtMillis - response.response.sentRequestAtMillis}ms\n")
+        sb.append("状态码: ${response.code()}\n")
+        sb.append("消息: ${response.message()}\n")
+        sb.append("耗时: ${response.raw.receivedResponseAtMillis - response.raw.sentRequestAtMillis}ms\n")
         binding.tvHeaders.text = sb.toString()
 
         val body = response.body

@@ -1,5 +1,6 @@
 package io.legado.app.ui.debug
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -11,7 +12,6 @@ import io.legado.app.R
 import io.legado.app.base.BaseActivity
 import io.legado.app.databinding.ActivityDebugToolsBinding
 import io.legado.app.lib.theme.primaryColor
-import io.legado.app.utils.startActivity
 import io.legado.app.utils.setEdgeEffectColor
 
 class DebugToolsActivity : BaseActivity<ActivityDebugToolsBinding>() {
@@ -50,7 +50,8 @@ class DebugToolsActivity : BaseActivity<ActivityDebugToolsBinding>() {
             holder.tvTitle.setText(tool.titleRes)
             holder.tvDesc.setText(tool.descRes)
             holder.itemView.setOnClickListener {
-                startActivity(tool.activityClass)
+                val intent = Intent(this@DebugToolsActivity, tool.activityClass)
+                startActivity(intent)
             }
         }
 
