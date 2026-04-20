@@ -4,9 +4,11 @@ import android.app.Activity.RESULT_OK
 import android.app.Application
 import android.content.Intent
 import android.os.Bundle
+import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.widget.Toolbar
@@ -16,7 +18,9 @@ import io.legado.app.base.BaseDialogFragment
 import io.legado.app.base.BaseViewModel
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.DictRule
+import io.legado.app.databinding.DialogDictRuleDebugBinding
 import io.legado.app.databinding.DialogDictRuleEditBinding
+import io.legado.app.help.config.DictDebugConfig
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.ui.code.CodeEditActivity
@@ -126,27 +130,49 @@ class DictRuleEditDialog() : BaseDialogFragment(R.layout.dialog_dict_rule_edit, 
 
     /**
      * 显示调试对话框
-     * 弹出输入框让用户输入关键词，然后调用规则的search方法进行搜索
+     * 使用可滚动的 TextView 显示结果，并支持下拉历史记录
+     * 输入框按回车键或点击搜索按钮触发搜索
      */
     private fun showDebugDialog(dictRule: DictRule) {
-        alert("调试字典规则") {
-            val input = EditText(requireContext()).apply {
-                hint = "输入关键词"
-            }
-            customView { input }
-            okButton {
-                val word = input.text.toString()
-                // 关键词不能为空
-                if (word.isBlank()) {
-                    toastOnUi("关键词不能为空")
-                    return@okButton
-                }
-                // 执行搜索并显示结果
+        val dialogBinding = DialogDictRuleDebugBinding.inflate(LayoutInflater.from(requireContext()))
+        val history = DictDebugConfig.getSearchHistory()
+        dialogBinding.inputView.setFilterValues(history)
+
+        val performSearch = {
+            val word = dialogBinding.inputView.text.toString()
+            if (word.isBlank()) {
+                toastOnUi("关键词不能为空")
+            } else {
+                DictDebugConfig.addSearchHistory(word)
+                dialogBinding.viewResult.text = "正在搜索..."
                 viewModel.debugSearch(dictRule, word) { result ->
-                    // 显示调试结果对话框
-                    alert("调试结果") {
-                        setMessage(result)
-                        okButton()
+                    dialogBinding.viewResult.text = result
+                }
+            }
+        }
+
+        dialogBinding.inputView.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_SEARCH) {
+                performSearch()
+                true
+            } else {
+                false
+            }
+        }
+
+        dialogBinding.btnSearch.setOnClickListener {
+            performSearch()
+        }
+
+        alert("调试字典规则") {
+            customView { dialogBinding.root }
+            okButton {
+                val word = dialogBinding.inputView.text.toString()
+                if (word.isNotBlank()) {
+                    DictDebugConfig.addSearchHistory(word)
+                    dialogBinding.viewResult.text = "正在搜索..."
+                    viewModel.debugSearch(dictRule, word) { result ->
+                        dialogBinding.viewResult.text = result
                     }
                 }
             }
