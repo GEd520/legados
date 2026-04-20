@@ -1,16 +1,18 @@
 package io.legado.app.ui.debug
 
 import android.os.Bundle
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
+import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.lifecycleScope
 import io.legado.app.R
 import io.legado.app.base.BaseActivity
 import io.legado.app.databinding.ActivityHttpDebugBinding
 import io.legado.app.help.http.StrResponse
 import io.legado.app.help.http.newCallStrResponse
-import io.legado.app.help.http.text
 import io.legado.app.utils.sendToClip
 import io.legado.app.utils.toastOnUi
 import kotlinx.coroutines.Dispatchers
@@ -18,7 +20,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
-import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 
 class HttpDebugActivity : BaseActivity<ActivityHttpDebugBinding>() {
@@ -27,10 +28,82 @@ class HttpDebugActivity : BaseActivity<ActivityHttpDebugBinding>() {
 
     private val methods = listOf("GET", "POST")
     private val client = OkHttpClient.Builder().build()
+    private var lastResponse: StrResponse? = null
+    private var lastRequestSrc: String? = null
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         initSpinner()
         initClick()
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.http_debug, menu)
+        return super.onCreateOptionsMenu(menu)
+    }
+
+    override fun onPrepareOptionsMenu(menu: Menu): Boolean {
+        menu.findItem(R.id.menu_response_src).isEnabled = lastResponse != null
+        menu.findItem(R.id.menu_request_src).isEnabled = lastRequestSrc != null
+        return super.onPrepareOptionsMenu(menu)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        when (item.itemId) {
+            R.id.menu_response_src -> showResponseSrc()
+            R.id.menu_request_src -> showRequestSrc()
+            R.id.menu_clear -> clearAll()
+        }
+        return super.onOptionsItemSelected(item)
+    }
+
+    private fun showResponseSrc() {
+        val response = lastResponse ?: return
+        val sb = StringBuilder()
+        sb.append("=== 响应行 ===\n")
+        sb.append("HTTP/1.1 ${response.code()} ${response.message()}\n\n")
+        sb.append("=== 响应头 ===\n")
+        response.raw.headers.forEach { (name, value) ->
+            sb.append("$name: $value\n")
+        }
+        sb.append("\n=== 响应体 ===\n")
+        sb.append(response.body)
+        showSrcDialog(sb.toString())
+    }
+
+    private fun showRequestSrc() {
+        val requestSrc = lastRequestSrc ?: return
+        showSrcDialog(requestSrc)
+    }
+
+    private fun showSrcDialog(content: String) {
+        val scrollView = android.widget.ScrollView(this)
+        val textView = android.widget.TextView(this).apply {
+            text = content
+            textSize = 12f
+            setPadding(32, 32, 32, 32)
+            setTextIsSelectable(true)
+        }
+        scrollView.addView(textView)
+        
+        AlertDialog.Builder(this)
+            .setTitle(R.string.debug_response_src)
+            .setView(scrollView)
+            .setPositiveButton(R.string.copy) { _, _ ->
+                sendToClip(content)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun clearAll() {
+        binding.etUrl.setText("")
+        binding.etHeaders.setText("")
+        binding.etBody.setText("")
+        binding.tvResponse.text = ""
+        binding.tvHeaders.text = ""
+        lastResponse = null
+        lastRequestSrc = null
+        invalidateOptionsMenu()
     }
 
     private fun initSpinner() {
@@ -63,11 +136,7 @@ class HttpDebugActivity : BaseActivity<ActivityHttpDebugBinding>() {
             }
         }
         binding.btnClear.setOnClickListener {
-            binding.etUrl.setText("")
-            binding.etHeaders.setText("")
-            binding.etBody.setText("")
-            binding.tvResponse.text = ""
-            binding.tvHeaders.text = ""
+            clearAll()
         }
     }
 
@@ -117,7 +186,29 @@ class HttpDebugActivity : BaseActivity<ActivityHttpDebugBinding>() {
                     addHeader(key, value)
                 }
             }
+        }.also { response ->
+            lastResponse = response
+            lastRequestSrc = buildRequestSrc(url, methodIndex, headersText, bodyText)
+            invalidateOptionsMenu()
         }
+    }
+
+    private fun buildRequestSrc(url: String, methodIndex: Int, headersText: String, bodyText: String): String {
+        val sb = StringBuilder()
+        sb.append("=== 请求行 ===\n")
+        sb.append("${if (methodIndex == 0) "GET" else "POST"} $url\n\n")
+        sb.append("=== 请求头 ===\n")
+        if (headersText.isNotEmpty()) {
+            headersText.lines().forEach { line ->
+                sb.append("$line\n")
+            }
+        }
+        if (methodIndex == 1 && bodyText.isNotEmpty()) {
+            sb.append("Content-Type: application/json; charset=UTF-8\n")
+            sb.append("\n=== 请求体 ===\n")
+            sb.append(bodyText)
+        }
+        return sb.toString()
     }
 
     private fun parseHeaders(headersText: String): Map<String, String> {
