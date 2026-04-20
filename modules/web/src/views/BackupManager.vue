@@ -31,20 +31,50 @@
               <span class="label">大小</span>
               <span class="value">{{ formatSize(backupOverview.totalSize) }}</span>
             </div>
+            <div class="info-item">
+              <span class="label">项目</span>
+              <span class="value">{{ backupOverview.items.length }} 项</span>
+            </div>
           </div>
 
-          <div class="file-list">
-            <div class="list-title">包含内容</div>
-            <div class="list-content">
-              <div
-                v-for="item in backupOverview.items"
-                :key="item.fileName"
-                class="file-item"
-              >
-                <span class="file-name">{{ item.displayName }}</span>
-                <span class="file-count">{{ item.count }} 条</span>
-                <span class="file-size">{{ formatSize(item.size) }}</span>
+          <div class="category-list">
+            <div
+              v-for="cat in categories"
+              :key="cat.name"
+              class="category-item"
+            >
+              <div class="category-header" @click="toggleCategory(cat.name)">
+                <span class="category-icon">{{ cat.icon }}</span>
+                <span class="category-name">{{ cat.name }}</span>
+                <span class="category-count">{{ cat.items.length }} 项</span>
+                <span class="category-size">{{ formatSize(cat.totalSize) }}</span>
+                <span class="category-arrow" :class="{ expanded: expandedCategories[cat.name] }">›</span>
               </div>
+              <transition name="expand">
+                <div v-if="expandedCategories[cat.name]" class="category-detail">
+                  <div
+                    v-for="item in cat.items"
+                    :key="item.fileName"
+                    class="detail-item"
+                  >
+                    <div class="detail-main">
+                      <span class="detail-icon">{{ getFileIcon(item.fileName) }}</span>
+                      <div class="detail-info">
+                        <span class="detail-name">{{ item.displayName }}</span>
+                        <span class="detail-desc">{{ item.description }}</span>
+                      </div>
+                      <div class="detail-meta">
+                        <span v-if="item.count > 0" class="detail-count">{{ item.count }} 条</span>
+                        <span class="detail-size">{{ formatSize(item.size) }}</span>
+                      </div>
+                    </div>
+                    <div class="detail-file-row">
+                      <span class="detail-filename">{{ item.fileName }}</span>
+                      <span class="detail-filesize">{{ formatSize(item.size) }}</span>
+                    </div>
+                  </div>
+                </div>
+              </transition>
             </div>
           </div>
         </div>
@@ -56,7 +86,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, reactive } from 'vue'
 import { useBookStore } from '@/store'
 import { legado_http_entry_point } from '@/api'
 
@@ -78,9 +108,84 @@ interface BackupOverview {
   items: BackupItemInfo[]
 }
 
+interface CategoryGroup {
+  name: string
+  icon: string
+  items: BackupItemInfo[]
+  totalSize: number
+}
+
 const isBackingUp = ref(false)
 const backupOverview = ref<BackupOverview | null>(null)
 const errorMsg = ref('')
+const expandedCategories = reactive<Record<string, boolean>>({})
+
+const categoryConfig = [
+  { name: '书籍相关', icon: '📚', keywords: ['bookshelf', 'bookmark', 'bookGroup', 'readRecord'] },
+  { name: '源相关', icon: '📡', keywords: ['bookSource', 'rssSource', 'rssStar', 'sourceSub'] },
+  { name: '规则相关', icon: '🔧', keywords: ['replaceRule', 'txtTocRule', 'dictRule', 'keyboardAssist'] },
+  { name: '语音相关', icon: '🔊', keywords: ['httpTTS'] },
+  { name: '配置相关', icon: '⚙️', keywords: ['config', 'videoConfig', 'readConfig', 'shareConfig', 'themeConfig', 'coverConfig', 'servers'] },
+  { name: '其他', icon: '📁', keywords: ['searchHistory', 'DirectLinkUpload'] },
+]
+
+const categories = computed<CategoryGroup[]>(() => {
+  if (!backupOverview.value) return []
+  const items = backupOverview.value.items
+  const result: CategoryGroup[] = []
+
+  for (const cfg of categoryConfig) {
+    const matched = items.filter(item =>
+      cfg.keywords.some(kw => item.fileName.toLowerCase().includes(kw.toLowerCase()))
+    )
+    if (matched.length > 0) {
+      result.push({
+        name: cfg.name,
+        icon: cfg.icon,
+        items: matched,
+        totalSize: matched.reduce((sum, i) => sum + i.size, 0),
+      })
+    }
+  }
+
+  const assigned = new Set(result.flatMap(c => c.items.map(i => i.fileName)))
+  const remaining = items.filter(i => !assigned.has(i.fileName))
+  if (remaining.length > 0) {
+    result.push({
+      name: '其他',
+      icon: '📁',
+      items: remaining,
+      totalSize: remaining.reduce((sum, i) => sum + i.size, 0),
+    })
+  }
+
+  return result
+})
+
+const toggleCategory = (name: string) => {
+  expandedCategories[name] = !expandedCategories[name]
+}
+
+const getFileIcon = (fileName: string): string => {
+  if (fileName.endsWith('.xml')) return '📄'
+  if (fileName.includes('bookshelf')) return '📖'
+  if (fileName.includes('bookmark')) return '🔖'
+  if (fileName.includes('bookGroup')) return '📂'
+  if (fileName.includes('bookSource')) return '📡'
+  if (fileName.includes('rssSource')) return '📰'
+  if (fileName.includes('rssStar')) return '⭐'
+  if (fileName.includes('replaceRule')) return '🔄'
+  if (fileName.includes('readRecord')) return '📊'
+  if (fileName.includes('searchHistory')) return '🔍'
+  if (fileName.includes('sourceSub')) return '🔗'
+  if (fileName.includes('txtTocRule')) return '📑'
+  if (fileName.includes('httpTTS')) return '🔊'
+  if (fileName.includes('keyboardAssist')) return '⌨️'
+  if (fileName.includes('dictRule')) return '📝'
+  if (fileName.includes('servers')) return '🖥️'
+  if (fileName.includes('config')) return '⚙️'
+  return '📄'
+}
 
 const formatSize = (size: number): string => {
   if (size < 1024) return `${size} B`
@@ -96,6 +201,7 @@ const handleBackup = async () => {
   isBackingUp.value = true
   errorMsg.value = ''
   backupOverview.value = null
+  Object.keys(expandedCategories).forEach(k => delete expandedCategories[k])
 
   try {
     const response = await fetch(`${legado_http_entry_point}backup`, {
@@ -121,6 +227,9 @@ const handleBackup = async () => {
 
     if (previewData.isSuccess) {
       backupOverview.value = previewData.data
+      categories.value.forEach(c => {
+        expandedCategories[c.name] = true
+      })
     }
   } catch (e: any) {
     errorMsg.value = e.message || '备份过程中发生错误'
@@ -134,10 +243,10 @@ const handleBackup = async () => {
 .backup-page {
   min-height: 100vh;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 20px;
+  padding: 40px 20px;
 
   &.dark {
     background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -147,8 +256,8 @@ const handleBackup = async () => {
 .backup-card {
   background: #fff;
   border-radius: 16px;
-  padding: 48px;
-  max-width: 480px;
+  padding: 40px;
+  max-width: 560px;
   width: 100%;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
   text-align: center;
@@ -266,49 +375,190 @@ const handleBackup = async () => {
   }
 }
 
-.file-list {
-  .list-title {
-    font-size: 13px;
-    color: #999;
-    margin-bottom: 12px;
+.category-list {
+  margin-top: 8px;
+}
+
+.category-item {
+  margin-bottom: 8px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #eee;
+
+  .dark & {
+    border-color: #3a3a3a;
+  }
+}
+
+.category-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s;
+
+  &:hover {
+    background: #eef0f3;
   }
 
-  .list-content {
-    max-height: 200px;
-    overflow-y: auto;
+  .dark & {
+    background: #363636;
+
+    &:hover {
+      background: #3e3e3e;
+    }
   }
 
-  .file-item {
-    display: flex;
-    align-items: center;
-    padding: 10px 12px;
-    background: #f8f9fa;
-    border-radius: 6px;
-    margin-bottom: 8px;
-    font-size: 13px;
+  .category-icon {
+    font-size: 20px;
+    margin-right: 10px;
+  }
+
+  .category-name {
+    flex: 1;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1a1a2e;
 
     .dark & {
-      background: #363636;
+      color: #e5eaf3;
     }
+  }
 
-    .file-name {
-      flex: 1;
-      color: #1a1a2e;
+  .category-count {
+    font-size: 12px;
+    color: #667eea;
+    margin-right: 12px;
+  }
 
-      .dark & {
-        color: #e5eaf3;
-      }
+  .category-size {
+    font-size: 12px;
+    color: #999;
+    margin-right: 12px;
+  }
+
+  .category-arrow {
+    font-size: 18px;
+    color: #999;
+    transition: transform 0.3s ease;
+
+    &.expanded {
+      transform: rotate(90deg);
     }
+  }
+}
 
-    .file-count {
-      color: #667eea;
-      margin-right: 16px;
-    }
+.category-detail {
+  padding: 4px 0;
+  background: #fff;
+  border-top: 1px solid #f0f0f0;
 
-    .file-size {
-      color: #999;
-      font-size: 12px;
+  .dark & {
+    background: #2d2d2d;
+    border-top-color: #3a3a3a;
+  }
+}
+
+.detail-item {
+  padding: 10px 16px;
+  border-bottom: 1px solid #f5f5f5;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  .dark & {
+    border-bottom-color: #333;
+  }
+}
+
+.detail-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.detail-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.detail-info {
+  flex: 1;
+  min-width: 0;
+
+  .detail-name {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: #1a1a2e;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    .dark & {
+      color: #e5eaf3;
     }
+  }
+
+  .detail-desc {
+    display: block;
+    font-size: 11px;
+    color: #999;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.detail-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+
+  .detail-count {
+    font-size: 12px;
+    color: #667eea;
+    font-weight: 500;
+  }
+
+  .detail-size {
+    font-size: 11px;
+    color: #bbb;
+  }
+}
+
+.detail-file-row {
+  display: flex;
+  align-items: center;
+  margin-top: 6px;
+  padding: 4px 28px;
+  background: #f8f9fa;
+  border-radius: 4px;
+
+  .dark & {
+    background: #363636;
+  }
+
+  .detail-filename {
+    flex: 1;
+    font-size: 11px;
+    font-family: 'Courier New', monospace;
+    color: #888;
+
+    .dark & {
+      color: #777;
+    }
+  }
+
+  .detail-filesize {
+    font-size: 11px;
+    color: #aaa;
   }
 }
 
@@ -337,9 +587,26 @@ const handleBackup = async () => {
   opacity: 0;
 }
 
+.expand-enter-active,
+.expand-leave-active {
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.expand-enter-from,
+.expand-leave-to {
+  opacity: 0;
+  max-height: 0;
+}
+
+.expand-enter-to,
+.expand-leave-from {
+  max-height: 600px;
+}
+
 @media screen and (max-width: 520px) {
   .backup-card {
-    padding: 32px 24px;
+    padding: 28px 20px;
   }
 
   .title {
@@ -347,8 +614,13 @@ const handleBackup = async () => {
   }
 
   .result-info {
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
     gap: 12px;
+
+    .info-item {
+      min-width: 80px;
+    }
   }
 }
 </style>
