@@ -17,6 +17,13 @@ import io.legado.app.utils.setLayout
 import io.legado.app.utils.toastOnUi
 import io.legado.app.utils.viewbindingdelegate.viewBinding
 
+/**
+ * Cookie查看对话框
+ * 用于查看指定URL的Cookie信息
+ * 可在书源编辑页面、RSS阅读页面等地方复用
+ *
+ * @param url 要查看Cookie的目标URL
+ */
 class CookieViewerDialog(private val url: String) : BaseDialogFragment(R.layout.dialog_recycler_view),
     androidx.appcompat.widget.Toolbar.OnMenuItemClickListener {
 
@@ -26,31 +33,40 @@ class CookieViewerDialog(private val url: String) : BaseDialogFragment(R.layout.
 
     override fun onStart() {
         super.onStart()
+        // 设置对话框宽度为屏幕的90%，高度自适应
         setLayout(0.9f, ViewGroup.LayoutParams.WRAP_CONTENT)
     }
 
     override fun onFragmentCreated(view: View, savedInstanceState: Bundle?) {
         binding.run {
+            // 设置工具栏
             toolBar.setBackgroundColor(primaryColor)
             toolBar.setTitle(R.string.view_cookie)
             toolBar.inflateMenu(R.menu.cookie_viewer)
             toolBar.setOnMenuItemClickListener(this@CookieViewerDialog)
+            // 设置RecyclerView
             recyclerView.layoutManager = LinearLayoutManager(requireContext())
             recyclerView.adapter = adapter
         }
+        // 加载Cookie数据并观察变化
         viewModel.loadCookies(url).observe(viewLifecycleOwner) { cookies ->
             adapter.setItems(cookies)
         }
     }
 
+    /**
+     * 菜单项点击处理
+     */
     override fun onMenuItemClick(item: android.view.MenuItem?): Boolean {
         when (item?.itemId) {
+            // 复制所有Cookie到剪贴板
             R.id.menu_copy_all -> {
                 val allCookies = adapter.getItems().joinToString("\n") { it }
                 val clipboard = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                 clipboard.setPrimaryClip(ClipData.newPlainText("Cookies", allCookies))
                 requireContext().toastOnUi(R.string.copy_complete)
             }
+            // 刷新Cookie
             R.id.menu_refresh -> {
                 viewModel.loadCookies(url)
             }
@@ -58,6 +74,9 @@ class CookieViewerDialog(private val url: String) : BaseDialogFragment(R.layout.
         return true
     }
 
+    /**
+     * Cookie列表适配器
+     */
     inner class CookieAdapter(context: Context) :
         io.legado.app.base.adapter.RecyclerAdapter<String, ItemCookieBinding>(context) {
 

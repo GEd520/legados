@@ -291,6 +291,7 @@ class ReadRssActivity : VMBaseActivity<ActivityRssReadBinding, ReadRssViewModel>
                     putExtra("sourceUrl", it)
                 }
             }
+            // 查看当前网页的Cookie
             R.id.menu_view_cookie -> currentWebView.url?.let {
                 showDialogFragment(CookieViewerDialog(it))
             } ?: toastOnUi("url null")

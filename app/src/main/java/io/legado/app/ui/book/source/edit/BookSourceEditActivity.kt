@@ -175,6 +175,7 @@ class BookSourceEditActivity :
             }
 
             R.id.menu_clear_cookie -> viewModel.clearCookie(getSource().bookSourceUrl)
+            // 查看当前书源的Cookie
             R.id.menu_view_cookie -> showDialogFragment(CookieViewerDialog(getSource().bookSourceUrl))
             R.id.menu_auto_complete -> viewModel.autoComplete = !viewModel.autoComplete
             R.id.menu_copy_source -> sendToClip(GSON.toJson(getSource()))

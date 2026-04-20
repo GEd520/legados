@@ -45,6 +45,7 @@
         android:title="@string/edit_source"
         app:showAsAction="never" />
 
+    <!-- 查看Cookie -->
     <item
         android:id="@+id/menu_view_cookie"
         android:title="@string/view_cookie"
