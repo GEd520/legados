@@ -6,14 +6,15 @@ import android.view.MenuItem
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
-import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.lifecycleScope
 import io.legado.app.R
 import io.legado.app.base.BaseActivity
 import io.legado.app.databinding.ActivityHttpDebugBinding
 import io.legado.app.help.http.StrResponse
 import io.legado.app.help.http.newCallStrResponse
+import io.legado.app.ui.widget.dialog.TextDialog
 import io.legado.app.utils.sendToClip
+import io.legado.app.utils.showDialogFragment
 import io.legado.app.utils.toastOnUi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -56,6 +57,10 @@ class HttpDebugActivity : BaseActivity<ActivityHttpDebugBinding>() {
         return super.onCompatOptionsItemSelected(item)
     }
 
+    /**
+     * 显示响应体源码对话框
+     * 使用 TextDialog 组件展示完整的响应信息（响应行、响应头、响应体）
+     */
     private fun showResponseSrc() {
         val response = lastResponse ?: return
         val sb = StringBuilder()
@@ -67,32 +72,16 @@ class HttpDebugActivity : BaseActivity<ActivityHttpDebugBinding>() {
         }
         sb.append("\n=== 响应体 ===\n")
         sb.append(response.body)
-        showSrcDialog(sb.toString())
+        showDialogFragment(TextDialog(getString(R.string.debug_response_src), sb.toString()))
     }
 
+    /**
+     * 显示请求体源码对话框
+     * 使用 TextDialog 组件展示完整的请求信息（请求行、请求头、请求体）
+     */
     private fun showRequestSrc() {
         val requestSrc = lastRequestSrc ?: return
-        showSrcDialog(requestSrc)
-    }
-
-    private fun showSrcDialog(content: String) {
-        val scrollView = android.widget.ScrollView(this)
-        val textView = android.widget.TextView(this).apply {
-            text = content
-            textSize = 12f
-            setPadding(32, 32, 32, 32)
-            setTextIsSelectable(true)
-        }
-        scrollView.addView(textView)
-        
-        AlertDialog.Builder(this)
-            .setTitle(R.string.debug_response_src)
-            .setView(scrollView)
-            .setPositiveButton(R.string.copy_text) { _, _ ->
-                sendToClip(content)
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+        showDialogFragment(TextDialog(getString(R.string.debug_request_src), requestSrc))
     }
 
     private fun clearAll() {

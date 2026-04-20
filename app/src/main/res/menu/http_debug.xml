@@ -2,14 +2,15 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <item
-        android:id="@+id/menu_response_src"
-        android:title="@string/debug_response_src"
-        app:showAsAction="never" />
 
     <item
         android:id="@+id/menu_request_src"
         android:title="@string/debug_request_src"
+        app:showAsAction="never" />
+
+    <item   
+        android:id="@+id/menu_response_src"
+        android:title="@string/debug_response_src"
         app:showAsAction="never" />
 
     <item

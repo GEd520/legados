@@ -56,6 +56,7 @@
             android:title="@string/show_rss"
             app:iconSpaceReserved="false" />
 
+        <!-- 调试模式开关，开启后"我的"页面显示调试工具入口 -->
         <io.legado.app.lib.prefs.SwitchPreference
             android:defaultValue="false"
             android:key="debugMode"
