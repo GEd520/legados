@@ -667,6 +667,7 @@
     <string name="change_icon_error">The icon is a vector icon, which was not supported before Android 8.0</string>
     <string name="aloud_config">Speech settings</string>
     <string name="main_activity">Start page</string>
+    <string name="enhanced_features">Enhanced Features</string>
     <string name="selectText">Long Tap to select text</string>
     <string name="header">Header</string>
     <string name="main_body">Content</string>
