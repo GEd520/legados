@@ -169,6 +169,7 @@ class ExploreFragment() : VMBaseFragment<ExploreViewModel>(R.layout.fragment_exp
     override fun onResume() {
         super.onResume()
         adapter.upResumed(true)
+        adapter.refreshExpandedItem()
     }
 
     override fun onPause() {

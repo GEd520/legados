@@ -53,7 +53,9 @@ import io.legado.app.help.webView.WebJsExtensions.Companion.nameSource
 import io.legado.app.help.webView.WebJsExtensions.Companion.wrapUseWebHtml
 import io.legado.app.help.webView.WebViewPool
 import io.legado.app.help.webView.WebViewPool.fitInlineContent
+import io.legado.app.help.webView.WebViewPool.installInlineContentRefitOnTouch
 import io.legado.app.help.webView.WebViewPool.prepareForInlineContent
+import io.legado.app.help.webView.WebViewPool.scheduleInlineContentFit
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.theme.backgroundColor
 import io.legado.app.lib.theme.primaryTextColor
@@ -289,9 +291,9 @@ class VideoPlayerActivity : VMBaseActivity<ActivityVideoPlayerBinding, VideoPlay
         override fun onPageFinished(view: WebView?, url: String?) {
             super.onPageFinished(view, url)
             view?.let {
-                fitInlineContent(it) {
+                scheduleInlineContentFit(it, afterLayout = {
                     binding.tvIntroContainer.requestLayout()
-                }
+                })
             }
         }
     }
@@ -310,6 +312,9 @@ class VideoPlayerActivity : VMBaseActivity<ActivityVideoPlayerBinding, VideoPlay
                 val webView = pooledWebView.realWebView
                 webView.onResume()
                 prepareForInlineContent(webView)
+                installInlineContentRefitOnTouch(webView) {
+                    binding.tvIntroContainer.requestLayout()
+                }
                 webView.webViewClient = CustomWebViewClient(VideoPlay.source)
                 webView.addJavascriptInterface(WebCacheManager, nameCache)
                 VideoPlay.source?.let {
@@ -321,6 +326,9 @@ class VideoPlayerActivity : VMBaseActivity<ActivityVideoPlayerBinding, VideoPlay
             }
             val webView = pooledWebView.realWebView
             prepareForInlineContent(webView)
+            installInlineContentRefitOnTouch(webView) {
+                binding.tvIntroContainer.requestLayout()
+            }
             if (initIntroView || this.pooledWebView == null) {
                 initIntroView = false
                 this.pooledWebView = pooledWebView

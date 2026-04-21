@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.MutableContextWrapper
 import android.os.Build
+import android.view.MotionEvent
 import android.view.ViewGroup
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -21,11 +22,26 @@ import kotlinx.coroutines.launch
 import splitties.init.appCtx
 import java.util.Stack
 import kotlin.math.max
+import kotlin.math.roundToInt
 import kotlin.random.Random
 
 object WebViewPool {
     const val BLANK_HTML = "about:blank"
     const val DATA_HTML = "data:text/html;charset=utf-8;base64,"
+    private val inlineHeightScript = """
+        (function() {
+            var doc = document.documentElement;
+            var body = document.body;
+            return Math.max(
+                doc ? doc.scrollHeight : 0,
+                doc ? doc.offsetHeight : 0,
+                doc ? doc.clientHeight : 0,
+                body ? body.scrollHeight : 0,
+                body ? body.offsetHeight : 0,
+                body ? body.clientHeight : 0
+            );
+        })();
+    """.trimIndent()
     // 未使用的、已预初始化的WebView池 (使用栈结构，后进先出，复用缓存)
     private val idlePool = Stack<PooledWebView>()
     // 正在使用的WebView集合
@@ -139,18 +155,53 @@ object WebViewPool {
 
     fun fitInlineContent(webView: WebView, afterLayout: (() -> Unit)? = null) {
         webView.post {
-            val contentHeight = (webView.contentHeight * webView.resources.displayMetrics.density).toInt()
-            val targetHeight = contentHeight.takeIf { it > 1 } ?: ViewGroup.LayoutParams.WRAP_CONTENT
-            val layoutParams = (webView.layoutParams ?: ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                targetHeight
-            )).also {
-                it.width = ViewGroup.LayoutParams.MATCH_PARENT
-                it.height = targetHeight
+            val fallbackHeight = (webView.contentHeight * webView.resources.displayMetrics.density)
+                .roundToInt()
+            webView.evaluateJavascript(inlineHeightScript) { result ->
+                val jsHeight = result
+                    ?.trim('"')
+                    ?.toFloatOrNull()
+                    ?.times(webView.resources.displayMetrics.density)
+                    ?.roundToInt()
+                    ?: 0
+                val targetHeight = max(jsHeight, fallbackHeight)
+                    .takeIf { it > 1 }
+                    ?: ViewGroup.LayoutParams.WRAP_CONTENT
+                val layoutParams = (webView.layoutParams ?: ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    targetHeight
+                )).also {
+                    it.width = ViewGroup.LayoutParams.MATCH_PARENT
+                    it.height = targetHeight
+                }
+                webView.layoutParams = layoutParams
+                webView.requestLayout()
+                afterLayout?.invoke()
             }
-            webView.layoutParams = layoutParams
-            webView.requestLayout()
-            afterLayout?.invoke()
+        }
+    }
+
+    fun scheduleInlineContentFit(
+        webView: WebView,
+        afterLayout: (() -> Unit)? = null,
+        delays: LongArray = longArrayOf(0L, 80L, 240L, 600L, 1200L)
+    ) {
+        delays.forEach { delayMillis ->
+            webView.postDelayed({
+                fitInlineContent(webView, afterLayout)
+            }, delayMillis)
+        }
+    }
+
+    fun installInlineContentRefitOnTouch(
+        webView: WebView,
+        afterLayout: (() -> Unit)? = null
+    ) {
+        webView.setOnTouchListener { _, event ->
+            if (event.action == MotionEvent.ACTION_UP || event.action == MotionEvent.ACTION_CANCEL) {
+                scheduleInlineContentFit(webView, afterLayout, longArrayOf(120L, 360L, 720L))
+            }
+            false
         }
     }
 

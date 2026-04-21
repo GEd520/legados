@@ -99,8 +99,8 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
     private val selectRecycler = arrayListOf<LinearLayout>()
     private val htmlRecycler = arrayListOf<FrameLayout>()
 
-    private var exIndex = -1
-    private var scrollTo = -1
+    private var expandedSourceUrl: String? = null
+    private var scrollToSourceUrl: String? = null
     private var lastClickTime: Long = 0
     private val sourceKinds = ConcurrentHashMap<String, List<ExploreKind>>()
     private val activeWebViews = linkedMapOf<FrameLayout, PooledWebView>()
@@ -125,7 +125,7 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
             if (payloads.isEmpty()) {
                 tvName.text = item.bookSourceName
             }
-            if (exIndex == holder.layoutPosition) {
+            if (expandedSourceUrl == item.bookSourceUrl) {
                 ivStatus.setImageResource(R.drawable.ic_arrow_down)
                 rotateLoading.loadingColor = context.accentColor
                 rotateLoading.visible()
@@ -137,12 +137,14 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
                         sourceKinds[item.bookSourceUrl] = it
                     }
                 }.onSuccess { kindList ->
-                    upKindList(this@run, item, kindList, exIndex)
+                    upKindList(this@run, item, kindList, item)
                 }.onFinally {
                     rotateLoading.gone()
-                    if (scrollTo >= 0) {
-                        callBack.scrollTo(scrollTo)
-                        scrollTo = -1
+                    scrollToSourceUrl?.let { sourceUrl ->
+                        findSourcePosition(sourceUrl)?.let(callBack::scrollTo)
+                        if (sourceUrl == item.bookSourceUrl) {
+                            scrollToSourceUrl = null
+                        }
                     }
                 }
             } else kotlin.runCatching {
@@ -155,7 +157,7 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
     }
 
     @SuppressLint("SetTextI18n", "ClickableViewAccessibility")
-    private fun upKindList(binding: ItemFindBookBinding, item: BookSourcePart, kinds: List<ExploreKind>, exIndex: Int) {
+    private fun upKindList(binding: ItemFindBookBinding, item: BookSourcePart, kinds: List<ExploreKind>, expandedItem: BookSourcePart) {
         if (kinds.isEmpty()) {
             return
         }
@@ -177,7 +179,7 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
                         }
 
                         override fun reUiView(deltaUp: Boolean) {
-                            refreshExplore(item, exIndex, binding)
+                            refreshExplore(expandedItem, binding)
                         }
                     })
             }
@@ -863,30 +865,52 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
     override fun registerListener(holder: ItemViewHolder, binding: ItemFindBookBinding) {
         binding.apply {
             llTitle.setOnClickListener {
-                val position = holder.layoutPosition
-                val oldEx = exIndex
-                exIndex = if (exIndex == position) -1 else position
-                notifyItemChanged(oldEx, false)
-                if (exIndex != -1) {
-                    scrollTo = position
-                    callBack.scrollTo(position)
-                    notifyItemChanged(position, false)
+                val position = holder.bindingAdapterPosition.takeIf { it >= 0 } ?: return@setOnClickListener
+                val item = getItem(position) ?: return@setOnClickListener
+                val oldExpandedSourceUrl = expandedSourceUrl
+                expandedSourceUrl = if (oldExpandedSourceUrl == item.bookSourceUrl) null else item.bookSourceUrl
+                oldExpandedSourceUrl?.let { sourceUrl ->
+                    findSourcePosition(sourceUrl)?.let {
+                        notifyItemChanged(it, false)
+                    }
+                }
+                expandedSourceUrl?.let { sourceUrl ->
+                    scrollToSourceUrl = sourceUrl
+                    findSourcePosition(sourceUrl)?.let {
+                        callBack.scrollTo(it)
+                        notifyItemChanged(it, false)
+                    }
                 }
             }
             llTitle.onLongClick {
-                showMenu(binding, holder.layoutPosition)
+                val position = holder.bindingAdapterPosition
+                if (position >= 0) {
+                    showMenu(binding, position)
+                } else {
+                    true
+                }
             }
         }
     }
 
     fun compressExplore(): Boolean {
-        return if (exIndex < 0) {
+        val sourceUrl = expandedSourceUrl
+        return if (sourceUrl == null) {
             false
         } else {
-            val oldExIndex = exIndex
-            exIndex = -1
-            notifyItemChanged(oldExIndex)
+            expandedSourceUrl = null
+            findSourcePosition(sourceUrl)?.let {
+                notifyItemChanged(it)
+            }
             true
+        }
+    }
+
+    fun refreshExpandedItem() {
+        expandedSourceUrl?.let { sourceUrl ->
+            findSourcePosition(sourceUrl)?.let {
+                notifyItemChanged(it)
+            }
         }
     }
 
@@ -903,13 +927,15 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         }
     }
 
-    private fun refreshExplore(source: BookSourcePart, position: Int, binding: ItemFindBookBinding) {
+    private fun refreshExplore(source: BookSourcePart, binding: ItemFindBookBinding) {
         binding.rotateLoading.visible()
         Coroutine.async(callBack.scope) {
             source.clearExploreKindsCache()
             sourceKinds[source.bookSourceUrl] = source.exploreKinds()
         }.onSuccess {
-            notifyItemChanged(position, false)
+            findSourcePosition(source.bookSourceUrl)?.let {
+                notifyItemChanged(it, false)
+            }
         }.onFinally {
             binding.rotateLoading.gone()
         }
@@ -931,7 +957,7 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
                     putExtra("key", source.bookSourceUrl)
                 }
 
-                R.id.menu_refresh -> refreshExplore(source, position, binding)
+                R.id.menu_refresh -> refreshExplore(source, binding)
 
                 R.id.menu_del -> callBack.deleteSource(source)
             }
@@ -950,6 +976,16 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         fun deleteSource(source: BookSourcePart)
         fun searchBook(bookSource: BookSourcePart)
         fun showKindQueryDialog(source: BookSourcePart)
+    }
+
+    private fun findSourcePosition(sourceUrl: String): Int? {
+        for (index in 0 until itemCount) {
+            val item = getItem(index) ?: continue
+            if (item.bookSourceUrl == sourceUrl) {
+                return index
+            }
+        }
+        return null
     }
 
     private inner class ExploreHtmlWebViewClient(
