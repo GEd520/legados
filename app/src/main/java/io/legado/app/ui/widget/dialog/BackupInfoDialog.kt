@@ -10,7 +10,6 @@ import io.legado.app.base.BaseDialogFragment
 import io.legado.app.base.adapter.ItemViewHolder
 import io.legado.app.base.adapter.RecyclerAdapter
 import io.legado.app.databinding.DialogRecyclerViewBinding
-import io.legado.app.databinding.ItemBackupInfoBinding
 import io.legado.app.databinding.ItemBackupCategoryBinding
 import io.legado.app.help.storage.BackupInfoHelper
 import io.legado.app.utils.setLayout
@@ -133,8 +132,8 @@ class BackupInfoDialog : BaseDialogFragment(R.layout.dialog_recycler_view) {
             const val TYPE_FILE = 2
         }
 
-        override fun getItemViewType(position: Int): Int {
-            return when (getItem(position)) {
+        override fun getItemViewType(item: BackupInfoItem, position: Int): Int {
+            return when (item) {
                 is BackupInfoItem.Header -> TYPE_HEADER
                 is BackupInfoItem.Category -> TYPE_CATEGORY
                 is BackupInfoItem.File -> TYPE_FILE

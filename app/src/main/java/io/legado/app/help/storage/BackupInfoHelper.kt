@@ -1,9 +1,11 @@
 package io.legado.app.help.storage
 
+import io.legado.app.help.config.AppConfig
 import io.legado.app.help.config.ReadBookConfig
 import io.legado.app.help.config.ThemeConfig
 import io.legado.app.model.BookCover
-import io.legado.app.utils.compress.ZipUtils
+import io.legado.app.utils.FileUtils
+import io.legado.app.utils.isContentScheme
 import splitties.init.appCtx
 import java.io.File
 import java.util.zip.ZipFile
@@ -93,6 +95,17 @@ object BackupInfoHelper {
         appCtx.getExternalFilesDir(null)?.let { dir ->
             if (dir.exists()) {
                 dir.listFiles()?.filter {
+                    it.name.startsWith("backup") && it.name.endsWith(".zip")
+                }?.let { files.addAll(it) }
+            }
+        }
+
+        // 用户配置的备份路径
+        val backupPath = AppConfig.backupPath
+        if (!backupPath.isNullOrBlank() && !backupPath.isContentScheme()) {
+            val customDir = File(backupPath)
+            if (customDir.exists() && customDir.isDirectory) {
+                customDir.listFiles()?.filter {
                     it.name.startsWith("backup") && it.name.endsWith(".zip")
                 }?.let { files.addAll(it) }
             }
