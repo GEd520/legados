@@ -8,6 +8,7 @@ import io.legado.app.api.controller.BookController
 import io.legado.app.api.controller.BookSourceController
 import io.legado.app.api.controller.ReplaceRuleController
 import io.legado.app.api.controller.RssSourceController
+import io.legado.app.constant.ReadConstants
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.coroutine.Coroutine
 import io.legado.app.service.WebService
@@ -169,8 +170,8 @@ class HttpServer(port: Int) : NanoHTTPD(port) {
                 )
             } else {
                 val data = returnData.data
-                if (data is List<*> && data.size > 3000) {
-                    val pipe = Pipe(16 * 1024)
+                if (data is List<*> && data.size > ReadConstants.CHUNKED_RESPONSE_LIST_THRESHOLD) {
+                    val pipe = Pipe(ReadConstants.PIPE_BUFFER_SIZE.toLong())
                     Coroutine.async {
                         pipe.sink.buffer().outputStream().bufferedWriter(Charsets.UTF_8).use {
                             GSON.toJson(returnData, it)

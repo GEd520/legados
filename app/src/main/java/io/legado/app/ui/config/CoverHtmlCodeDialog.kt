@@ -50,6 +50,7 @@ class CoverHtmlCodeDialog : BaseDialogFragment(R.layout.dialog_cover_html_code) 
 
     companion object {
         private const val KEY_TEMPLATE = "template"
+        private const val KEY_IS_NEW = "isNew"
 
         /**
          * 创建对话框实例
@@ -60,6 +61,8 @@ class CoverHtmlCodeDialog : BaseDialogFragment(R.layout.dialog_cover_html_code) 
             return CoverHtmlCodeDialog().apply {
                 if (template != null) {
                     arguments = bundleOf(KEY_TEMPLATE to GSON.toJson(template))
+                } else {
+                    arguments = bundleOf(KEY_IS_NEW to true)
                 }
             }
         }
@@ -99,6 +102,7 @@ class CoverHtmlCodeDialog : BaseDialogFragment(R.layout.dialog_cover_html_code) 
      * 保存时直接更新该模板而非创建新模板
      */
     private fun parseArguments() {
+        isNewTemplate = arguments?.getBoolean(KEY_IS_NEW) == true
         val templateJson = arguments?.getString(KEY_TEMPLATE)
         if (templateJson != null) {
             template = GSON.fromJson(templateJson, CoverHtmlTemplateConfig.Template::class.java)
@@ -106,7 +110,6 @@ class CoverHtmlCodeDialog : BaseDialogFragment(R.layout.dialog_cover_html_code) 
         if (template == null) {
             template = CoverHtmlTemplateConfig.getSelectedTemplate()
         }
-        isNewTemplate = false
     }
 
     /**
@@ -174,9 +177,14 @@ class CoverHtmlCodeDialog : BaseDialogFragment(R.layout.dialog_cover_html_code) 
      */
     private fun loadTemplateData() {
         lifecycleScope.launch {
-            val currentTemplate = template ?: return@launch
-            binding.editTemplateName.setText(currentTemplate.name)
-            binding.codeView.setText(currentTemplate.htmlCode)
+            if (isNewTemplate) {
+                binding.editTemplateName.setText("")
+                binding.codeView.setText(DefaultData.coverHtmlTemplate)
+            } else {
+                val currentTemplate = template ?: return@launch
+                binding.editTemplateName.setText(currentTemplate.name)
+                binding.codeView.setText(currentTemplate.htmlCode)
+            }
             binding.editBookName.setText("示例书名")
             binding.editAuthor.setText("示例作者")
             binding.webViewPreview.post {

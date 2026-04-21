@@ -7,6 +7,7 @@ import io.legado.app.R
 import io.legado.app.constant.AppLog
 import io.legado.app.constant.EventBus
 import io.legado.app.constant.IntentAction
+import io.legado.app.constant.ReadConstants
 import io.legado.app.constant.Status
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.Book
@@ -337,7 +338,7 @@ object AudioPlay : CoroutineScope by MainScope() {
     fun setSpeed(speed: Float) {
         if (AudioPlayService.isRun) {
             book?.setPlaySpeed(speed)
-            val clampedSpeed = speed.coerceIn(0.5f, 3.0f)
+            val clampedSpeed = speed.coerceIn(ReadConstants.MIN_PLAY_SPEED, ReadConstants.MAX_PLAY_SPEED)
             context.startService<AudioPlayService> {
                 action = IntentAction.setSpeed
                 putExtra("speed", clampedSpeed)

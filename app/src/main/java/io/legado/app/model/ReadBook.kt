@@ -3,6 +3,7 @@ package io.legado.app.model
 import io.legado.app.constant.AppLog
 import io.legado.app.constant.EventBus
 import io.legado.app.constant.PageAnim.scrollPageAnim
+import io.legado.app.constant.ReadConstants
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookChapter
@@ -92,7 +93,7 @@ object ReadBook : CoroutineScope by MainScope() {
     val downloadFailChapters = hashMapOf<Int, Int>()
     var contentProcessor: ContentProcessor? = null
     val downloadScope = CoroutineScope(SupervisorJob() + IO)
-    val preDownloadSemaphore = Semaphore(2)
+    val preDownloadSemaphore = Semaphore(ReadConstants.PRE_DOWNLOAD_CONCURRENCY)
     val executor = globalExecutor
 
     /**
@@ -670,7 +671,7 @@ object ReadBook : CoroutineScope by MainScope() {
         if (BookHelp.hasContent(book, chapter)) {
             downloadedChapters.add(chapter.index)
         } else {
-            delay(1000)
+            delay(ReadConstants.PRE_DOWNLOAD_DELAY_MS)
             if (addLoading(index)) {
                 download(downloadScope, chapter, false, preDownloadSemaphore)
             }
@@ -774,7 +775,7 @@ object ReadBook : CoroutineScope by MainScope() {
                             available = true
                         }
                         if (upContent && isScroll) {
-                            if (max(index - 3, 0) < durPageIndex) {
+                            if (max(index - ReadConstants.SCROLL_PAGE_UPDATE_THRESHOLD, 0) < durPageIndex) {
                                 callBack?.upContent(offset, false)
                             }
                         }
@@ -912,8 +913,8 @@ object ReadBook : CoroutineScope by MainScope() {
         val bookSource = bookSource ?: return
         val book = book ?: return
         if (!book.canUpdate) return
-        if (chapterSize - durChapterIndex - 1 >= 3) return
-        if (System.currentTimeMillis() - book.lastCheckTime < 600000) return
+        if (chapterSize - durChapterIndex - 1 >= ReadConstants.TOC_UPDATE_REMAINING_THRESHOLD) return
+        if (System.currentTimeMillis() - book.lastCheckTime < ReadConstants.TOC_UPDATE_MIN_INTERVAL_MS) return
         book.lastCheckTime = System.currentTimeMillis()
         val oldBook = book.copy()
         WebBook.getChapterList(this, bookSource, book).onSuccess(IO) { cList ->
@@ -990,15 +991,15 @@ object ReadBook : CoroutineScope by MainScope() {
                         min(durChapterIndex + AppConfig.preDownloadNum, chapterSize)
                     for (i in durChapterIndex.plus(2)..maxChapterIndex) {
                         if (downloadedChapters.contains(i)) continue
-                        if ((downloadFailChapters[i] ?: 0) >= 3) continue
+                        if ((downloadFailChapters[i] ?: 0) >= ReadConstants.MAX_DOWNLOAD_FAIL_COUNT) continue
                         downloadIndex(i)
                     }
                 }
                 launch {
-                    val minChapterIndex = durChapterIndex - min(5, AppConfig.preDownloadNum)
+                    val minChapterIndex = durChapterIndex - min(ReadConstants.BACKWARD_PRE_DOWNLOAD_RANGE, AppConfig.preDownloadNum)
                     for (i in durChapterIndex.minus(2) downTo minChapterIndex) {
                         if (downloadedChapters.contains(i)) continue
-                        if ((downloadFailChapters[i] ?: 0) >= 3) continue
+                        if ((downloadFailChapters[i] ?: 0) >= ReadConstants.MAX_DOWNLOAD_FAIL_COUNT) continue
                         downloadIndex(i)
                     }
                 }

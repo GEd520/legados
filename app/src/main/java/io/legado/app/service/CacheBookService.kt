@@ -10,6 +10,7 @@ import io.legado.app.constant.AppLog
 import io.legado.app.constant.EventBus
 import io.legado.app.constant.IntentAction
 import io.legado.app.constant.NotificationId
+import io.legado.app.constant.ReadConstants
 import io.legado.app.data.appDb
 import io.legado.app.help.book.update
 import io.legado.app.help.config.AppConfig
@@ -67,7 +68,7 @@ class CacheBookService : BaseService() {
         isRun = true
         lifecycleScope.launch {
             while (isActive) {
-                delay(1000)
+                delay(ReadConstants.NOTIFICATION_UPDATE_INTERVAL_MS)
                 notificationContent = CacheBook.downloadSummary
                 upCacheBookNotification()
                 postEvent(EventBus.UP_DOWNLOAD, "")

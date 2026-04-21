@@ -4,6 +4,7 @@ import android.app.Application
 import android.text.TextUtils
 import io.legado.app.R
 import io.legado.app.base.BaseViewModel
+import io.legado.app.constant.ReadConstants
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.BookSource
 import io.legado.app.data.entities.BookSourcePart
@@ -155,7 +156,7 @@ class BookSourceViewModel(application: Application) : BaseViewModel(application)
             val selectedRate = selectionSize.toFloat() / adapter.itemCount.toFloat()
             val sources = if (selectedRate == 1f) {
                 getBookSources(searchKey, sortAscending, sort)
-            } else if (selectedRate < 0.3) {
+            } else if (selectedRate < ReadConstants.SOURCE_SELECTED_RATE_THRESHOLD) {
                 selection.toBookSource()
             } else {
                 val keys = selection.map { it.bookSourceUrl }.toHashSet()

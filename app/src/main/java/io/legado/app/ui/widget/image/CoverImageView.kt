@@ -473,8 +473,9 @@ class CoverImageView @JvmOverloads constructor(
             try {
                 wv = WebView(context.applicationContext)
                 wv.settings.javaScriptEnabled = true
-                wv.settings.useWideViewPort = true
-                wv.settings.loadWithOverviewMode = true
+                wv.settings.useWideViewPort = false
+                wv.settings.loadWithOverviewMode = false
+                wv.setInitialScale(100)
 
                 val captureWidth = width
                 val captureHeight = height

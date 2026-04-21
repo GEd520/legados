@@ -6,6 +6,7 @@
         android:id="@+id/menu_add"
         android:icon="@drawable/ic_add"
         android:title="@string/create"
+        app:iconTint="@android:color/white"
         app:showAsAction="always" />
 
 </menu>

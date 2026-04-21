@@ -15,6 +15,7 @@ import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 import io.legado.app.R
 import io.legado.app.base.VMBaseActivity
 import io.legado.app.constant.BookSourceType
+import io.legado.app.constant.ReadConstants
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.BookSource
 import io.legado.app.data.entities.rule.BookInfoRule
@@ -232,7 +233,7 @@ class BookSourceEditActivity :
         binding.recyclerView.adapter = adapter
         binding.recyclerView.viewTreeObserver.addOnGlobalFocusChangeListener { _, newFocus ->
             if (newFocus is EditText) {
-                newFocus.postDelayed({ sendText("") }, 120)
+                newFocus.postDelayed({ sendText("") }, ReadConstants.EDIT_FOCUS_DELAY_MS)
             }
         }
         binding.tabLayout.setBackgroundColor(backgroundColor)

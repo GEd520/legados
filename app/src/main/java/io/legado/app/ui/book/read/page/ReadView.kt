@@ -12,6 +12,7 @@ import android.view.WindowInsets
 import android.widget.FrameLayout
 import io.legado.app.R
 import io.legado.app.constant.PageAnim
+import io.legado.app.constant.ReadConstants
 import io.legado.app.data.entities.BookProgress
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.config.ReadBookConfig
@@ -130,15 +131,15 @@ class ReadView(context: Context, attrs: AttributeSet) :
     }
 
     private fun setRect9x() {
-        tlRect.set(0f + pageTouchClick, 0f, width * 0.33f, height * 0.33f)
-        tcRect.set(width * 0.33f, 0f, width * 0.66f, height * 0.33f)
-        trRect.set(width * 0.36f, 0f, width.toFloat() - pageTouchClick, height * 0.33f)
-        mlRect.set(0f + pageTouchClick, height * 0.33f, width * 0.33f, height * 0.66f)
-        mcRect.set(width * 0.33f, height * 0.33f, width * 0.66f, height * 0.66f)
-        mrRect.set(width * 0.66f, height * 0.33f, width.toFloat() - pageTouchClick, height * 0.66f)
-        blRect.set(0f + pageTouchClick, height * 0.66f, width * 0.33f, height.toFloat())
-        bcRect.set(width * 0.33f, height * 0.66f, width * 0.66f, height.toFloat())
-        brRect.set(width * 0.66f, height * 0.66f, width.toFloat() - pageTouchClick, height.toFloat())
+        tlRect.set(0f + pageTouchClick, 0f, width * ReadConstants.TOUCH_AREA_THIRD, height * ReadConstants.TOUCH_AREA_THIRD)
+        tcRect.set(width * ReadConstants.TOUCH_AREA_THIRD, 0f, width * ReadConstants.TOUCH_AREA_TWO_THIRDS, height * ReadConstants.TOUCH_AREA_THIRD)
+        trRect.set(width * ReadConstants.TOUCH_AREA_RIGHT_OFFSET, 0f, width.toFloat() - pageTouchClick, height * ReadConstants.TOUCH_AREA_THIRD)
+        mlRect.set(0f + pageTouchClick, height * ReadConstants.TOUCH_AREA_THIRD, width * ReadConstants.TOUCH_AREA_THIRD, height * ReadConstants.TOUCH_AREA_TWO_THIRDS)
+        mcRect.set(width * ReadConstants.TOUCH_AREA_THIRD, height * ReadConstants.TOUCH_AREA_THIRD, width * ReadConstants.TOUCH_AREA_TWO_THIRDS, height * ReadConstants.TOUCH_AREA_TWO_THIRDS)
+        mrRect.set(width * ReadConstants.TOUCH_AREA_TWO_THIRDS, height * ReadConstants.TOUCH_AREA_THIRD, width.toFloat() - pageTouchClick, height * ReadConstants.TOUCH_AREA_TWO_THIRDS)
+        blRect.set(0f + pageTouchClick, height * ReadConstants.TOUCH_AREA_TWO_THIRDS, width * ReadConstants.TOUCH_AREA_THIRD, height.toFloat())
+        bcRect.set(width * ReadConstants.TOUCH_AREA_THIRD, height * ReadConstants.TOUCH_AREA_TWO_THIRDS, width * ReadConstants.TOUCH_AREA_TWO_THIRDS, height.toFloat())
+        brRect.set(width * ReadConstants.TOUCH_AREA_TWO_THIRDS, height * ReadConstants.TOUCH_AREA_TWO_THIRDS, width.toFloat() - pageTouchClick, height.toFloat())
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {

@@ -11,6 +11,7 @@ import io.legado.app.constant.BookSourceType
 import io.legado.app.constant.EventBus
 import io.legado.app.constant.IntentAction
 import io.legado.app.constant.NotificationId
+import io.legado.app.constant.ReadConstants
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookSource
@@ -158,11 +159,11 @@ class CheckSourceService : BaseService() {
 
     private suspend fun isDomainReachable(domain: String): Boolean {
         return kotlin.runCatching {
-            withTimeout(2000) {
+            withTimeout(ReadConstants.DOMAIN_CHECK_TIMEOUT_MS) {
                 val url = URI(domain.substringBefore("#"))
                 val port = url.port.takeIf { it > 0 } ?: 80
                 Socket().use { socket ->
-                    socket.connect(InetSocketAddress(url.host, port), 1600)
+                    socket.connect(InetSocketAddress(url.host, port), ReadConstants.SOCKET_CONNECT_TIMEOUT_MS)
                     true
                 }
             }
@@ -246,7 +247,7 @@ class CheckSourceService : BaseService() {
             //校验目录
             val toc = WebBook.getChapterListAwait(source, book).getOrThrow().asSequence()
                 .filter { !(it.isVolume && it.url.startsWith(it.title)) }
-                .take(2)
+                .take(ReadConstants.TOC_CHECK_CHAPTER_COUNT)
                 .toList()
             val nextChapterUrl = toc.getOrNull(1)?.url ?: toc.first().url
             if (!CheckSource.checkContent) {
