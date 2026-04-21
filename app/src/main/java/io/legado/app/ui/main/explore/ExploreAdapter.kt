@@ -775,7 +775,7 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
                 removeJavascriptInterface(nameSource)
                 removeJavascriptInterface(nameJava)
             }
-            WebViewPool.release(it)
+            WebViewPool.release(pooledWebView)
         }
     }
 
