@@ -46,10 +46,11 @@ import io.legado.app.help.WebCacheManager
 import io.legado.app.help.coroutine.Coroutine
 import io.legado.app.help.webView.PooledWebView
 import io.legado.app.help.webView.WebJsExtensions
-import io.legado.app.help.webView.WebJsExtensions.Companion.getInjectionString
+import io.legado.app.help.webView.WebJsExtensions.Companion.buildUseWebInjection
 import io.legado.app.help.webView.WebJsExtensions.Companion.nameCache
 import io.legado.app.help.webView.WebJsExtensions.Companion.nameJava
 import io.legado.app.help.webView.WebJsExtensions.Companion.nameSource
+import io.legado.app.help.webView.WebJsExtensions.Companion.wrapUseWebHtml
 import io.legado.app.help.webView.WebViewPool
 import io.legado.app.help.source.clearExploreKindsCache
 import io.legado.app.help.source.exploreKinds
@@ -62,6 +63,7 @@ import io.legado.app.ui.widget.dialog.PhotoDialog
 import io.legado.app.ui.widget.text.AccentTextView
 import io.legado.app.ui.widget.text.ScrollTextView
 import io.legado.app.utils.InfoMap
+import io.legado.app.utils.GSON
 import io.legado.app.utils.activity
 import io.legado.app.utils.dpToPx
 import io.legado.app.utils.gone
@@ -607,7 +609,7 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         resolveHtmlContent(kind, source, infoMap, title).onSuccess { rawContent ->
             val content = rawContent?.trim().orEmpty()
             when {
-                content.startsWith("<useweb>") -> bindExploreWebView(container, content, source)
+                content.startsWith("<useweb>") -> bindExploreWebView(container, content, source, infoMap)
                 content.startsWith("<usehtml>") -> bindExploreTextView(
                     container,
                     content,
@@ -703,22 +705,28 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
     private fun bindExploreWebView(
         container: FrameLayout,
         content: String,
-        source: BookSource?
+        source: BookSource?,
+        infoMap: InfoMap
     ) {
         val endIndex = content.lastIndexOf("<")
         if (endIndex < 8) {
             container.gone()
             return
         }
-        val html = content.substring(8, endIndex)
+        val useWebHtml = content.substring(8, endIndex)
+        val pageJs = buildExploreUseWebPageInjection(
+            pageKey = buildExploreUseWebPageKey(source, useWebHtml),
+            initialPage = infoMap["page"]?.toIntOrNull()?.coerceAtLeast(1) ?: 1
+        )
+        val html = wrapExploreUseWebHtml(useWebHtml, source, pageJs)
         val pooledWebView = WebViewPool.acquire(context)
         val webView = pooledWebView.realWebView
         webView.onResume()
-        webView.webViewClient = ExploreHtmlWebViewClient(container)
+        webView.webViewClient = ExploreHtmlWebViewClient(container, source, pageJs)
         webView.addJavascriptInterface(WebCacheManager, nameCache)
         source?.let {
             webView.addJavascriptInterface(it as BaseSource, nameSource)
-            val webJsExtensions = WebJsExtensions(it, null, webView)
+            val webJsExtensions = WebJsExtensions(it, context as? AppCompatActivity, webView)
             webView.addJavascriptInterface(webJsExtensions, nameJava)
         }
         container.addView(webView)
@@ -732,6 +740,87 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         activeWebViews.remove(container)?.let {
             WebViewPool.release(it)
         }
+    }
+
+    private fun buildExploreUseWebPageKey(source: BookSource?, html: String): String {
+        return buildString {
+            append("useweb_page_")
+            append(source?.bookSourceUrl ?: "default")
+            append('_')
+            append(html.hashCode())
+        }
+    }
+
+    private fun buildExploreUseWebPageInjection(pageKey: String, initialPage: Int): String {
+        val safePage = initialPage.coerceAtLeast(1)
+        val keyJson = GSON.toJson(pageKey)
+        return """
+            try{
+                const __useWebPageKey = $keyJson;
+                const __useWebDefaultPage = $safePage;
+                const __readUseWebPage = () => {
+                    const cachedPage = parseInt(cache.getFromMemory(__useWebPageKey), 10);
+                    return Number.isFinite(cachedPage) && cachedPage > 0 ? cachedPage : __useWebDefaultPage;
+                };
+                const __writeUseWebPage = value => {
+                    const nextPage = parseInt(value, 10);
+                    const safeNextPage = Number.isFinite(nextPage) && nextPage > 0 ? nextPage : __useWebDefaultPage;
+                    cache.putMemory(__useWebPageKey, String(safeNextPage));
+                    return safeNextPage;
+                };
+                Object.defineProperty(window, 'page', {
+                    configurable: true,
+                    get() {
+                        return __readUseWebPage();
+                    },
+                    set(value) {
+                        __writeUseWebPage(value);
+                    }
+                });
+                if (typeof Element !== 'undefined' && !Object.getOwnPropertyDescriptor(Element.prototype, 'page')) {
+                    Object.defineProperty(Element.prototype, 'page', {
+                        configurable: true,
+                        get() {
+                            return window.page;
+                        },
+                        set(value) {
+                            window.page = value;
+                        }
+                    });
+                }
+                if (java && typeof java.open === 'function' && !java.__exploreUseWebPageWrapped) {
+                    const __rawOpen = java.open.bind(java);
+                    java.open = function(name, url, title, origin) {
+                        if (name === 'explore' && typeof url === 'string') {
+                            const match = url.match(/[?&]page=(\d+)/i);
+                            if (match) {
+                                __writeUseWebPage(parseInt(match[1], 10) + 1);
+                            }
+                        }
+                        return __rawOpen(name, url, title, origin);
+                    };
+                    java.__exploreUseWebPageWrapped = true;
+                }
+            }catch(e){}
+        """.trimIndent()
+    }
+
+    private fun wrapExploreUseWebHtml(html: String, source: BookSource?, pageJs: String): String {
+        val injection = buildString {
+            val baseJs = buildUseWebInjection(source).trim()
+            if (baseJs.isNotEmpty()) {
+                append(baseJs)
+            }
+            if (pageJs.isNotBlank()) {
+                if (isNotEmpty()) append('\n')
+                append(pageJs.trim())
+            }
+        }
+        if (injection.isBlank()) {
+            return html
+        }
+        val safeInjection = Regex("(?i)</script>").replace(injection, "<\\\\/script>")
+        return "<script>\n$safeInjection\n</script>\n$html"
     }
 
     @Synchronized
@@ -861,9 +950,17 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
     }
 
     private inner class ExploreHtmlWebViewClient(
-        private val container: FrameLayout
+        private val container: FrameLayout,
+        private val source: BaseSource?,
+        private val pageJs: String
     ) : WebViewClient() {
-        private val jsStr = getInjectionString
+        private val jsStr = buildString {
+            append(buildUseWebInjection(source))
+            if (pageJs.isNotBlank()) {
+                append('\n')
+                append(pageJs)
+            }
+        }
 
         override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
             request?.let {
