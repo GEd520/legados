@@ -20,6 +20,7 @@ import io.legado.app.ui.widget.code.addHtmlPattern
 import io.legado.app.ui.widget.code.addJsPattern
 import io.legado.app.utils.GSON
 import io.legado.app.utils.setLayout
+import io.legado.app.utils.toastOnUi
 import io.legado.app.utils.viewbindingdelegate.viewBinding
 import kotlinx.coroutines.launch
 import splitties.views.onClick
@@ -73,6 +74,12 @@ class CoverHtmlCodeDialog : BaseDialogFragment(R.layout.dialog_cover_html_code) 
         initCodeView()
         initData()
         initClickListeners()
+    }
+
+    override fun onDestroyView() {
+        binding.webViewPreview.stopLoading()
+        binding.webViewPreview.destroy()
+        super.onDestroyView()
     }
 
     /**
@@ -212,7 +219,12 @@ class CoverHtmlCodeDialog : BaseDialogFragment(R.layout.dialog_cover_html_code) 
      */
     private fun saveTemplate() {
         val name = binding.editTemplateName.text?.toString()?.trim() ?: ""
-        val htmlCode = binding.codeView.text?.toString() ?: ""
+        val htmlCode = binding.codeView.text?.toString()?.trim() ?: ""
+
+        if (htmlCode.isBlank()) {
+            context?.toastOnUi(R.string.cover_html_code_empty)
+            return
+        }
 
         val savedTemplate = if (isNewTemplate) {
             CoverHtmlTemplateConfig.Template(

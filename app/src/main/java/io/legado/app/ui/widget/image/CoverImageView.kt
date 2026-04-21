@@ -429,9 +429,7 @@ class CoverImageView @JvmOverloads constructor(
                 val captureWidth = width
                 val captureHeight = height
 
-                val bitmap = withContext(Dispatchers.Main) {
-                    generateHtmlCoverBitmap(renderedHtml, captureWidth, captureHeight)
-                }
+                val bitmap = generateHtmlCoverBitmap(renderedHtml, captureWidth, captureHeight)
 
                 if (bitmap != null) {
                     htmlCoverCache.put(cacheKey, bitmap)

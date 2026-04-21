@@ -92,6 +92,7 @@ class CoverHtmlTemplateListDialog : BaseDialogFragment(R.layout.dialog_recycler_
         ) {
             binding.tvName.text = item.name
             binding.rbSelected.isChecked = item.isSelected
+            binding.swEnable.setOnCheckedChangeListener(null)
             binding.swEnable.isChecked = item.enable
 
             val previewText = item.htmlCode
@@ -111,6 +112,7 @@ class CoverHtmlTemplateListDialog : BaseDialogFragment(R.layout.dialog_recycler_
                 val position = holder.layoutPosition
                 val item = getItem(position) ?: return@onClick
                 CoverHtmlTemplateConfig.setSelectedTemplate(item.id)
+                CoverImageView.clearHtmlCoverCache()
                 setItems(CoverHtmlTemplateConfig.templateList)
             }
 
@@ -145,6 +147,7 @@ class CoverHtmlTemplateListDialog : BaseDialogFragment(R.layout.dialog_recycler_
                 val position = holder.layoutPosition
                 val item = getItem(position) ?: return@onClick
                 CoverHtmlTemplateConfig.setSelectedTemplate(item.id)
+                CoverImageView.clearHtmlCoverCache()
                 setItems(CoverHtmlTemplateConfig.templateList)
             }
         }
