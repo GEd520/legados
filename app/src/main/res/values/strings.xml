@@ -1142,6 +1142,8 @@
     <string name="set_local_password_summary">The local password is used to encrypt and decrypt the sensitive information of the backup, if you need to synchronize between different devices, the local password should be the same.</string>
     <string name="only_latest_backup_t">Keep only the latest backup</string>
     <string name="only_latest_backup_s">Local backup keeps only the latest backup file</string>
+    <string name="full_backup_t">Full Backup</string>
+    <string name="full_backup_s">Backup all user configuration data</string>
     <string name="webdav_application_authorization_error">Fail to authorize WebDav application</string>
     <string name="respondTime">respondTime: %1$d ms</string>
     <string name="load_word_count">Load word count</string>
