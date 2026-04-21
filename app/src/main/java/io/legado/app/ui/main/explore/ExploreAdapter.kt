@@ -129,9 +129,23 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
             if (payloads.isEmpty()) {
                 tvName.text = item.bookSourceName
             }
+            // 处理 payload：如果是 "resume" 则只恢复状态，不重新创建内容
+            val isResume = payloads.contains("resume")
+            val isForceRefresh = payloads.contains("force_refresh")
+            
+            if (isForceRefresh) {
+                // 强制刷新：清除标记以触发重新创建
+                flexbox.setTag(R.id.explore_source_url, null)
+            }
+            
             if (expandedSourceUrl == item.bookSourceUrl) {
                 ivStatus.setImageResource(R.drawable.ic_arrow_down)
                 rotateLoading.loadingColor = context.accentColor
+                // 如果是 resume 且已有内容，跳过重新加载
+                if (isResume && flexbox.childCount > 0) {
+                    rotateLoading.gone()
+                    return
+                }
                 rotateLoading.visible()
                 Coroutine.async(callBack.scope) {
                     sourceKinds[item.bookSourceUrl]?.also {
@@ -167,8 +181,16 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         }
         val flexbox = binding.flexbox
         val sourceUrl = item.bookSourceUrl
+        // 检查是否已经有内容且 sourceUrl 匹配，避免重复创建 WebView
+        val existingSourceUrl = flexbox.getTag(R.id.explore_source_url) as? String
+        if (existingSourceUrl == sourceUrl && flexbox.childCount > 0) {
+            // 已经有相同 sourceUrl 的内容，跳过重新创建
+            return
+        }
         kotlin.runCatching {
             recyclerFlexbox(flexbox)
+            // 标记当前 flexbox 对应的 sourceUrl
+            flexbox.setTag(R.id.explore_source_url, sourceUrl)
             flexbox.visible()
             val source by lazy { appDb.bookSourceDao.getBookSource(sourceUrl) }
             val infoMap by lazy {
@@ -873,6 +895,8 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
 
     @Synchronized
     private fun recyclerFlexbox(flexbox: FlexboxLayout) {
+        // 清除 sourceUrl 标记
+        flexbox.setTag(R.id.explore_source_url, null)
         val children = flexbox.children.toList()
         if (children.isEmpty()) return
         flexbox.removeAllViews()
@@ -949,10 +973,21 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         }
     }
 
-    fun refreshExpandedItem() {
+    /**
+     * 刷新展开的项目
+     * @param force 是否强制刷新（重新创建内容），默认 false
+     */
+    fun refreshExpandedItem(force: Boolean = false) {
         expandedSourceUrl?.let { sourceUrl ->
-            findSourcePosition(sourceUrl)?.let {
-                notifyItemChanged(it)
+            findSourcePosition(sourceUrl)?.let { position ->
+                if (force) {
+                    // 强制刷新：清除标记以触发重新创建
+                    // 注意：这里不直接操作，而是通过 payload 传递
+                    notifyItemChanged(position, "force_refresh")
+                } else {
+                    // 普通刷新：只更新状态，不重新创建内容
+                    notifyItemChanged(position, "resume")
+                }
             }
         }
     }

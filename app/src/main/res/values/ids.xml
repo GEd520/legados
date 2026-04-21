@@ -17,5 +17,6 @@
     <item name="full_id" type="id" />
     <item name="text_watcher" type="id" />
     <item name="inline_content_generation" type="id" />
+    <item name="explore_source_url" type="id" />
 
 </resources>
