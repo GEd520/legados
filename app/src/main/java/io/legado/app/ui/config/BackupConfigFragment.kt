@@ -34,6 +34,7 @@ import io.legado.app.lib.prefs.fragment.PreferenceFragment
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.ui.about.AppLogDialog
 import io.legado.app.ui.file.HandleFileContract
+import io.legado.app.ui.widget.dialog.BackupInfoDialog
 import io.legado.app.ui.widget.dialog.WaitDialog
 import io.legado.app.utils.FileDoc
 import io.legado.app.utils.applyTint
@@ -236,6 +237,7 @@ class BackupConfigFragment : PreferenceFragment(),
             "web_dav_backup" -> backup()
             "web_dav_restore" -> restore()
             "import_old" -> restoreOld.launch()
+            "viewBackupInfo" -> showBackupInfo()
         }
         return super.onPreferenceTreeClick(preference)
     }
@@ -255,6 +257,13 @@ class BackupConfigFragment : PreferenceFragment(),
                 BackupConfig.saveIgnoreConfig()
             }
         }
+    }
+
+    /**
+     * 显示备份信息
+     */
+    private fun showBackupInfo() {
+        showDialogFragment<BackupInfoDialog>()
     }
 
 

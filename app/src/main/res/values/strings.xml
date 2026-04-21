@@ -1144,6 +1144,11 @@
     <string name="only_latest_backup_s">Local backup keeps only the latest backup file</string>
     <string name="full_backup_t">Full Backup</string>
     <string name="full_backup_s">Backup all user configuration data</string>
+    <string name="view_backup_info_t">View Backup Info</string>
+    <string name="view_backup_info_s">View backup file contents and sizes</string>
+    <string name="view_backup_info">Backup Info</string>
+    <string name="no_backup_file">No backup file found</string>
+    <string name="parse_backup_failed">Failed to parse backup file</string>
     <string name="webdav_application_authorization_error">Fail to authorize WebDav application</string>
     <string name="respondTime">respondTime: %1$d ms</string>
     <string name="load_word_count">Load word count</string>
