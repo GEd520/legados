@@ -8,6 +8,7 @@ import io.legado.app.api.controller.BookController
 import io.legado.app.api.controller.BookSourceController
 import io.legado.app.api.controller.ReplaceRuleController
 import io.legado.app.api.controller.RssSourceController
+import io.legado.app.help.config.AppConfig
 import io.legado.app.help.coroutine.Coroutine
 import io.legado.app.service.WebService
 import io.legado.app.utils.GSON
@@ -23,11 +24,29 @@ import java.io.ByteArrayOutputStream
 class HttpServer(port: Int) : NanoHTTPD(port) {
     private val assetsWeb = AssetsWeb("web")
 
+    private fun checkAuth(session: IHTTPSession): Response? {
+        if (!AppConfig.webServiceAuthEnabled) return null
+        val token = session.parameters["token"]?.firstOrNull()
+            ?: session.headers["authorization"]?.removePrefix("Bearer ")
+            ?: session.headers["token"]
+        if (token.isNullOrBlank() || token != AppConfig.webServiceToken) {
+            return newFixedLengthResponse(
+                Response.Status.UNAUTHORIZED,
+                "application/json",
+                """{"isSuccess":false,"errorMsg":"Unauthorized: invalid or missing token"}"""
+            ).apply {
+                addHeader("Access-Control-Allow-Origin", session.headers["origin"] ?: "*")
+                addHeader("WWW-Authenticate", "Bearer realm=\"legado\"")
+            }
+        }
+        return null
+    }
+
     override fun serve(session: IHTTPSession): Response {
         WebService.serve()
         var returnData: ReturnData? = null
         val ct = ContentType(session.headers["content-type"]).tryUTF8()
-        session.headers["content-type"] = ct.contentTypeHeader
+        session.headers["content-type"] = ct.contentType
         var uri = session.uri
 
         val startAt = System.currentTimeMillis()
@@ -40,12 +59,15 @@ class HttpServer(port: Int) : NanoHTTPD(port) {
                 Method.OPTIONS -> {
                     val response = newFixedLengthResponse("")
                     response.addHeader("Access-Control-Allow-Methods", "POST")
-                    response.addHeader("Access-Control-Allow-Headers", "content-type")
+                    response.addHeader("Access-Control-Allow-Headers", "content-type,authorization,token")
                     response.addHeader("Access-Control-Allow-Origin", session.headers["origin"])
                     return response
                 }
 
                 Method.POST -> {
+                    val authResponse = checkAuth(session)
+                    if (authResponse != null) return authResponse
+
                     val files = HashMap<String, String>()
                     session.parseBody(files)
                     val postData = files["postData"]
@@ -72,6 +94,9 @@ class HttpServer(port: Int) : NanoHTTPD(port) {
                 }
 
                 Method.GET -> {
+                    val authResponse = checkAuth(session)
+                    if (authResponse != null) return authResponse
+
                     val parameters = session.parameters
 
                     when (uri) {

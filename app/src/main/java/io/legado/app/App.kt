@@ -84,11 +84,12 @@ class App : Application() {
             //预下载Cronet so
             Cronet.preDownload()
             createNotificationChannels()
+            // LiveEventBus 全局配置：基于 LiveData 的事件总线，用于跨组件通信
             LiveEventBus.config()
-                .lifecycleObserverAlwaysActive(true)
-                .autoClear(false)
+                .lifecycleObserverAlwaysActive(true)    // 观察者始终活跃，不受 Lifecycle 状态限制（后台也能收到事件）
+                .autoClear(false)                       // 不自动清除粘性事件，新订阅者仍可收到最近一次事件
                 .enableLogger(BuildConfig.DEBUG || AppConfig.recordLog)
-                .setLogger(EventLogger())
+                .setLogger(EventLogger())               // 将 LiveEventBus 日志桥接到项目 LogUtils
             DefaultData.upVersion()
             AppFreezeMonitor.init(this@App)
             DispatchersMonitor.init()

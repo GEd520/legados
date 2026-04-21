@@ -112,6 +112,17 @@
             android:summary="@string/web_service_wake_lock_summary"
             android:title="@string/web_service_wake_lock" />
 
+        <io.legado.app.lib.prefs.SwitchPreference
+            android:defaultValue="true"
+            android:key="webServiceAuthEnabled"
+            android:summary="@string/web_service_auth_summary"
+            android:title="@string/web_service_auth_title" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="webServiceToken"
+            android:summary="@string/web_service_token_summary"
+            android:title="@string/web_service_token_title" />
+
         <io.legado.app.lib.prefs.Preference
             android:key="defaultBookTreeUri"
             android:summary="@string/book_tree_uri_s"
@@ -135,6 +146,12 @@
             android:key="Cronet"
             android:summary="@string/pref_cronet_summary"
             android:title="Cronet" />
+
+        <io.legado.app.lib.prefs.SwitchPreference
+            android:defaultValue="false"
+            android:key="unsafeSsl"
+            android:summary="@string/unsafe_ssl_summary"
+            android:title="@string/unsafe_ssl_title" />
 
         <io.legado.app.lib.prefs.SwitchPreference
             android:defaultValue="false"

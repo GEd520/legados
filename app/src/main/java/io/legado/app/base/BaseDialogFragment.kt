@@ -85,7 +85,7 @@ abstract class BaseDialogFragment(
             view.setBackgroundColor(ThemeStore.backgroundColor())
         }
         onFragmentCreated(view, savedInstanceState)
-        observeLiveBus()
+        observeLiveBus()    // 模板方法：子类覆写 observeLiveBus() 注册事件订阅，自动在 onViewCreated 中调用
     }
 
     abstract fun onFragmentCreated(view: View, savedInstanceState: Bundle?)
@@ -111,6 +111,13 @@ abstract class BaseDialogFragment(
         block: suspend CoroutineScope.() -> T
     ) = Coroutine.async(scope, context) { block() }
 
+    /**
+     * 事件订阅入口（模板方法）
+     *
+     * 子类覆写此方法，调用 observeEvent() / observeEventSticky() 注册感兴趣的事件。
+     * 由 BaseDialogFragment.onViewCreated() 自动调用，无需手动触发。
+     * 观察者与 Fragment 生命周期绑定，销毁时自动移除，无需手动注销。
+     */
     open fun observeLiveBus() {
     }
 

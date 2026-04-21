@@ -1100,6 +1100,13 @@
     <string name="webdav_device_name">Device name</string>
     <string name="web_service_wake_lock">WebService Wake up Lock</string>
     <string name="web_service_wake_lock_summary">The wake-up lock is enabled when the web service is enabled, and some phones will be killed when the wake-up lock is enabled.</string>
+    <string name="web_service_auth_title">Web Service Authentication</string>
+    <string name="web_service_auth_summary">Require token authentication for Web service API access, enabled by default for security</string>
+    <string name="web_service_token_title">Web Service Token</string>
+    <string name="web_service_token_summary">Token used for API authentication, defaults to device ID if not set</string>
+    <string name="unsafe_ssl_title">Skip SSL Verification</string>
+    <string name="unsafe_ssl_summary">Skip SSL certificate verification for all network requests, may expose to man-in-the-middle attacks. Only enable if a site has certificate issues</string>
+    <string name="need_restart_app">This change requires restarting the app to take effect. Restart now?</string>
     <string name="read_aloud_wake_lock">Read aloud service wake-up lock</string>
     <string name="read_aloud_wake_lock_summary">The wake-up lock is enabled when reading aloud is enabled, and the wake-up lock on some mobile phones will be killed in the background.</string>
     <string name="audio_play_wake_lock">Audio service wake-up lock</string>

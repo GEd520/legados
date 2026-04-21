@@ -9,6 +9,7 @@ import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import io.legado.app.R
 import io.legado.app.base.BaseService
+import io.legado.app.help.config.AppConfig
 import io.legado.app.constant.AppConst
 import io.legado.app.constant.EventBus
 import io.legado.app.constant.IntentAction
@@ -167,6 +168,15 @@ class WebService : BaseService() {
                         getPort()
                     )
                 })
+                if (AppConfig.webServiceAuthEnabled) {
+                    val token = AppConfig.webServiceToken
+                    val maskedToken = if (token.length > 8) {
+                        "${token.take(4)}****${token.takeLast(4)}"
+                    } else {
+                        "****"
+                    }
+                    notificationList.add("Token: $maskedToken")
+                }
                 hostAddress = notificationList.first()
                 isRun = true
                 postEvent(EventBus.WEB_SERVICE, hostAddress)

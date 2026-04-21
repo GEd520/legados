@@ -13,6 +13,7 @@ import io.legado.app.lib.prefs.SwitchPreference
 import io.legado.app.lib.prefs.fragment.PreferenceFragment
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.model.BookCover
+import io.legado.app.constant.EventBus
 import io.legado.app.ui.file.HandleFileContract
 import io.legado.app.ui.widget.image.CoverImageView
 import io.legado.app.utils.FileUtils
@@ -21,6 +22,7 @@ import io.legado.app.utils.externalFiles
 import io.legado.app.utils.getPrefBoolean
 import io.legado.app.utils.getPrefString
 import io.legado.app.utils.inputStream
+import io.legado.app.utils.postEvent
 import io.legado.app.utils.putPrefString
 import io.legado.app.utils.readUri
 import io.legado.app.utils.removePref
@@ -82,6 +84,7 @@ class CoverConfigFragment : PreferenceFragment(),
             PreferKey.coverHtmlEnable -> {
                 upCoverHtmlCodeVisibility()
                 CoverImageView.clearHtmlCoverCache()
+                postEvent(EventBus.BOOKSHELF_REFRESH, "")
                 if (getPrefBoolean(PreferKey.coverHtmlEnable)) {
                     showDialogFragment(CoverHtmlCodeDialog.newInstance(null))
                 }

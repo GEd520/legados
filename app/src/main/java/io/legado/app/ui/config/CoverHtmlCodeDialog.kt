@@ -14,11 +14,13 @@ import io.legado.app.base.BaseDialogFragment
 import io.legado.app.databinding.DialogCoverHtmlCodeBinding
 import io.legado.app.help.DefaultData
 import io.legado.app.help.config.CoverHtmlTemplateConfig
+import io.legado.app.constant.EventBus
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.ui.widget.image.CoverImageView
 import io.legado.app.ui.widget.code.addHtmlPattern
 import io.legado.app.ui.widget.code.addJsPattern
 import io.legado.app.utils.GSON
+import io.legado.app.utils.postEvent
 import io.legado.app.utils.setLayout
 import io.legado.app.utils.showDialogFragment
 import io.legado.app.utils.toastOnUi
@@ -295,6 +297,7 @@ class CoverHtmlCodeDialog : BaseDialogFragment(R.layout.dialog_cover_html_code) 
             CoverHtmlTemplateConfig.updateTemplate(savedTemplate)
         }
         CoverImageView.clearHtmlCoverCache()
+        postEvent(EventBus.BOOKSHELF_REFRESH, "")
     }
 
 }

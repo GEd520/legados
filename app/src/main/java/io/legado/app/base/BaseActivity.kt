@@ -90,7 +90,7 @@ abstract class BaseActivity<VB : ViewBinding>(
         onBackPressedDispatcher.addCallback(this) {
             finish()
         }
-        observeLiveBus()
+        observeLiveBus()    // 模板方法：子类覆写 observeLiveBus() 注册事件订阅，自动在 onCreate 中调用
         onActivityCreated(savedInstanceState)
     }
 
@@ -196,6 +196,18 @@ abstract class BaseActivity<VB : ViewBinding>(
         }
     }
 
+    /**
+     * 事件订阅入口（模板方法）
+     *
+     * 子类覆写此方法，调用 observeEvent() / observeEventSticky() 注册感兴趣的事件。
+     * 由 BaseActivity.onCreate() 自动调用，无需手动触发。
+     * 观察者与 Activity 生命周期绑定，销毁时自动移除，无需手动注销。
+     *
+     * 示例：
+     *   override fun observeLiveBus() {
+     *       observeEvent<String>(EventBus.BOOKSHELF_REFRESH) { refreshBookshelf() }
+     *   }
+     */
     open fun observeLiveBus() {
     }
 

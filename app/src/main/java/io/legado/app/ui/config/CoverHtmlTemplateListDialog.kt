@@ -10,8 +10,10 @@ import io.legado.app.base.adapter.RecyclerAdapter
 import io.legado.app.databinding.DialogRecyclerViewBinding
 import io.legado.app.databinding.ItemCoverHtmlTemplateBinding
 import io.legado.app.help.config.CoverHtmlTemplateConfig
+import io.legado.app.constant.EventBus
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.ui.widget.image.CoverImageView
+import io.legado.app.utils.postEvent
 import io.legado.app.utils.showDialogFragment
 import io.legado.app.utils.setLayout
 import io.legado.app.utils.viewbindingdelegate.viewBinding
@@ -114,6 +116,7 @@ class CoverHtmlTemplateListDialog : BaseDialogFragment(R.layout.dialog_recycler_
                 val item = getItem(position) ?: return@onClick
                 CoverHtmlTemplateConfig.setSelectedTemplate(item.id)
                 CoverImageView.clearHtmlCoverCache()
+                postEvent(EventBus.BOOKSHELF_REFRESH, "")
                 setItems(CoverHtmlTemplateConfig.templateList)
             }
 
@@ -131,6 +134,7 @@ class CoverHtmlTemplateListDialog : BaseDialogFragment(R.layout.dialog_recycler_
                 val item = getItem(position) ?: return@onClick
                 CoverHtmlTemplateConfig.deleteTemplateById(item.id)
                 CoverImageView.clearHtmlCoverCache()
+                postEvent(EventBus.BOOKSHELF_REFRESH, "")
                 setItems(CoverHtmlTemplateConfig.templateList)
             }
 
@@ -139,6 +143,7 @@ class CoverHtmlTemplateListDialog : BaseDialogFragment(R.layout.dialog_recycler_
                 val item = getItem(position) ?: return@onClick
                 CoverHtmlTemplateConfig.setSelectedTemplate(item.id)
                 CoverImageView.clearHtmlCoverCache()
+                postEvent(EventBus.BOOKSHELF_REFRESH, "")
                 setItems(CoverHtmlTemplateConfig.templateList)
             }
         }

@@ -70,6 +70,7 @@ class OtherConfigFragment : PreferenceFragment(),
         upPreferenceSummary(PreferKey.preDownloadNum, AppConfig.preDownloadNum.toString())
         upPreferenceSummary(PreferKey.threadCount, AppConfig.threadCount.toString())
         upPreferenceSummary(PreferKey.webPort, AppConfig.webPort.toString())
+        upWebServiceTokenSummary()
         AppConfig.defaultBookTreeUri?.let {
             upPreferenceSummary(PreferKey.defaultBookTreeUri, it)
         }
@@ -131,6 +132,8 @@ class OtherConfigFragment : PreferenceFragment(),
                     AppConfig.webPort = it
                 }
 
+            PreferKey.webServiceToken -> showWebServiceTokenDialog()
+
             PreferKey.cleanCache -> clearCache()
             PreferKey.uploadRule -> showDialogFragment<DirectLinkUploadConfig>()
             PreferKey.checkSource -> showDialogFragment<CheckSourceConfig>()
@@ -191,6 +194,21 @@ class OtherConfigFragment : PreferenceFragment(),
                 }
             }
 
+            PreferKey.webServiceAuthEnabled -> {
+                if (WebService.isRun) {
+                    WebService.stop(requireContext())
+                    WebService.start(requireContext())
+                }
+            }
+
+            PreferKey.webServiceToken -> {
+                upWebServiceTokenSummary()
+                if (WebService.isRun) {
+                    WebService.stop(requireContext())
+                    WebService.start(requireContext())
+                }
+            }
+
             PreferKey.defaultBookTreeUri -> {
                 upPreferenceSummary(key, AppConfig.defaultBookTreeUri)
             }
@@ -238,6 +256,15 @@ class OtherConfigFragment : PreferenceFragment(),
             PreferKey.autoRefresh -> {
                 val isEnabled = sharedPreferences?.getBoolean(key, false) ?: false
                 onlyUpdateReadPref?.isVisible = isEnabled
+            }
+
+            PreferKey.unsafeSsl -> {
+                context?.alert(R.string.sure, R.string.need_restart_app) {
+                    okButton {
+                        appCtx.restart()
+                    }
+                    cancelButton()
+                }
             }
         }
     }
@@ -369,6 +396,37 @@ class OtherConfigFragment : PreferenceFragment(),
                 LocalConfig.password = editTextBinding.editView.text.toString()
             }
             cancelButton()
+        }
+    }
+
+    @SuppressLint("InflateParams")
+    private fun showWebServiceTokenDialog() {
+        alert(getString(R.string.web_service_token_title)) {
+            val alertBinding = DialogEditTextBinding.inflate(layoutInflater).apply {
+                editView.hint = getString(R.string.web_service_token_title)
+                editView.setText(AppConfig.webServiceToken)
+            }
+            customView { alertBinding.root }
+            okButton {
+                val token = alertBinding.editView.text?.toString()
+                if (token.isNullOrBlank()) {
+                    removePref(PreferKey.webServiceToken)
+                } else {
+                    AppConfig.webServiceToken = token
+                }
+                upWebServiceTokenSummary()
+            }
+            cancelButton()
+        }
+    }
+
+    private fun upWebServiceTokenSummary() {
+        val pref = findPreference<Preference>(PreferKey.webServiceToken) ?: return
+        val token = AppConfig.webServiceToken
+        pref.summary = if (token.length > 8) {
+            "${token.take(4)}****${token.takeLast(4)}"
+        } else {
+            "****"
         }
     }
 

@@ -459,6 +459,26 @@ object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
             appCtx.putPrefInt(PreferKey.webPort, value)
         }
 
+    var webServiceAuthEnabled: Boolean
+        get() = appCtx.getPrefBoolean(PreferKey.webServiceAuthEnabled, true)
+        set(value) {
+            appCtx.putPrefBoolean(PreferKey.webServiceAuthEnabled, value)
+        }
+
+    var webServiceToken: String
+        get() = appCtx.getPrefString(PreferKey.webServiceToken, "")
+            .orEmpty()
+            .ifBlank { AppConst.androidId }
+        set(value) {
+            appCtx.putPrefString(PreferKey.webServiceToken, value)
+        }
+
+    var unsafeSsl: Boolean
+        get() = appCtx.getPrefBoolean(PreferKey.unsafeSsl, false)
+        set(value) {
+            appCtx.putPrefBoolean(PreferKey.unsafeSsl, value)
+        }
+
     var tocUiUseReplace: Boolean
         get() = appCtx.getPrefBoolean(PreferKey.tocUiUseReplace)
         set(value) {
