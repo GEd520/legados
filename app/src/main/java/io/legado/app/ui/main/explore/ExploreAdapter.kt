@@ -59,6 +59,7 @@ import io.legado.app.help.webView.WebViewPool.scheduleInlineContentFit
 import io.legado.app.help.source.clearExploreKindsCache
 import io.legado.app.help.source.exploreKinds
 import io.legado.app.lib.theme.accentColor
+import io.legado.app.lib.theme.backgroundColor
 import io.legado.app.ui.association.OnLineImportActivity
 import io.legado.app.ui.login.SourceLoginActivity
 import io.legado.app.ui.login.SourceLoginJsExtensions
@@ -95,6 +96,7 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
     RecyclerAdapter<BookSourcePart, ItemFindBookBinding>(context) {
     companion object {
         val exploreInfoMapList = LruCache<String, InfoMap>(99)
+        private val exploreWebViewHeightCache = LruCache<String, Int>(99)
     }
     private val recycler = arrayListOf<TextView>()
     private val textRecycler = arrayListOf<AutoCompleteTextView>()
@@ -720,19 +722,30 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
             return
         }
         val useWebHtml = content.substring(8, endIndex)
+        val pageKey = buildExploreUseWebPageKey(source, useWebHtml)
         val pageJs = buildExploreUseWebPageInjection(
-            pageKey = buildExploreUseWebPageKey(source, useWebHtml),
+            pageKey = pageKey,
             initialPage = infoMap["page"]?.toIntOrNull()?.coerceAtLeast(1) ?: 1
         )
         val html = wrapExploreUseWebHtml(useWebHtml, source, pageJs)
         val pooledWebView = WebViewPool.acquire(context)
         val webView = pooledWebView.realWebView
+        container.setBackgroundColor(context.backgroundColor)
         webView.onResume()
         prepareForInlineContent(webView)
+        exploreWebViewHeightCache[pageKey]?.takeIf { it > 1 }?.let { cachedHeight ->
+            webView.layoutParams = (webView.layoutParams ?: FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                cachedHeight
+            )).also {
+                it.width = FrameLayout.LayoutParams.MATCH_PARENT
+                it.height = cachedHeight
+            }
+        }
         installInlineContentRefitOnTouch(webView) {
             container.requestLayout()
         }
-        webView.webViewClient = ExploreHtmlWebViewClient(container, source, pageJs)
+        webView.webViewClient = ExploreHtmlWebViewClient(container, source, pageJs, pageKey)
         webView.addJavascriptInterface(WebCacheManager, nameCache)
         source?.let {
             webView.addJavascriptInterface(it as BaseSource, nameSource)
@@ -816,6 +829,11 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
     }
 
     private fun wrapExploreUseWebHtml(html: String, source: BookSource?, pageJs: String): String {
+        val inlineStyle = """
+            <style>
+            html,body{background:transparent;}
+            </style>
+        """.trimIndent()
         val injection = buildString {
             val baseJs = buildUseWebInjection(source).trim()
             if (baseJs.isNotEmpty()) {
@@ -827,10 +845,10 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
             }
         }
         if (injection.isBlank()) {
-            return html
+            return "$inlineStyle\n$html"
         }
         val safeInjection = Regex("(?i)</script>").replace(injection, "<\\\\/script>")
-        return "<script>\n$safeInjection\n</script>\n$html"
+        return "$inlineStyle\n<script>\n$safeInjection\n</script>\n$html"
     }
 
     @Synchronized
@@ -996,7 +1014,8 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
     private inner class ExploreHtmlWebViewClient(
         private val container: FrameLayout,
         private val source: BaseSource?,
-        private val pageJs: String
+        private val pageJs: String,
+        private val pageKey: String
     ) : WebViewClient() {
         private val jsStr = buildString {
             append(buildUseWebInjection(source))
@@ -1039,6 +1058,10 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
             super.onPageFinished(view, url)
             view?.let {
                 scheduleInlineContentFit(it, afterLayout = {
+                    val height = it.layoutParams?.height ?: 0
+                    if (height > 1) {
+                        exploreWebViewHeightCache.put(pageKey, height)
+                    }
                     container.requestLayout()
                 })
             }

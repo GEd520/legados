@@ -5,12 +5,14 @@ import android.content.Context
 import android.content.MutableContextWrapper
 import android.os.Build
 import android.view.MotionEvent
+import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import io.legado.app.R
 import io.legado.app.help.config.AppConfig
+import io.legado.app.lib.theme.backgroundColor
 import io.legado.app.ui.rss.read.VisibleWebView
 import io.legado.app.utils.setDarkeningAllowed
 import kotlinx.coroutines.CoroutineScope
@@ -108,6 +110,9 @@ object WebViewPool {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 setOnScrollChangeListener(null)
             }
+            overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
+            isHorizontalScrollBarEnabled = true
+            isVerticalScrollBarEnabled = true
             setDownloadListener(null)
             outlineProvider = null
             clipToOutline = false
@@ -152,6 +157,10 @@ object WebViewPool {
 
     fun prepareForInlineContent(webView: WebView) {
         nextInlineContentGeneration(webView)
+        webView.setBackgroundColor(webView.context.backgroundColor)
+        webView.overScrollMode = View.OVER_SCROLL_NEVER
+        webView.isHorizontalScrollBarEnabled = false
+        webView.isVerticalScrollBarEnabled = false
         val layoutParams = (webView.layoutParams ?: ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
