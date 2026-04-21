@@ -23,6 +23,7 @@ import io.legado.app.data.entities.BaseSource
 import io.legado.app.data.entities.Book
 import io.legado.app.help.CacheManager
 import io.legado.app.help.DefaultData
+import io.legado.app.help.config.CoverHtmlTemplateConfig
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.glide.BlurTransformation
 import io.legado.app.help.glide.ImageLoader
@@ -55,8 +56,6 @@ import androidx.core.graphics.drawable.toDrawable
 object BookCover {
 
     private const val coverRuleConfigKey = "legadoCoverRuleConfig"
-
-    private const val coverHtmlCodeKey = "legadoCoverHtmlCode"
 
     const val configFileName = "coverRule.json"
 
@@ -326,31 +325,6 @@ object BookCover {
     }
 
     /**
-     * 获取HTML封面代码配置
-     * @return HTML封面代码配置，若未配置则返回默认配置
-     */
-    fun getCoverHtmlCode(): CoverHtmlCode {
-        return GSON.fromJsonObject<CoverHtmlCode>(CacheManager.get(coverHtmlCodeKey))
-            .getOrNull() ?: CoverHtmlCode()
-    }
-
-    /**
-     * 保存HTML封面代码配置
-     * @param config HTML封面代码配置对象
-     */
-    fun saveCoverHtmlCode(config: CoverHtmlCode) {
-        val json = GSON.toJson(config)
-        CacheManager.put(coverHtmlCodeKey, json)
-    }
-
-    /**
-     * 删除HTML封面代码配置
-     */
-    fun delCoverHtmlCode() {
-        CacheManager.delete(coverHtmlCodeKey)
-    }
-
-    /**
      * 渲染HTML模板
      * 
      * 将模板中的变量替换为实际值
@@ -403,19 +377,5 @@ object BookCover {
             return searchUrl
         }
     }
-
-    /**
-     * HTML封面代码配置类
-     * 
-     * 用于定义自定义HTML模板来生成封面图片
-     * 
-     * @property enable 是否启用此功能
-     * @property htmlCode HTML代码模板，支持 {{bookName}} 和 {{author}} 变量
-     */
-    @Keep
-    data class CoverHtmlCode(
-        var enable: Boolean = false,
-        var htmlCode: String = ""
-    )
 
 }

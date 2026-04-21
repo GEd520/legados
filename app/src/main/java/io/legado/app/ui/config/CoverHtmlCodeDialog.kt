@@ -5,30 +5,29 @@ import android.graphics.Color
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
-import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.core.os.bundleOf
 import androidx.lifecycle.lifecycleScope
 import io.legado.app.R
 import io.legado.app.base.BaseDialogFragment
 import io.legado.app.databinding.DialogCoverHtmlCodeBinding
 import io.legado.app.help.DefaultData
+import io.legado.app.help.config.CoverHtmlTemplateConfig
 import io.legado.app.lib.theme.primaryColor
-import io.legado.app.model.BookCover
 import io.legado.app.ui.widget.code.addHtmlPattern
 import io.legado.app.ui.widget.code.addJsPattern
+import io.legado.app.utils.GSON
 import io.legado.app.utils.setLayout
 import io.legado.app.utils.viewbindingdelegate.viewBinding
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import splitties.views.onClick
 
 /**
  * HTML封面代码配置对话框
  * 
  * 用于配置自定义HTML模板来生成封面图片，支持以下功能：
- * - 启用/禁用HTML封面生成
+ * - 设置模板名称
  * - 输入书名和作者进行实时预览
  * - 编辑HTML代码模板（支持语法高亮）
  * - WebView实时渲染预览效果
@@ -41,6 +40,24 @@ class CoverHtmlCodeDialog : BaseDialogFragment(R.layout.dialog_cover_html_code) 
 
     val binding by viewBinding(DialogCoverHtmlCodeBinding::bind)
 
+    private var template: CoverHtmlTemplateConfig.Template? = null
+    private var isNewTemplate: Boolean = false
+
+    companion object {
+        private const val KEY_TEMPLATE = "template"
+
+        /**
+         * 创建对话框实例
+         * 
+         * @param template 要编辑的模板，为null时表示新建模板
+         */
+        fun newInstance(template: CoverHtmlTemplateConfig.Template?): CoverHtmlCodeDialog {
+            return CoverHtmlCodeDialog().apply {
+                arguments = bundleOf(KEY_TEMPLATE to GSON.toJson(template))
+            }
+        }
+    }
+
     override fun onStart() {
         super.onStart()
         setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
@@ -48,10 +65,22 @@ class CoverHtmlCodeDialog : BaseDialogFragment(R.layout.dialog_cover_html_code) 
 
     override fun onFragmentCreated(view: View, savedInstanceState: Bundle?) {
         binding.toolBar.setBackgroundColor(primaryColor)
+        parseArguments()
         initWebView()
         initCodeView()
         initData()
         initClickListeners()
+    }
+
+    /**
+     * 解析传入的参数
+     */
+    private fun parseArguments() {
+        val templateJson = arguments?.getString(KEY_TEMPLATE)
+        if (templateJson != null) {
+            template = GSON.fromJson(templateJson, CoverHtmlTemplateConfig.Template::class.java)
+        }
+        isNewTemplate = template == null
     }
 
     /**
@@ -95,18 +124,18 @@ class CoverHtmlCodeDialog : BaseDialogFragment(R.layout.dialog_cover_html_code) 
     /**
      * 初始化数据
      * 
-     * 从存储中加载已保存的配置，若未配置则使用默认模板
+     * 从传入的模板加载配置，若为新建则使用默认模板
      */
     private fun initData() {
         lifecycleScope.launch {
-            val config = withContext(Dispatchers.IO) {
-                BookCover.getCoverHtmlCode()
+            val currentTemplate = template
+            if (currentTemplate != null) {
+                binding.editTemplateName.setText(currentTemplate.name)
+                binding.codeView.setText(currentTemplate.htmlCode)
+            } else {
+                binding.editTemplateName.setText("")
+                binding.codeView.setText(DefaultData.coverHtmlTemplate)
             }
-            binding.cbEnable.isChecked = config.enable
-            val htmlCode = config.htmlCode.ifBlank {
-                DefaultData.coverHtmlTemplate
-            }
-            binding.codeView.setText(htmlCode)
             binding.editBookName.setText("示例书名")
             binding.editAuthor.setText("示例作者")
             binding.webViewPreview.post {
@@ -119,27 +148,21 @@ class CoverHtmlCodeDialog : BaseDialogFragment(R.layout.dialog_cover_html_code) 
      * 初始化点击事件监听
      */
     private fun initClickListeners() {
-        // 预览按钮：渲染HTML并在WebView中显示
         binding.tvPreview.onClick {
             previewCover()
         }
 
-        // 取消按钮：关闭对话框
         binding.tvCancel.onClick {
             dismissAllowingStateLoss()
         }
 
-        // 确定按钮：保存配置并关闭对话框
         binding.tvOk.onClick {
-            saveConfig()
+            saveTemplate()
             dismissAllowingStateLoss()
         }
 
-        // 恢复默认按钮：重置为默认模板
         binding.tvFooterLeft.onClick {
-            BookCover.delCoverHtmlCode()
             binding.codeView.setText(DefaultData.coverHtmlTemplate)
-            binding.cbEnable.isChecked = false
         }
     }
 
@@ -181,14 +204,33 @@ class CoverHtmlCodeDialog : BaseDialogFragment(R.layout.dialog_cover_html_code) 
     }
 
     /**
-     * 保存配置
-     * 
-     * 将当前启用状态和HTML代码保存到存储
+     * 保存模板
      */
-    private fun saveConfig() {
-        val enable = binding.cbEnable.isChecked
+    private fun saveTemplate() {
+        val name = binding.editTemplateName.text?.toString()?.trim() ?: ""
         val htmlCode = binding.codeView.text?.toString() ?: ""
-        BookCover.saveCoverHtmlCode(BookCover.CoverHtmlCode(enable, htmlCode))
+
+        val savedTemplate = if (isNewTemplate) {
+            CoverHtmlTemplateConfig.Template(
+                id = CoverHtmlTemplateConfig.generateId(),
+                name = name.ifEmpty { "未命名模板" },
+                htmlCode = htmlCode,
+                isSelected = false
+            )
+        } else {
+            template?.copy(
+                name = name.ifEmpty { "未命名模板" },
+                htmlCode = htmlCode
+            ) ?: return
+        }
+
+        if (isNewTemplate) {
+            CoverHtmlTemplateConfig.addTemplate(savedTemplate)
+        } else {
+            CoverHtmlTemplateConfig.updateTemplate(savedTemplate)
+        }
+
+        (parentFragment as? CoverHtmlTemplateListDialog)?.refreshList()
     }
 
 }

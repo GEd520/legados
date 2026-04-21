@@ -33,6 +33,7 @@ import io.legado.app.help.glide.ImageLoader
 import io.legado.app.help.glide.OkHttpModelLoader
 import io.legado.app.lib.theme.accentColor
 import io.legado.app.lib.theme.backgroundColor
+import io.legado.app.help.config.CoverHtmlTemplateConfig
 import io.legado.app.model.BookCover
 import io.legado.app.utils.textHeight
 import io.legado.app.utils.toStringArray
@@ -46,6 +47,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import splitties.init.appCtx
 
 /**
@@ -312,8 +314,8 @@ class CoverImageView @JvmOverloads constructor(
         }
         this.bitmapPath = path
 
-        val htmlConfig = BookCover.getCoverHtmlCode()
-        if (htmlConfig.enable && htmlConfig.htmlCode.isNotBlank() && currentName != null) {
+        val htmlTemplate = CoverHtmlTemplateConfig.getSelectedTemplate()
+        if (htmlTemplate.htmlCode.isNotBlank() && currentName != null) {
             loadHtmlCover(currentName, currentAuthor, onLoadFinish)
             return
         }
@@ -396,8 +398,8 @@ class CoverImageView @JvmOverloads constructor(
         currentJob?.cancel()
         currentJob = CoroutineScope(Dispatchers.Main).launch {
             try {
-                val htmlConfig = BookCover.getCoverHtmlCode()
-                val htmlCode = htmlConfig.htmlCode
+                val htmlTemplate = CoverHtmlTemplateConfig.getSelectedTemplate()
+                val htmlCode = htmlTemplate.htmlCode
                 if (htmlCode.isBlank()) {
                     setImageDrawable(BookCover.defaultDrawable)
                     onLoadFinish?.invoke()
