@@ -15,6 +15,7 @@ import io.legado.app.databinding.DialogCoverHtmlCodeBinding
 import io.legado.app.help.DefaultData
 import io.legado.app.help.config.CoverHtmlTemplateConfig
 import io.legado.app.lib.theme.primaryColor
+import io.legado.app.ui.widget.image.CoverImageView
 import io.legado.app.ui.widget.code.addHtmlPattern
 import io.legado.app.ui.widget.code.addJsPattern
 import io.legado.app.utils.GSON
@@ -53,7 +54,9 @@ class CoverHtmlCodeDialog : BaseDialogFragment(R.layout.dialog_cover_html_code) 
          */
         fun newInstance(template: CoverHtmlTemplateConfig.Template?): CoverHtmlCodeDialog {
             return CoverHtmlCodeDialog().apply {
-                arguments = bundleOf(KEY_TEMPLATE to GSON.toJson(template))
+                if (template != null) {
+                    arguments = bundleOf(KEY_TEMPLATE to GSON.toJson(template))
+                }
             }
         }
     }
@@ -162,6 +165,7 @@ class CoverHtmlCodeDialog : BaseDialogFragment(R.layout.dialog_cover_html_code) 
         }
 
         binding.tvFooterLeft.onClick {
+            binding.editTemplateName.setText("")
             binding.codeView.setText(DefaultData.coverHtmlTemplate)
         }
     }
@@ -229,6 +233,7 @@ class CoverHtmlCodeDialog : BaseDialogFragment(R.layout.dialog_cover_html_code) 
         } else {
             CoverHtmlTemplateConfig.updateTemplate(savedTemplate)
         }
+        CoverImageView.clearHtmlCoverCache()
 
         (parentFragment as? CoverHtmlTemplateListDialog)?.refreshList()
     }

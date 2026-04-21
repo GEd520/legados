@@ -68,8 +68,10 @@ class CoverImageView @JvmOverloads constructor(
         private val nameBitmapCache by lazy { LruCache<String, Bitmap>(33) }
         private val needNameBitmap by lazy { LruCache<String, Boolean>(99) }
         private val htmlCoverCache by lazy { LruCache<String, Bitmap>(50) }
-        @Volatile
-        private var webView: WebView? = null
+
+        fun clearHtmlCoverCache() {
+            htmlCoverCache.evictAll()
+        }
     }
     private var viewWidth: Float = 0f
     private var viewHeight: Float = 0f
@@ -81,6 +83,7 @@ class CoverImageView @JvmOverloads constructor(
     private var author: String? = null
     private var nameHeight = 0f
     private var authorHeight = 0f
+    private var isHtmlCover = false
     private val drawBookName = BookCover.drawBookName
     private val drawBookAuthor by lazy { BookCover.drawBookAuthor }
 
@@ -117,7 +120,7 @@ class CoverImageView @JvmOverloads constructor(
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        if (!drawBookName) return
+        if (!drawBookName || isHtmlCover) return
         val currentName = this.name ?: return
         if (AppConfig.useDefaultCover || needNameBitmap[bitmapPath.toString()] == true) {
             val currentAuthor = this.author
@@ -315,10 +318,13 @@ class CoverImageView @JvmOverloads constructor(
         this.bitmapPath = path
 
         val htmlTemplate = CoverHtmlTemplateConfig.getSelectedTemplate()
-        if (htmlTemplate.htmlCode.isNotBlank() && currentName != null) {
+        if (htmlTemplate.enable && htmlTemplate.htmlCode.isNotBlank() && currentName != null) {
+            isHtmlCover = true
             loadHtmlCover(currentName, currentAuthor, onLoadFinish)
             return
         }
+
+        isHtmlCover = false
 
         if (AppConfig.useDefaultCover) {
             ImageLoader.load(context, BookCover.defaultDrawable)
@@ -387,17 +393,30 @@ class CoverImageView @JvmOverloads constructor(
      */
     @SuppressLint("SetJavaScriptEnabled")
     private fun loadHtmlCover(bookName: String, author: String?, onLoadFinish: (() -> Unit)?) {
-        val cacheKey = "$bookName-$author-${width}x$height"
-        val cachedBitmap = htmlCoverCache[cacheKey]
-        if (cachedBitmap != null) {
-            setImageDrawable(cachedBitmap.toDrawable(resources))
-            onLoadFinish?.invoke()
-            return
-        }
-
         currentJob?.cancel()
         currentJob = CoroutineScope(Dispatchers.Main).launch {
             try {
+                if (width <= 0 || height <= 0) {
+                    var attempts = 0
+                    do {
+                        delay(16L)
+                        attempts++
+                    } while ((width <= 0 || height <= 0) && attempts < 100)
+                }
+                if (width <= 0 || height <= 0) {
+                    setImageDrawable(BookCover.defaultDrawable)
+                    onLoadFinish?.invoke()
+                    return@launch
+                }
+
+                val cacheKey = "$bookName-$author-${width}x$height"
+                val cachedBitmap = htmlCoverCache[cacheKey]
+                if (cachedBitmap != null) {
+                    setImageDrawable(cachedBitmap.toDrawable(resources))
+                    onLoadFinish?.invoke()
+                    return@launch
+                }
+
                 val htmlTemplate = CoverHtmlTemplateConfig.getSelectedTemplate()
                 val htmlCode = htmlTemplate.htmlCode
                 if (htmlCode.isBlank()) {
@@ -407,9 +426,11 @@ class CoverImageView @JvmOverloads constructor(
                 }
 
                 val renderedHtml = BookCover.renderHtmlTemplate(htmlCode, bookName, author ?: "")
+                val captureWidth = width
+                val captureHeight = height
 
                 val bitmap = withContext(Dispatchers.Main) {
-                    generateHtmlCoverBitmap(renderedHtml, width, height)
+                    generateHtmlCoverBitmap(renderedHtml, captureWidth, captureHeight)
                 }
 
                 if (bitmap != null) {
@@ -428,14 +449,12 @@ class CoverImageView @JvmOverloads constructor(
         }
     }
 
-    /**
-     * 使用WebView生成HTML封面Bitmap
-     */
     @SuppressLint("SetJavaScriptEnabled")
     private suspend fun generateHtmlCoverBitmap(html: String, width: Int, height: Int): Bitmap? {
         return withContext(Dispatchers.Main) {
+            var wv: WebView? = null
             try {
-                val wv = webView ?: WebView(context).also { webView = it }
+                wv = WebView(context.applicationContext)
                 wv.settings.javaScriptEnabled = true
                 wv.settings.useWideViewPort = true
                 wv.settings.loadWithOverviewMode = true
@@ -449,14 +468,14 @@ class CoverImageView @JvmOverloads constructor(
                         if (isComplete) return
                         isComplete = true
                         try {
-                            wv.measure(
+                            wv?.measure(
                                 View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
                                 View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY)
                             )
-                            wv.layout(0, 0, width, height)
+                            wv?.layout(0, 0, width, height)
                             val bitmap = createBitmap(width, height)
                             val canvas = Canvas(bitmap)
-                            wv.draw(canvas)
+                            wv?.draw(canvas)
                             resultBitmap = bitmap
                         } catch (e: Exception) {
                             e.printStackTrace()
@@ -476,6 +495,12 @@ class CoverImageView @JvmOverloads constructor(
             } catch (e: Exception) {
                 e.printStackTrace()
                 null
+            } finally {
+                try {
+                    wv?.stopLoading()
+                    wv?.destroy()
+                } catch (_: Exception) {
+                }
             }
         }
     }

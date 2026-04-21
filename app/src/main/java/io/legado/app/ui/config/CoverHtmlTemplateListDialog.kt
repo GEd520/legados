@@ -11,6 +11,7 @@ import io.legado.app.databinding.DialogRecyclerViewBinding
 import io.legado.app.databinding.ItemCoverHtmlTemplateBinding
 import io.legado.app.help.config.CoverHtmlTemplateConfig
 import io.legado.app.lib.theme.primaryColor
+import io.legado.app.ui.widget.image.CoverImageView
 import io.legado.app.utils.showDialogFragment
 import io.legado.app.utils.setLayout
 import io.legado.app.utils.viewbindingdelegate.viewBinding
@@ -43,7 +44,7 @@ class CoverHtmlTemplateListDialog : BaseDialogFragment(R.layout.dialog_recycler_
         binding.toolBar.setNavigationOnClickListener {
             dismissAllowingStateLoss()
         }
-        binding.toolBar.inflateMenu(R.menu.dict_rule)
+        binding.toolBar.inflateMenu(R.menu.cover_html_template)
         binding.toolBar.setOnMenuItemClickListener { menuItem ->
             if (menuItem.itemId == R.id.menu_add) {
                 showEditDialog(null)
@@ -91,6 +92,7 @@ class CoverHtmlTemplateListDialog : BaseDialogFragment(R.layout.dialog_recycler_
         ) {
             binding.tvName.text = item.name
             binding.rbSelected.isChecked = item.isSelected
+            binding.swEnable.isChecked = item.enable
 
             val previewText = item.htmlCode
                 .replace(Regex("<[^>]*>"), "")
@@ -112,6 +114,16 @@ class CoverHtmlTemplateListDialog : BaseDialogFragment(R.layout.dialog_recycler_
                 setItems(CoverHtmlTemplateConfig.templateList)
             }
 
+            binding.swEnable.setOnCheckedChangeListener { _, isChecked ->
+                val position = holder.layoutPosition
+                val item = getItem(position) ?: return@setOnCheckedChangeListener
+                if (item.enable != isChecked) {
+                    item.enable = isChecked
+                    CoverHtmlTemplateConfig.save()
+                    CoverImageView.clearHtmlCoverCache()
+                }
+            }
+
             binding.ivEdit.onClick {
                 val position = holder.layoutPosition
                 val item = getItem(position) ?: return@onClick
@@ -123,7 +135,9 @@ class CoverHtmlTemplateListDialog : BaseDialogFragment(R.layout.dialog_recycler_
                 if (CoverHtmlTemplateConfig.templateList.size <= 1) {
                     return@onClick
                 }
-                CoverHtmlTemplateConfig.deleteTemplate(position)
+                val item = getItem(position) ?: return@onClick
+                CoverHtmlTemplateConfig.deleteTemplateById(item.id)
+                CoverImageView.clearHtmlCoverCache()
                 setItems(CoverHtmlTemplateConfig.templateList)
             }
 

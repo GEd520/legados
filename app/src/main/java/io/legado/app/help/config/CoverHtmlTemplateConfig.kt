@@ -72,6 +72,9 @@ object CoverHtmlTemplateConfig {
      * @param template 模板对象
      */
     fun addTemplate(template: Template) {
+        if (templateList.isEmpty()) {
+            template.isSelected = true
+        }
         templateList.add(template)
         save()
     }
@@ -167,7 +170,8 @@ object CoverHtmlTemplateConfig {
         var id: String = "",
         var name: String = "",
         var htmlCode: String = "",
-        var isSelected: Boolean = false
+        var isSelected: Boolean = false,
+        var enable: Boolean = true
     ) {
 
         override fun hashCode(): Int {
