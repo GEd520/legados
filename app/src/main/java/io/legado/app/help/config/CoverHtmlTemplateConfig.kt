@@ -170,8 +170,7 @@ object CoverHtmlTemplateConfig {
         var id: String = "",
         var name: String = "",
         var htmlCode: String = "",
-        var isSelected: Boolean = false,
-        var enable: Boolean = true
+        var isSelected: Boolean = false
     ) {
 
         override fun hashCode(): Int {

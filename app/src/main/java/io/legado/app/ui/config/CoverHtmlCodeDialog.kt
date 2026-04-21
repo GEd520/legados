@@ -20,6 +20,7 @@ import io.legado.app.ui.widget.code.addHtmlPattern
 import io.legado.app.ui.widget.code.addJsPattern
 import io.legado.app.utils.GSON
 import io.legado.app.utils.setLayout
+import io.legado.app.utils.showDialogFragment
 import io.legado.app.utils.toastOnUi
 import io.legado.app.utils.viewbindingdelegate.viewBinding
 import kotlinx.coroutines.launch
@@ -70,6 +71,7 @@ class CoverHtmlCodeDialog : BaseDialogFragment(R.layout.dialog_cover_html_code) 
     override fun onFragmentCreated(view: View, savedInstanceState: Bundle?) {
         binding.toolBar.setBackgroundColor(primaryColor)
         parseArguments()
+        initToolBar()
         initWebView()
         initCodeView()
         initData()
@@ -82,9 +84,6 @@ class CoverHtmlCodeDialog : BaseDialogFragment(R.layout.dialog_cover_html_code) 
         super.onDestroyView()
     }
 
-    /**
-     * 解析传入的参数
-     */
     private fun parseArguments() {
         val templateJson = arguments?.getString(KEY_TEMPLATE)
         if (templateJson != null) {
@@ -93,14 +92,19 @@ class CoverHtmlCodeDialog : BaseDialogFragment(R.layout.dialog_cover_html_code) 
         isNewTemplate = template == null
     }
 
-    /**
-     * 初始化WebView配置
-     * 
-     * 配置WebView用于预览HTML封面效果：
-     * - 启用JavaScript支持
-     * - 禁用缩放功能
-     * - 设置自适应布局
-     */
+    private fun initToolBar() {
+        binding.toolBar.inflateMenu(R.menu.cover_html_code)
+        binding.toolBar.setOnMenuItemClickListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.menu_template -> {
+                    showDialogFragment(CoverHtmlTemplateListDialog())
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
     @SuppressLint("SetJavaScriptEnabled")
     private fun initWebView() {
         binding.webViewPreview.setBackgroundColor(Color.TRANSPARENT)
@@ -143,8 +147,9 @@ class CoverHtmlCodeDialog : BaseDialogFragment(R.layout.dialog_cover_html_code) 
                 binding.editTemplateName.setText(currentTemplate.name)
                 binding.codeView.setText(currentTemplate.htmlCode)
             } else {
-                binding.editTemplateName.setText("")
-                binding.codeView.setText(DefaultData.coverHtmlTemplate)
+                val selected = CoverHtmlTemplateConfig.getSelectedTemplate()
+                binding.editTemplateName.setText(selected.name)
+                binding.codeView.setText(selected.htmlCode)
             }
             binding.editBookName.setText("示例书名")
             binding.editAuthor.setText("示例作者")
@@ -246,8 +251,6 @@ class CoverHtmlCodeDialog : BaseDialogFragment(R.layout.dialog_cover_html_code) 
             CoverHtmlTemplateConfig.updateTemplate(savedTemplate)
         }
         CoverImageView.clearHtmlCoverCache()
-
-        (parentFragment as? CoverHtmlTemplateListDialog)?.refreshList()
     }
 
 }

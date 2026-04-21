@@ -74,10 +74,7 @@ class CoverHtmlTemplateListDialog : BaseDialogFragment(R.layout.dialog_recycler_
         adapter.setItems(CoverHtmlTemplateConfig.templateList)
     }
 
-    /**
-     * 模板列表适配器
-     */
-    inner class TemplateAdapter(context: android.content.Context) : 
+    inner class TemplateAdapter(context: android.content.Context) :
         RecyclerAdapter<CoverHtmlTemplateConfig.Template, ItemCoverHtmlTemplateBinding>(context) {
 
         override fun getViewBinding(parent: ViewGroup): ItemCoverHtmlTemplateBinding {
@@ -92,8 +89,6 @@ class CoverHtmlTemplateListDialog : BaseDialogFragment(R.layout.dialog_recycler_
         ) {
             binding.tvName.text = item.name
             binding.rbSelected.isChecked = item.isSelected
-            binding.swEnable.setOnCheckedChangeListener(null)
-            binding.swEnable.isChecked = item.enable
 
             val previewText = item.htmlCode
                 .replace(Regex("<[^>]*>"), "")
@@ -114,16 +109,6 @@ class CoverHtmlTemplateListDialog : BaseDialogFragment(R.layout.dialog_recycler_
                 CoverHtmlTemplateConfig.setSelectedTemplate(item.id)
                 CoverImageView.clearHtmlCoverCache()
                 setItems(CoverHtmlTemplateConfig.templateList)
-            }
-
-            binding.swEnable.setOnCheckedChangeListener { _, isChecked ->
-                val position = holder.layoutPosition
-                val item = getItem(position) ?: return@setOnCheckedChangeListener
-                if (item.enable != isChecked) {
-                    item.enable = isChecked
-                    CoverHtmlTemplateConfig.save()
-                    CoverImageView.clearHtmlCoverCache()
-                }
             }
 
             binding.ivEdit.onClick {

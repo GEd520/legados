@@ -100,7 +100,7 @@ class CoverConfigFragment : PreferenceFragment(),
     override fun onPreferenceTreeClick(preference: Preference): Boolean {
         when (preference.key) {
             "coverRule" -> showDialogFragment(CoverRuleConfigDialog())
-            "coverHtmlCode" -> showDialogFragment(CoverHtmlTemplateListDialog())
+            "coverHtmlCode" -> showDialogFragment(CoverHtmlCodeDialog.newInstance(null))
             PreferKey.defaultCover ->
                 if (getPrefString(preference.key).isNullOrEmpty()) {
                     selectImage.launch {

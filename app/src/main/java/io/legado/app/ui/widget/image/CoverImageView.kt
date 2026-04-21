@@ -318,7 +318,7 @@ class CoverImageView @JvmOverloads constructor(
         this.bitmapPath = path
 
         val htmlTemplate = CoverHtmlTemplateConfig.getSelectedTemplate()
-        if (htmlTemplate.enable && htmlTemplate.htmlCode.isNotBlank() && currentName != null) {
+        if (htmlTemplate.isSelected && htmlTemplate.htmlCode.isNotBlank() && currentName != null) {
             isHtmlCover = true
             loadHtmlCover(currentName, currentAuthor, onLoadFinish)
             return

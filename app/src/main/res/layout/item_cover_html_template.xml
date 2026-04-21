@@ -47,13 +47,6 @@
 
     </LinearLayout>
 
-    <androidx.appcompat.widget.SwitchCompat
-        android:id="@+id/sw_enable"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center_vertical"
-        android:layout_marginStart="8dp" />
-
     <io.legado.app.ui.widget.image.CircleImageView
         android:id="@+id/iv_edit"
         android:layout_width="36dp"
