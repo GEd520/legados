@@ -1,5 +1,6 @@
 package io.legado.app.ui.widget.image
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -11,7 +12,12 @@ import android.text.TextPaint
 import android.util.AttributeSet
 import android.view.View
 import android.view.ViewGroup
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.appcompat.widget.AppCompatImageView
+import androidx.collection.LruCache
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.drawable.toDrawable
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
 import com.bumptech.glide.load.DataSource
@@ -20,19 +26,17 @@ import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.RequestOptions
 import com.bumptech.glide.request.target.Target
 import io.legado.app.constant.AppPattern
+import io.legado.app.data.entities.Book
+import io.legado.app.data.entities.SearchBook
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.glide.ImageLoader
 import io.legado.app.help.glide.OkHttpModelLoader
 import io.legado.app.lib.theme.accentColor
+import io.legado.app.lib.theme.backgroundColor
 import io.legado.app.model.BookCover
 import io.legado.app.utils.textHeight
 import io.legado.app.utils.toStringArray
 import android.view.ViewOutlineProvider
-import androidx.collection.LruCache
-import androidx.core.graphics.createBitmap
-import io.legado.app.data.entities.Book
-import io.legado.app.data.entities.SearchBook
-import io.legado.app.lib.theme.backgroundColor
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -41,11 +45,17 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.withContext
 import splitties.init.appCtx
 
 /**
- * 封面
+ * 封面图片视图
+ * 
+ * 支持多种封面来源：
+ * - 网络图片（通过URL加载）
+ * - 默认封面（全局设置）
+ * - HTML模板生成封面（自定义HTML代码）
+ * - Canvas绘制书名作者（无封面时的兜底方案）
  */
 @Suppress("unused")
 class CoverImageView @JvmOverloads constructor(
@@ -55,6 +65,9 @@ class CoverImageView @JvmOverloads constructor(
     companion object {
         private val nameBitmapCache by lazy { LruCache<String, Bitmap>(33) }
         private val needNameBitmap by lazy { LruCache<String, Boolean>(99) }
+        private val htmlCoverCache by lazy { LruCache<String, Bitmap>(50) }
+        @Volatile
+        private var webView: WebView? = null
     }
     private var viewWidth: Float = 0f
     private var viewHeight: Float = 0f
@@ -180,7 +193,7 @@ class CoverImageView @JvmOverloads constructor(
                 bitmapCanvas.drawText(char, startX, startY, namePaint)
                 startY += namePaint.textHeight
                 if (startY > viewHeight * 0.9) {
-                    if ((name.size - index - 1) == 1) { //只剩一个字
+                    if ((name.size - index - 1) == 1) {
                         startY -= namePaint.textHeight / 5
                         namePaint.textSize = viewWidth / 9
                         return@forEachIndexed
@@ -190,7 +203,7 @@ class CoverImageView @JvmOverloads constructor(
                     namePaint.textSize = viewWidth / 10
                     startY = viewHeight * 0.2f + namePaint.textHeight * line
                 }
-                else if (startY > viewHeight * 0.8 && (name.size - index - 1) > 2) { //剩余字数大于2
+                else if (startY > viewHeight * 0.8 && (name.size - index - 1) > 2) {
                     startX += namePaint.textSize
                     line++
                     namePaint.textSize = viewWidth / 10
@@ -298,6 +311,13 @@ class CoverImageView @JvmOverloads constructor(
             this.name = it
         }
         this.bitmapPath = path
+
+        val htmlConfig = BookCover.getCoverHtmlCode()
+        if (htmlConfig.enable && htmlConfig.htmlCode.isNotBlank() && currentName != null) {
+            loadHtmlCover(currentName, currentAuthor, onLoadFinish)
+            return
+        }
+
         if (AppConfig.useDefaultCover) {
             ImageLoader.load(context, BookCover.defaultDrawable)
                 .centerCrop()
@@ -318,7 +338,7 @@ class CoverImageView @JvmOverloads constructor(
             var builder = if (fragment != null && lifecycle != null) {
                 ImageLoader.load(fragment, lifecycle, path)
             } else {
-                ImageLoader.load(context, path)//Glide自动识别http://,content://和file://
+                ImageLoader.load(context, path)
             }
             builder = builder.apply(options)
                 .placeholder(BookCover.defaultDrawable)
@@ -339,7 +359,7 @@ class CoverImageView @JvmOverloads constructor(
                     override fun onResourceReady(
                         resource: Drawable,
                         model: Any,
-                        target: Target<Drawable>?,
+                        target: Target<Drawable?>?,
                         dataSource: DataSource,
                         isFirstResource: Boolean
                     ): Boolean {
@@ -351,6 +371,110 @@ class CoverImageView @JvmOverloads constructor(
             builder
                 .centerCrop()
                 .into(this)
+        }
+    }
+
+    /**
+     * 加载HTML模板生成的封面
+     * 
+     * 使用WebView渲染HTML模板并截取为封面图片
+     * 
+     * @param bookName 书名
+     * @param author 作者
+     * @param onLoadFinish 加载完成回调
+     */
+    @SuppressLint("SetJavaScriptEnabled")
+    private fun loadHtmlCover(bookName: String, author: String?, onLoadFinish: (() -> Unit)?) {
+        val cacheKey = "$bookName-$author-${width}x$height"
+        val cachedBitmap = htmlCoverCache[cacheKey]
+        if (cachedBitmap != null) {
+            setImageDrawable(cachedBitmap.toDrawable(resources))
+            onLoadFinish?.invoke()
+            return
+        }
+
+        currentJob?.cancel()
+        currentJob = CoroutineScope(Dispatchers.Main).launch {
+            try {
+                val htmlConfig = BookCover.getCoverHtmlCode()
+                val htmlCode = htmlConfig.htmlCode
+                if (htmlCode.isBlank()) {
+                    setImageDrawable(BookCover.defaultDrawable)
+                    onLoadFinish?.invoke()
+                    return@launch
+                }
+
+                val renderedHtml = BookCover.renderHtmlTemplate(htmlCode, bookName, author ?: "")
+
+                val bitmap = withContext(Dispatchers.Main) {
+                    generateHtmlCoverBitmap(renderedHtml, width, height)
+                }
+
+                if (bitmap != null) {
+                    htmlCoverCache.put(cacheKey, bitmap)
+                    setImageDrawable(bitmap.toDrawable(resources))
+                } else {
+                    setImageDrawable(BookCover.defaultDrawable)
+                }
+                onLoadFinish?.invoke()
+            } catch (_: CancellationException) {
+            } catch (e: Exception) {
+                e.printStackTrace()
+                setImageDrawable(BookCover.defaultDrawable)
+                onLoadFinish?.invoke()
+            }
+        }
+    }
+
+    /**
+     * 使用WebView生成HTML封面Bitmap
+     */
+    @SuppressLint("SetJavaScriptEnabled")
+    private suspend fun generateHtmlCoverBitmap(html: String, width: Int, height: Int): Bitmap? {
+        return withContext(Dispatchers.Main) {
+            try {
+                val wv = webView ?: WebView(context).also { webView = it }
+                wv.settings.javaScriptEnabled = true
+                wv.settings.useWideViewPort = true
+                wv.settings.loadWithOverviewMode = true
+
+                var resultBitmap: Bitmap? = null
+                var isComplete = false
+
+                wv.webViewClient = object : WebViewClient() {
+                    override fun onPageFinished(view: WebView?, url: String?) {
+                        super.onPageFinished(view, url)
+                        if (isComplete) return
+                        isComplete = true
+                        try {
+                            wv.measure(
+                                View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+                                View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY)
+                            )
+                            wv.layout(0, 0, width, height)
+                            val bitmap = createBitmap(width, height)
+                            val canvas = Canvas(bitmap)
+                            wv.draw(canvas)
+                            resultBitmap = bitmap
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
+                }
+
+                wv.loadDataWithBaseURL("about:blank", html, "text/html", "UTF-8", null)
+
+                var attempts = 0
+                while (resultBitmap == null && attempts < 50) {
+                    delay(50)
+                    attempts++
+                }
+
+                resultBitmap
+            } catch (e: Exception) {
+                e.printStackTrace()
+                null
+            }
         }
     }
 
