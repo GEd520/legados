@@ -74,6 +74,12 @@ class CoverHtmlTemplateListDialog : BaseDialogFragment(R.layout.dialog_recycler_
         adapter.setItems(CoverHtmlTemplateConfig.templateList)
     }
 
+    /**
+     * 模板列表适配器
+     * 
+     * 每个列表项显示模板名称、HTML代码预览和选中状态（RadioButton），
+     * 点击RadioButton或item切换选中模板，选中即启用该模板生成封面
+     */
     inner class TemplateAdapter(context: android.content.Context) :
         RecyclerAdapter<CoverHtmlTemplateConfig.Template, ItemCoverHtmlTemplateBinding>(context) {
 

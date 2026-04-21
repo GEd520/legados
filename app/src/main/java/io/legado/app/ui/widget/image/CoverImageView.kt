@@ -26,6 +26,7 @@ import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.RequestOptions
 import com.bumptech.glide.request.target.Target
 import io.legado.app.constant.AppPattern
+import io.legado.app.constant.PreferKey
 import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.SearchBook
 import io.legado.app.help.config.AppConfig
@@ -35,6 +36,7 @@ import io.legado.app.lib.theme.accentColor
 import io.legado.app.lib.theme.backgroundColor
 import io.legado.app.help.config.CoverHtmlTemplateConfig
 import io.legado.app.model.BookCover
+import io.legado.app.utils.getPrefBoolean
 import io.legado.app.utils.textHeight
 import io.legado.app.utils.toStringArray
 import android.view.ViewOutlineProvider
@@ -69,6 +71,12 @@ class CoverImageView @JvmOverloads constructor(
         private val needNameBitmap by lazy { LruCache<String, Boolean>(99) }
         private val htmlCoverCache by lazy { LruCache<String, Bitmap>(50) }
 
+        /**
+         * 清除HTML封面缓存
+         * 
+         * 在模板内容变更、切换选中模板、启用/禁用HTML封面时调用，
+         * 确保书架上的封面能及时刷新
+         */
         fun clearHtmlCoverCache() {
             htmlCoverCache.evictAll()
         }
@@ -317,8 +325,9 @@ class CoverImageView @JvmOverloads constructor(
         }
         this.bitmapPath = path
 
+        // 检查是否启用HTML封面生成（由封面配置页的开关控制）
         val htmlTemplate = CoverHtmlTemplateConfig.getSelectedTemplate()
-        if (htmlTemplate.isSelected && htmlTemplate.htmlCode.isNotBlank() && currentName != null) {
+        if (appCtx.getPrefBoolean(PreferKey.coverHtmlEnable) && htmlTemplate.htmlCode.isNotBlank() && currentName != null) {
             isHtmlCover = true
             loadHtmlCover(currentName, currentAuthor, onLoadFinish)
             return
@@ -383,13 +392,13 @@ class CoverImageView @JvmOverloads constructor(
     }
 
     /**
-     * 加载HTML模板生成的封面
+     * 加载HTML封面
      * 
-     * 使用WebView渲染HTML模板并截取为封面图片
-     * 
-     * @param bookName 书名
-     * @param author 作者
-     * @param onLoadFinish 加载完成回调
+     * 流程：
+     * 1. 等待View布局完成（width/height > 0），超时则使用默认封面
+     * 2. 查询缓存，命中则直接使用
+     * 3. 获取当前选中模板，替换变量后通过WebView渲染生成Bitmap
+     * 4. 缓存结果并显示
      */
     @SuppressLint("SetJavaScriptEnabled")
     private fun loadHtmlCover(bookName: String, author: String?, onLoadFinish: (() -> Unit)?) {
@@ -447,6 +456,13 @@ class CoverImageView @JvmOverloads constructor(
         }
     }
 
+    /**
+     * 使用WebView生成HTML封面Bitmap
+     * 
+     * 创建临时WebView渲染HTML内容，等待页面加载完成后截图。
+     * 使用applicationContext避免Activity泄漏，每次用完即销毁。
+     * 设置超时保护（最多等待2.5秒），超时返回null使用默认封面。
+     */
     @SuppressLint("SetJavaScriptEnabled")
     private suspend fun generateHtmlCoverBitmap(html: String, width: Int, height: Int): Bitmap? {
         return withContext(Dispatchers.Main) {

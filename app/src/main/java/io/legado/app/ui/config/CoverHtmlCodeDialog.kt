@@ -74,8 +74,13 @@ class CoverHtmlCodeDialog : BaseDialogFragment(R.layout.dialog_cover_html_code) 
         initToolBar()
         initWebView()
         initCodeView()
-        initData()
+        loadTemplateData()
         initClickListeners()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        refreshIfTemplateChanged()
     }
 
     override fun onDestroyView() {
@@ -84,14 +89,30 @@ class CoverHtmlCodeDialog : BaseDialogFragment(R.layout.dialog_cover_html_code) 
         super.onDestroyView()
     }
 
+    /**
+     * 解析传入参数，确定当前编辑的模板
+     * 
+     * 若从模板列表传入模板则编辑该模板；
+     * 若无传入（从封面配置页直接进入）则加载当前选中模板进行编辑，
+     * 保存时直接更新该模板而非创建新模板
+     */
     private fun parseArguments() {
         val templateJson = arguments?.getString(KEY_TEMPLATE)
         if (templateJson != null) {
             template = GSON.fromJson(templateJson, CoverHtmlTemplateConfig.Template::class.java)
         }
-        isNewTemplate = template == null
+        if (template == null) {
+            template = CoverHtmlTemplateConfig.getSelectedTemplate()
+        }
+        isNewTemplate = false
     }
 
+    /**
+     * 初始化工具栏菜单
+     * 
+     * 加载模板切换按钮，点击后弹出模板列表对话框，
+     * 用户可在列表中切换当前使用的模板
+     */
     private fun initToolBar() {
         binding.toolBar.inflateMenu(R.menu.cover_html_code)
         binding.toolBar.setOnMenuItemClickListener { menuItem ->
@@ -105,6 +126,14 @@ class CoverHtmlCodeDialog : BaseDialogFragment(R.layout.dialog_cover_html_code) 
         }
     }
 
+    /**
+     * 初始化WebView配置
+     * 
+     * 配置WebView用于预览HTML封面效果：
+     * - 启用JavaScript支持
+     * - 禁用缩放功能
+     * - 设置自适应布局
+     */
     @SuppressLint("SetJavaScriptEnabled")
     private fun initWebView() {
         binding.webViewPreview.setBackgroundColor(Color.TRANSPARENT)
@@ -136,26 +165,38 @@ class CoverHtmlCodeDialog : BaseDialogFragment(R.layout.dialog_cover_html_code) 
     }
 
     /**
-     * 初始化数据
+     * 加载模板数据到界面
      * 
-     * 从传入的模板加载配置，若为新建则使用默认模板
+     * 将当前编辑模板的名称和HTML代码填充到输入框，
+     * 设置默认预览参数并触发首次预览
      */
-    private fun initData() {
+    private fun loadTemplateData() {
         lifecycleScope.launch {
-            val currentTemplate = template
-            if (currentTemplate != null) {
-                binding.editTemplateName.setText(currentTemplate.name)
-                binding.codeView.setText(currentTemplate.htmlCode)
-            } else {
-                val selected = CoverHtmlTemplateConfig.getSelectedTemplate()
-                binding.editTemplateName.setText(selected.name)
-                binding.codeView.setText(selected.htmlCode)
-            }
+            val currentTemplate = template ?: return@launch
+            binding.editTemplateName.setText(currentTemplate.name)
+            binding.codeView.setText(currentTemplate.htmlCode)
             binding.editBookName.setText("示例书名")
             binding.editAuthor.setText("示例作者")
             binding.webViewPreview.post {
                 previewCover()
             }
+        }
+    }
+
+    /**
+     * 检测模板是否在模板列表中被切换
+     * 
+     * 从模板列表对话框返回后，若当前选中模板与编辑中的模板ID不同，
+     * 则自动加载新选中模板的内容并刷新预览
+     */
+    private fun refreshIfTemplateChanged() {
+        val selected = CoverHtmlTemplateConfig.getSelectedTemplate()
+        val current = template
+        if (current != null && selected.id != current.id) {
+            template = selected
+            binding.editTemplateName.setText(selected.name)
+            binding.codeView.setText(selected.htmlCode)
+            previewCover()
         }
     }
 
@@ -221,6 +262,9 @@ class CoverHtmlCodeDialog : BaseDialogFragment(R.layout.dialog_cover_html_code) 
 
     /**
      * 保存模板
+     * 
+     * 校验HTML代码不为空，将编辑内容更新到当前模板并持久化，
+     * 同时清除封面缓存使书架上的封面重新生成
      */
     private fun saveTemplate() {
         val name = binding.editTemplateName.text?.toString()?.trim() ?: ""

@@ -14,6 +14,7 @@ import io.legado.app.lib.prefs.fragment.PreferenceFragment
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.model.BookCover
 import io.legado.app.ui.file.HandleFileContract
+import io.legado.app.ui.widget.image.CoverImageView
 import io.legado.app.utils.FileUtils
 import io.legado.app.utils.MD5Utils
 import io.legado.app.utils.externalFiles
@@ -51,6 +52,7 @@ class CoverConfigFragment : PreferenceFragment(),
             ?.isEnabled = getPrefBoolean(PreferKey.coverShowName)
         findPreference<SwitchPreference>(PreferKey.coverShowAuthorN)
             ?.isEnabled = getPrefBoolean(PreferKey.coverShowNameN)
+        upCoverHtmlCodeVisibility()
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -75,6 +77,14 @@ class CoverConfigFragment : PreferenceFragment(),
             PreferKey.defaultCover,
             PreferKey.defaultCoverDark -> {
                 upPreferenceSummary(key, getPrefString(key))
+            }
+
+            PreferKey.coverHtmlEnable -> {
+                upCoverHtmlCodeVisibility()
+                CoverImageView.clearHtmlCoverCache()
+                if (getPrefBoolean(PreferKey.coverHtmlEnable)) {
+                    showDialogFragment(CoverHtmlCodeDialog.newInstance(null))
+                }
             }
 
             PreferKey.coverShowName -> {
@@ -166,6 +176,14 @@ class CoverConfigFragment : PreferenceFragment(),
 
             else -> preference.summary = value
         }
+    }
+
+    /**
+     * 根据HTML封面启用开关控制"自动生成封面代码"菜单项的可见性
+     */
+    private fun upCoverHtmlCodeVisibility() {
+        findPreference<Preference>("coverHtmlCode")?.isVisible =
+            getPrefBoolean(PreferKey.coverHtmlEnable)
     }
 
     private fun setCoverFromUri(preferenceKey: String, uri: Uri) {
