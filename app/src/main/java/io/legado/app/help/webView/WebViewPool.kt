@@ -12,7 +12,6 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import io.legado.app.R
 import io.legado.app.help.config.AppConfig
-import io.legado.app.lib.theme.backgroundColor
 import io.legado.app.ui.rss.read.VisibleWebView
 import io.legado.app.utils.setDarkeningAllowed
 import kotlinx.coroutines.CoroutineScope
@@ -159,12 +158,12 @@ object WebViewPool {
 
     /**
      * 准备内联内容 WebView
-     * 初始化高度测量代次，设置背景色和滚动属性，重置布局参数
+     * 初始化高度测量代次，设置透明背景和滚动属性，重置布局参数
      * @param initialHeight 初始高度（像素），默认为屏幕高度的 1/3
      */
     fun prepareForInlineContent(webView: WebView, initialHeight: Int = 0) {
         nextInlineContentGeneration(webView)
-        webView.setBackgroundColor(webView.context.backgroundColor)
+        webView.setBackgroundColor(android.graphics.Color.TRANSPARENT)
         webView.overScrollMode = View.OVER_SCROLL_NEVER
         webView.isHorizontalScrollBarEnabled = false
         webView.isVerticalScrollBarEnabled = false

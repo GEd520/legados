@@ -60,7 +60,6 @@ import io.legado.app.help.webView.WebViewPool.currentInlineContentGeneration
 import io.legado.app.help.source.clearExploreKindsCache
 import io.legado.app.help.source.exploreKinds
 import io.legado.app.lib.theme.accentColor
-import io.legado.app.lib.theme.backgroundColor
 import io.legado.app.ui.association.OnLineImportActivity
 import io.legado.app.ui.login.SourceLoginActivity
 import io.legado.app.ui.login.SourceLoginJsExtensions
@@ -815,7 +814,6 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         val html = wrapExploreUseWebHtml(useWebHtml, source, pageJs)
         val pooledWebView = WebViewPool.acquire(context)
         val webView = pooledWebView.realWebView
-        container.setBackgroundColor(context.backgroundColor)
         webView.onResume()
         val cachedHeight = exploreWebViewHeightCache[pageKey]?.takeIf { it > 1 }
         prepareForInlineContent(webView, cachedHeight ?: 0)
