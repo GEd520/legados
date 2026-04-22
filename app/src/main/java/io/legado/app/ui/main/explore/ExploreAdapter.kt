@@ -1243,8 +1243,6 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
                     }
                     loadingIndicator.gone()
                     webView.visible()
-                    container.requestLayout()
-                    completePendingScrollToSource(sourceUrl, container)
                 })
             }
         }
