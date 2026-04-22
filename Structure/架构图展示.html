@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legado 架构文档</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-card: #ffffff;
+            --accent-primary: #6366f1;
+            --accent-secondary: #8b5cf6;
+            --accent-tertiary: #06b6d4;
+            --text-primary: #1e293b;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --border-color: #e2e8f0;
+            --shadow-glow: 0 4px 20px rgba(99, 102, 241, 0.1);
+            --mermaid-bg: #f1f5f9;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #0a0e27;
+            --bg-secondary: #151b3d;
+            --bg-card: #1a2142;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-color: #2d3a5f;
+            --shadow-glow: 0 0 40px rgba(99, 102, 241, 0.15);
+            --mermaid-bg: #151b3d;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        .background-pattern {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 80% 50%, rgba(139, 92, 246, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 50% 80%, rgba(6, 182, 212, 0.03) 0%, transparent 50%);
+        }
+
+        [data-theme="dark"] .background-pattern {
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 50%, rgba(139, 92, 246, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 50% 80%, rgba(6, 182, 212, 0.05) 0%, transparent 50%);
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        header {
+            padding: 2rem 0 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 2rem;
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: 700;
+            color: white;
+            box-shadow: var(--shadow-glow);
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-top: 0.25rem;
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .theme-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            color: var(--text-primary);
+            font-family: 'Noto Sans SC', sans-serif;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .theme-toggle:hover {
+            border-color: var(--accent-primary);
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
+        }
+
+        .theme-icon {
+            font-size: 1.2rem;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            background: var(--bg-secondary);
+            padding: 0.5rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        .nav-tab {
+            padding: 0.6rem 1.2rem;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-family: 'Noto Sans SC', sans-serif;
+            font-size: 0.9rem;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .nav-tab:hover {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        .nav-tab.active {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            color: white;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .content-section {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .content-section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .architecture-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-glow);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .architecture-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 40px rgba(99, 102, 241, 0.15);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .card-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .card-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .card-description {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            line-height: 1.7;
+            margin-bottom: 2rem;
+        }
+
+        .mermaid-container {
+            background: var(--mermaid-bg);
+            border-radius: 12px;
+            padding: 2rem;
+            overflow-x: auto;
+            border: 1px solid var(--border-color);
+        }
+
+        .mermaid {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 200px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .info-item {
+            background: var(--bg-secondary);
+            padding: 1.5rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .info-item:hover {
+            border-color: var(--accent-primary);
+            transform: translateY(-2px);
+        }
+
+        .info-item h4 {
+            color: var(--accent-primary);
+            font-size: 1rem;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .info-item p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem 0;
+            margin-top: 3rem;
+            border-top: 1px solid var(--border-color);
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 1rem;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            .nav-tabs {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .nav-tab {
+                padding: 0.5rem 1rem;
+                font-size: 0.85rem;
+            }
+
+            .architecture-card {
+                padding: 1.5rem;
+            }
+
+            .mermaid-container {
+                padding: 1rem;
+            }
+
+            .header-controls {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        .error-message {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+        }
+
+        [data-theme="dark"] .error-message {
+            background: #1f1315;
+            border-color: #7f1d1d;
+            color: #fca5a5;
+        }
+    </style>
+</head>
+<body>
+    <div class="background-pattern"></div>
+    
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div class="logo-section">
+                    <div class="logo-icon">L</div>
+                    <div>
+                        <h1>Legado 架构文档</h1>
+                        <p class="subtitle">阅读 · 开源 Android 阅读应用架构设计</p>
+                    </div>
+                </div>
+                <div class="header-controls">
+                    <button class="theme-toggle" id="themeToggle">
+                        <span class="theme-icon">🌙</span>
+                        <span class="theme-text">夜间模式</span>
+                    </button>
+                </div>
+            </div>
+            <nav class="nav-tabs" style="margin-top: 1rem;">
+                <button class="nav-tab active" data-tab="overview">整体架构</button>
+                <button class="nav-tab" data-tab="startup">启动流程</button>
+                <button class="nav-tab" data-tab="reading">阅读流程</button>
+                <button class="nav-tab" data-tab="database">数据库</button>
+                <button class="nav-tab" data-tab="network">网络请求</button>
+                <button class="nav-tab" data-tab="modules">模块依赖</button>
+                <button class="nav-tab" data-tab="eventbus">事件总线</button>
+                <button class="nav-tab" data-tab="source">书源解析</button>
+            </nav>
+        </header>
+
+        <main>
+            <!-- 整体架构 -->
+            <section id="overview" class="content-section active">
+                <div class="architecture-card">
+                    <div class="card-header">
+                        <div class="card-icon">🏗️</div>
+                        <h2 class="card-title">整体架构层次图</h2>
+                    </div>
+                    <p class="card-description">
+                        Legado 采用经典的分层架构设计，从应用入口到数据层，各层职责明确，通过事件总线实现跨层通信。
+                    </p>
+                    <div class="mermaid-container">
+                        <div class="mermaid">graph TB
+    App[App.kt<br/>Application初始化]
+    MainActivity[MainActivity<br/>主界面入口]
+    
+    VM[ViewModel层]
+    Fragment[Fragment/Activity层]
+    Adapter[Adapter适配器层]
+    
+    ReadBook[ReadBook<br/>阅读核心]
+    WebBook[WebBook<br/>网络书籍]
+    LocalBook[LocalBook<br/>本地书籍]
+    AnalyzeRule[AnalyzeRule<br/>规则解析引擎]
+    
+    RoomDB[(Room Database<br/>legado.db)]
+    DAO[DAO接口层]
+    Entities[实体类]
+    
+    WebService[WebService<br/>Web服务]
+    DownloadService[DownloadService<br/>下载服务]
+    AudioService[AudioPlayService<br/>音频播放]
+    TTSService[TTSReadAloudService<br/>TTS朗读]
+    
+    LiveEventBus[LiveEventBus<br/>事件总线]
+
+    App --> MainActivity
+    MainActivity --> VM
+    VM --> Fragment
+    Fragment --> Adapter
+    
+    VM --> ReadBook
+    VM --> WebBook
+    VM --> RoomDB
+    
+    ReadBook --> LocalBook
+    WebBook --> AnalyzeRule
+    
+    RoomDB --> DAO
+    DAO --> Entities
+    
+    ReadBook --> TTSService
+    ReadBook --> AudioService
+    
+    LiveEventBus -.-> VM</div>
+                    </div>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <h4>📱 UI表现层</h4>
+                            <p>采用 MVVM 架构，ViewModel 管理状态，LiveData 实现响应式更新</p>
+                        </div>
+                        <div class="info-item">
+                            <h4>⚙️ 业务逻辑层</h4>
+                            <p>核心业务逻辑，包括阅读引擎、网络请求、规则解析等</p>
+                        </div>
+                        <div class="info-item">
+                            <h4>💾 数据层</h4>
+                            <p>Room ORM 数据库，提供本地数据持久化</p>
+                        </div>
+                        <div class="info-item">
+                            <h4>🔔 事件总线</h4>
+                            <p>LiveEventBus 实现跨组件通信，解耦各模块</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 启动流程 -->
+            <section id="startup" class="content-section">
+                <div class="architecture-card">
+                    <div class="card-header">
+                        <div class="card-icon">🚀</div>
+                        <h2 class="card-title">应用启动流程</h2>
+                    </div>
+                    <p class="card-description">
+                        从 Application 初始化到 MainActivity 启动的完整流程，确保应用正常启动和运行。
+                    </p>
+                    <div class="mermaid-container">
+                        <div class="mermaid">sequenceDiagram
+    participant App as App.kt
+    participant Main as MainActivity
+    participant VM as MainViewModel
+    participant DB as AppDatabase
+    participant EventBus as LiveEventBus
+
+    App->>App: onCreate()
+    activate App
+    
+    App->>App: 初始化崩溃处理器
+    App->>App: 应用主题配置
+    App->>App: 注册Activity生命周期
+    App->>App: 初始化日志系统
+    App->>App: 创建通知渠道
+    App->>EventBus: 配置LiveEventBus
+    App->>DB: 初始化数据库
+    App->>App: 初始化Rhino JS引擎
+    App->>App: 清理过期数据
+    App->>App: 同步WebDAV阅读进度
+    
+    deactivate App
+    
+    App->>Main: 启动MainActivity
+    activate Main
+    Main->>VM: 创建MainViewModel
+    VM->>DB: 加载书架数据
+    VM->>EventBus: 订阅事件
+    Main->>Main: 显示书架Fragment
+    deactivate Main</div>
+                    </div>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <h4>🛡️ 崩溃处理</h4>
+                            <p>CrashHandler 捕获全局异常，记录崩溃日志</p>
+                        </div>
+                        <div class="info-item">
+                            <h4>🎨 主题配置</h4>
+                            <p>根据用户设置应用日间/夜间主题</p>
+                        </div>
+                        <div class="info-item">
+                            <h4>📊 数据库初始化</h4>
+                            <p>Room 数据库懒加载，版本自动迁移</p>
+                        </div>
+                        <div class="info-item">
+                            <h4>🔧 JS引擎</h4>
+                            <p>Rhino 脚本引擎，用于执行书源规则</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 阅读流程 -->
+            <section id="reading" class="content-section">
+                <div class="architecture-card">
+                    <div class="card-header">
+                        <div class="card-icon">📖</div>
+                        <h2 class="card-title">阅读核心流程</h2>
+                    </div>
+                    <p class="card-description">
+                        从打开书籍到显示内容的完整流程，包括章节加载、内容解析、翻页处理和预下载机制。
+                    </p>
+                    <div class="mermaid-container">
+                        <div class="mermaid">graph TD
+    A[打开书籍] --> B[ReadBook.resetData]
+    B --> C{是否本地书籍?}
+    C -->|是| D[LocalBook解析]
+    C -->|否| E[WebBook请求]
+    
+    D --> F[BookHelp.getContent]
+    E --> G[WebBook.getContentAwait]
+    G --> H[AnalyzeRule解析规则]
+    H --> I[网络请求章节内容]
+    I --> F
+    
+    F --> J[ContentProcessor处理]
+    J --> K[替换规则应用]
+    K --> L[ChapterProvider排版]
+    L --> M[TextChapter生成]
+    
+    M --> N[回调UI更新]
+    N --> O[显示阅读页面]
+    O --> P{翻页操作?}
+    P -->|下一页| Q[moveToNextPage]
+    P -->|下一章| R[moveToNextChapter]
+    P -->|上一页| S[moveToPrevPage]
+    P -->|上一章| T[moveToPrevChapter]
+    
+    Q --> U[保存阅读进度]
+    R --> B
+    S --> U
+    T --> B
+    U --> V[更新数据库]
+    
+    O --> W[preDownload预下载]
+    W --> X[预下载后续章节]
+    X --> Y[缓存到本地]</div>
+                    </div>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <h4>📚 三章节缓存</h4>
+                            <p>缓存上一章、当前章、下一章，确保翻页流畅</p>
+                        </div>
+                        <div class="info-item">
+                            <h4>⚡ 预下载机制</h4>
+                            <p>自动预下载后续章节，减少等待时间</p>
+                        </div>
+                        <div class="info-item">
+                            <h4>💾 进度保存</h4>
+                            <p>实时保存阅读进度，支持云端同步</p>
+                        </div>
+                        <div class="info-item">
+                            <h4>🔄 内容处理</h4>
+                            <p>支持替换规则、简繁转换、排版优化</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 数据库架构 -->
+            <section id="database" class="content-section">
+                <div class="architecture-card">
+                    <div class="card-header">
+                        <div class="card-icon">💾</div>
+                        <h2 class="card-title">数据库架构</h2>
+                    </div>
+                    <p class="card-description">
+                        使用 Room ORM 框架管理本地数据，包含书籍、章节、书源、RSS等核心实体。
+                    </p>
+                    <div class="mermaid-container">
+                        <div class="mermaid">erDiagram
+    Book ||--o{ BookChapter : contains
+    Book ||--o| BookSource : uses
+    Book ||--o| Bookmark : has
+    Book ||--o| ReadRecord : tracks
+    
+    BookSource ||--o{ Cookie : uses
+    
+    RssSource ||--o{ RssArticle : contains
+    RssSource ||--o| RssReadRecord : tracks
+    
+    Book {
+        string bookUrl PK
+        string name
+        string author
+        int durChapterIndex
+        int durChapterPos
+        int totalChapterNum
+    }
+    
+    BookChapter {
+        string bookUrl FK
+        int index
+        string title
+        string url
+    }
+    
+    BookSource {
+        string bookSourceUrl PK
+        string bookSourceName
+        string searchUrl
+        string exploreUrl
+    }
+    
+    RssSource {
+        string sourceUrl PK
+        string sourceName
+        string ruleArticles
+    }</div>
+                    </div>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <h4>📘 Book表</h4>
+                            <p>存储书籍基本信息和阅读进度</p>
+                        </div>
+                        <div class="info-item">
+                            <h4>📑 BookChapter表</h4>
+                            <p>存储书籍章节信息和目录结构</p>
+                        </div>
+                        <div class="info-item">
+                            <h4>🔌 BookSource表</h4>
+                            <p>存储书源配置和解析规则</p>
+                        </div>
+                        <div class="info-item">
+                            <h4>📊 ReadRecord表</h4>
+                            <p>存储阅读时长统计</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 网络请求 -->
+            <section id="network" class="content-section">
+                <div class="architecture-card">
+                    <div class="card-header">
+                        <div class="card-icon">🌐</div>
+                        <h2 class="card-title">网络请求架构</h2>
+                    </div>
+                    <p class="card-description">
+                        基于 OkHttp 和 Cronet 的网络请求架构，支持规则解析、登录检测、Cookie管理等特性。
+                    </p>
+                    <div class="mermaid-container">
+                        <div class="mermaid">graph LR
+    A[ViewModel] --> B[WebBook]
+    B --> C[AnalyzeUrl]
+    C --> D{URL规则解析}
+    D --> E[模板变量替换]
+    E --> F[请求头构建]
+    F --> G[Cookie处理]
+    G --> H[OkHttp/Cronet]
+    H --> I{请求类型}
+    I -->|普通| J[OkHttp请求]
+    I -->|Cronet| K[Cronet请求]
+    J --> L[StrResponse]
+    K --> L
+    L --> M{登录检测JS}
+    M -->|需要| N[执行loginCheckJs]
+    M -->|不需要| O[直接返回]
+    N --> O
+    O --> P[AnalyzeRule解析]
+    P --> Q[规则匹配]
+    Q --> R[数据提取]
+    R --> S[返回结果]</div>
+                    </div>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <h4>🔗 URL构建</h4>
+                            <p>支持模板变量替换，动态构建请求URL</p>
+                        </div>
+                        <div class="info-item">
+                            <h4>🍪 Cookie管理</h4>
+                            <p>自动管理Cookie，支持登录态保持</p>
+                        </div>
+                        <div class="info-item">
+                            <h4>⚡ Cronet加速</h4>
+                            <p>Chromium网络库，支持HTTP/2和QUIC</p>
+                        </div>
+                        <div class="info-item">
+                            <h4>🔐 登录检测</h4>
+                            <p>JS脚本检测登录状态，自动处理认证</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 模块依赖 -->
+            <section id="modules" class="content-section">
+                <div class="architecture-card">
+                    <div class="card-header">
+                        <div class="card-icon">📦</div>
+                        <h2 class="card-title">模块依赖关系</h2>
+                    </div>
+                    <p class="card-description">
+                        项目采用模块化设计，主应用依赖 Rhino、Book、Web 三个独立模块，实现功能解耦和代码复用。
+                    </p>
+                    <div class="mermaid-container">
+                        <div class="mermaid">graph TB
+    UI[UI组件]
+    Model[业务模型]
+    Service[后台服务]
+    Data[数据层]
+    
+    Rhino[Rhino JS引擎]
+    ScriptEngine[脚本引擎]
+    
+    EpubLib[EPUB解析库]
+    UmdLib[UMD解析库]
+    MobiLib[MOBI解析库]
+    
+    VueFrontend[Vue.js前端]
+    WebServer[Web服务接口]
+
+    UI --> Model
+    Model --> Data
+    Model --> Rhino
+    Model --> EpubLib
+    Model --> UmdLib
+    Model --> MobiLib
+    
+    Service --> WebServer
+    WebServer --> VueFrontend
+    
+    Rhino --> ScriptEngine</div>
+                    </div>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <h4>📱 app模块</h4>
+                            <p>主应用模块，包含所有业务逻辑和UI实现</p>
+                        </div>
+                        <div class="info-item">
+                            <h4>🦏 rhino模块</h4>
+                            <p>JavaScript引擎，执行书源规则脚本</p>
+                        </div>
+                        <div class="info-item">
+                            <h4>📚 book模块</h4>
+                            <p>电子书格式解析，支持EPUB/UMD/MOBI</p>
+                        </div>
+                        <div class="info-item">
+                            <h4>🌐 web模块</h4>
+                            <p>Vue.js前端，提供Web管理界面</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 事件总线 -->
+            <section id="eventbus" class="content-section">
+                <div class="architecture-card">
+                    <div class="card-header">
+                        <div class="card-icon">🔔</div>
+                        <h2 class="card-title">事件总线通信机制</h2>
+                    </div>
+                    <p class="card-description">
+                        基于 LiveEventBus 的事件总线，实现跨组件通信，支持生命周期感知和粘性事件。
+                    </p>
+                    <div class="mermaid-container">
+                        <div class="mermaid">graph TB
+    A[阅读页] -->|UP_CONFIG| B[LiveEventBus]
+    C[书架页] -->|BOOKSHELF_REFRESH| B
+    D[下载服务] -->|UP_DOWNLOAD| B
+    E[TTS服务] -->|ALOUD_STATE| B
+    
+    B --> F{事件分发}
+    
+    F -->|订阅| G[阅读设置页]
+    F -->|订阅| H[书架Fragment]
+    F -->|订阅| I[下载管理页]
+    F -->|订阅| J[朗读控制]
+    
+    K[UP_BOOKSHELF<br/>书架更新]
+    L[UP_CONFIG<br/>阅读配置]
+    M[ALOUD_STATE<br/>朗读状态]
+    N[AUDIO_STATE<br/>音频状态]
+    O[UP_DOWNLOAD<br/>下载进度]</div>
+                    </div>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <h4>🔄 生命周期感知</h4>
+                            <p>自动管理订阅生命周期，避免内存泄漏</p>
+                        </div>
+                        <div class="info-item">
+                            <h4>📌 粘性事件</h4>
+                            <p>新订阅者可收到最近一次事件</p>
+                        </div>
+                        <div class="info-item">
+                            <h4>🔒 线程安全</h4>
+                            <p>支持跨线程通信，自动切换到主线程</p>
+                        </div>
+                        <div class="info-item">
+                            <h4>📝 类型安全</h4>
+                            <p>支持泛型，编译时类型检查</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 书源解析 -->
+            <section id="source" class="content-section">
+                <div class="architecture-card">
+                    <div class="card-header">
+                        <div class="card-icon">🔍</div>
+                        <h2 class="card-title">书源解析流程</h2>
+                    </div>
+                    <p class="card-description">
+                        书源是 Legado 的核心概念，定义了如何从网站获取书籍信息，支持 XPath、JSoup、JsonPath、正则等多种解析方式。
+                    </p>
+                    <div class="mermaid-container">
+                        <div class="mermaid">graph TB
+    A[BookSource] --> B[搜索规则]
+    A --> C[发现规则]
+    A --> D[详情规则]
+    A --> E[目录规则]
+    A --> F[正文规则]
+    
+    G[AnalyzeRule] --> H{解析类型}
+    H -->|XPath| I[AnalyzeByXPath]
+    H -->|JSoup| J[AnalyzeByJSoup]
+    H -->|JsonPath| K[AnalyzeByJSonPath]
+    H -->|正则| L[AnalyzeByRegex]
+    
+    M[searchBook] --> N[构建搜索URL]
+    N --> O[发起请求]
+    O --> P[解析搜索规则]
+    P --> Q[返回SearchBook列表]
+    
+    R[getBookInfo] --> S[请求详情页]
+    S --> T[解析详情规则]
+    T --> U[填充Book信息]
+    
+    V[getChapterList] --> W[请求目录页]
+    W --> X[解析目录规则]
+    X --> Y[返回BookChapter列表]
+    
+    Z[getContent] --> AA[请求正文页]
+    AA --> AB[解析正文规则]
+    AB --> AC[返回章节内容]
+    
+    B --> M
+    D --> R
+    E --> V
+    F --> Z
+    
+    P --> G
+    T --> G
+    X --> G
+    AB --> G</div>
+                    </div>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <h4>🔎 XPath</h4>
+                            <p>强大的XML路径语言，精确定位元素</p>
+                        </div>
+                        <div class="info-item">
+                            <h4>🎨 JSoup</h4>
+                            <p>CSS选择器语法，简单易用</p>
+                        </div>
+                        <div class="info-item">
+                            <h4>📊 JsonPath</h4>
+                            <p>JSON数据解析，适合API接口</p>
+                        </div>
+                        <div class="info-item">
+                            <h4>📝 正则表达式</h4>
+                            <p>灵活的文本提取和替换</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Legado 开源项目 · 架构文档 · 2024</p>
+        </footer>
+    </div>
+
+    <script>
+        // Theme management
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = themeToggle.querySelector('.theme-icon');
+        const themeText = themeToggle.querySelector('.theme-text');
+        
+        let isDark = false;
+
+        function updateTheme() {
+            if (isDark) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                themeIcon.textContent = '☀️';
+                themeText.textContent = '白天模式';
+                initMermaid('dark');
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+                themeIcon.textContent = '🌙';
+                themeText.textContent = '夜间模式';
+                initMermaid('default');
+            }
+        }
+
+        themeToggle.addEventListener('click', () => {
+            isDark = !isDark;
+            updateTheme();
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        });
+
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            isDark = true;
+            updateTheme();
+        }
+
+        function initMermaid(theme) {
+            const darkThemeVariables = {
+                primaryColor: '#6366f1',
+                primaryTextColor: '#e2e8f0',
+                primaryBorderColor: '#2d3a5f',
+                lineColor: '#64748b',
+                secondaryColor: '#151b3d',
+                tertiaryColor: '#1a2142',
+                background: '#151b3d',
+                mainBkg: '#1a2142',
+                nodeBorder: '#2d3a5f',
+                clusterBkg: '#151b3d',
+                clusterBorder: '#2d3a5f',
+                titleColor: '#e2e8f0',
+                edgeLabelBackground: '#1a2142',
+                actorBkg: '#1a2142',
+                actorBorder: '#2d3a5f',
+                actorTextColor: '#e2e8f0',
+                actorLineColor: '#64748b',
+                signalColor: '#e2e8f0',
+                signalTextColor: '#e2e8f0',
+                labelBoxBkgColor: '#1a2142',
+                labelBoxBorderColor: '#2d3a5f',
+                labelTextColor: '#e2e8f0',
+                loopTextColor: '#e2e8f0',
+                noteBorderColor: '#2d3a5f',
+                noteBkgColor: '#151b3d',
+                noteTextColor: '#e2e8f0',
+                activationBorderColor: '#6366f1',
+                activationBkgColor: '#1a2142',
+                sequenceNumberColor: '#e2e8f0'
+            };
+
+            const lightThemeVariables = {
+                primaryColor: '#6366f1',
+                primaryTextColor: '#1e293b',
+                primaryBorderColor: '#cbd5e1',
+                lineColor: '#94a3b8',
+                secondaryColor: '#f1f5f9',
+                tertiaryColor: '#ffffff',
+                background: '#f1f5f9',
+                mainBkg: '#ffffff',
+                nodeBorder: '#cbd5e1',
+                clusterBkg: '#f1f5f9',
+                clusterBorder: '#cbd5e1',
+                titleColor: '#1e293b',
+                edgeLabelBackground: '#ffffff',
+                actorBkg: '#ffffff',
+                actorBorder: '#cbd5e1',
+                actorTextColor: '#1e293b',
+                actorLineColor: '#94a3b8',
+                signalColor: '#1e293b',
+                signalTextColor: '#1e293b',
+                labelBoxBkgColor: '#ffffff',
+                labelBoxBorderColor: '#cbd5e1',
+                labelTextColor: '#1e293b',
+                loopTextColor: '#1e293b',
+                noteBorderColor: '#cbd5e1',
+                noteBkgColor: '#f1f5f9',
+                noteTextColor: '#1e293b',
+                activationBorderColor: '#6366f1',
+                activationBkgColor: '#ffffff',
+                sequenceNumberColor: '#1e293b'
+            };
+
+            mermaid.initialize({
+                startOnLoad: true,
+                theme: theme,
+                themeVariables: theme === 'dark' ? darkThemeVariables : lightThemeVariables,
+                flowchart: {
+                    curve: 'basis',
+                    padding: 20,
+                    useMaxWidth: true
+                },
+                sequence: {
+                    diagramMarginX: 10,
+                    diagramMarginY: 10,
+                    actorMargin: 50,
+                    width: 150,
+                    height: 65,
+                    useMaxWidth: true
+                },
+                er: {
+                    useMaxWidth: true
+                }
+            });
+
+            // Re-render all mermaid diagrams
+            document.querySelectorAll('.mermaid').forEach(element => {
+                if (!element.getAttribute('data-mermaid')) {
+                    element.setAttribute('data-mermaid', element.textContent);
+                }
+                element.removeAttribute('data-processed');
+                element.innerHTML = element.getAttribute('data-mermaid');
+            });
+            
+            mermaid.init(undefined, '.mermaid');
+        }
+
+        // Initialize mermaid with current theme
+        initMermaid(isDark ? 'dark' : 'default');
+
+        // Tab switching
+        const tabs = document.querySelectorAll('.nav-tab');
+        const sections = document.querySelectorAll('.content-section');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const targetId = tab.dataset.tab;
+
+                // Update active tab
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+
+                // Update active section
+                sections.forEach(section => {
+                    section.classList.remove('active');
+                    if (section.id === targetId) {
+                        section.classList.add('active');
+
+                        // Re-render mermaid diagrams in the newly visible section
+                        const mermaidElements = section.querySelectorAll('.mermaid');
+                        if (mermaidElements.length > 0) {
+                            setTimeout(() => {
+                                mermaidElements.forEach(element => {
+                                    if (!element.getAttribute('data-mermaid')) {
+                                        element.setAttribute('data-mermaid', element.textContent);
+                                    }
+                                    element.removeAttribute('data-processed');
+                                    element.innerHTML = element.getAttribute('data-mermaid');
+                                });
+                                mermaid.init(undefined, mermaidElements);
+                            }, 100);
+                        }
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

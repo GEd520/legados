@@ -117,4 +117,13 @@
     <color name="ate_navigation_drawer_selected_dark">#202020</color>
 
     <color name="book_ant_10">#141414</color>
+
+    <!-- Regex Test Dialog Colors -->
+    <color name="regex_match_count_bg">#E3F2FD</color>
+    <color name="regex_match_count_text">#1565C0</color>
+    <color name="regex_live_indicator">#4CAF50</color>
+    <color name="regex_replace_preview_label">#E65100</color>
+    <color name="regex_status_success">#388E3C</color>
+    <color name="regex_status_error">#D32F2F</color>
+    <color name="regex_edit_border">#E0E0E0</color>
 </resources>
