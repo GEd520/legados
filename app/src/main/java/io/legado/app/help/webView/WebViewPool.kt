@@ -35,14 +35,22 @@ object WebViewPool {
         (function() {
             var doc = document.documentElement;
             var body = document.body;
-            return Math.max(
-                doc ? doc.scrollHeight : 0,
-                doc ? doc.offsetHeight : 0,
-                doc ? doc.clientHeight : 0,
-                body ? body.scrollHeight : 0,
-                body ? body.offsetHeight : 0,
-                body ? body.clientHeight : 0
-            );
+            var height = 0;
+            if (body) {
+                var bodyRect = body.getBoundingClientRect();
+                height = Math.max(height, Math.ceil(bodyRect.height || 0));
+                for (var i = 0; i < body.children.length; i++) {
+                    var rect = body.children[i].getBoundingClientRect();
+                    height = Math.max(height, Math.ceil(rect.bottom - bodyRect.top));
+                }
+                if (!height) {
+                    height = Math.max(body.scrollHeight || 0, body.offsetHeight || 0);
+                }
+            }
+            if (!height && doc) {
+                height = Math.max(doc.scrollHeight || 0, doc.offsetHeight || 0);
+            }
+            return height;
         })();
     """.trimIndent()
     // 未使用的、已预初始化的WebView池 (使用栈结构，后进先出，复用缓存)
@@ -207,8 +215,9 @@ object WebViewPool {
                     ?.times(webView.resources.displayMetrics.density)
                     ?.roundToInt()
                     ?: 0
-                val targetHeight = max(jsHeight, fallbackHeight)
+                val targetHeight = jsHeight
                     .takeIf { it > 1 }
+                    ?: fallbackHeight.takeIf { it > 1 }
                     ?: ViewGroup.LayoutParams.WRAP_CONTENT
                 val layoutParams = (webView.layoutParams ?: ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
