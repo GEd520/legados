@@ -59,7 +59,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
-                    android:text="@string/use_regex"
+                    android:text="@string/regex_mode"
                     tools:ignore="TouchTargetSizeCheck" />
 
             </LinearLayout>
@@ -116,7 +116,7 @@
                     android:drawablePadding="4dp"
                     android:text="@string/realtime_preview"
                     android:textSize="11sp"
-                    android:textColor="#4CAF50" />
+                    android:textColor="@color/regex_live_indicator" />
 
             </LinearLayout>
 
@@ -168,7 +168,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:textSize="12sp"
-                        android:textColor="?attr/colorPrimary"
+                        android:textColor="@color/regex_match_count_text"
                         android:background="@drawable/bg_match_count_badge"
                         android:paddingStart="8dp"
                         android:paddingEnd="8dp"
@@ -205,7 +205,7 @@
                         android:layout_height="wrap_content"
                         android:text="@string/replace_preview"
                         android:textSize="11sp"
-                        android:textColor="#E65100" />
+                        android:textColor="@color/regex_replace_preview_label" />
 
                     <io.legado.app.ui.widget.text.ScrollTextView
                         android:id="@+id/tv_replace_preview"
@@ -257,7 +257,7 @@
                     android:layout_width="18dp"
                     android:layout_height="18dp"
                     android:src="@drawable/ic_check"
-                    app:tint="#388E3C"
+                    app:tint="@color/regex_status_success"
                     tools:ignore="ContentDescription" />
 
                 <TextView
@@ -266,7 +266,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
                     android:textSize="13sp"
-                    android:textColor="#388E3C"
+                    android:textColor="@color/regex_status_success"
                     tools:text="正则表达式有效，匹配成功" />
 
             </LinearLayout>

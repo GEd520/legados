@@ -1331,4 +1331,5 @@
     <string name="more_matches">还有 %d 处匹配</string>
     <string name="zero_match">0 处匹配</string>
     <string name="input_test_text_hint">请输入测试文本</string>
+    <string name="regex_mode">正则</string>
 </resources>

@@ -42,4 +42,13 @@
 
     <!--statusBarBackground-->
     <color name="navigation_bar_bag">#222222</color>
+
+    <!-- Regex Test Dialog Colors (Night Mode) -->
+    <color name="regex_match_count_bg">#1A3A5F</color>
+    <color name="regex_match_count_text">#64B5F6</color>
+    <color name="regex_live_indicator">#81C784</color>
+    <color name="regex_replace_preview_label">#FFB74D</color>
+    <color name="regex_status_success">#66BB6A</color>
+    <color name="regex_status_error">#EF5350</color>
+    <color name="regex_edit_border">#424242</color>
 </resources>

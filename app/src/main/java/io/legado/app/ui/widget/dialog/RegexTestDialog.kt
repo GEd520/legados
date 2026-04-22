@@ -195,18 +195,18 @@ class RegexTestDialog() : BaseDialogFragment(R.layout.dialog_regex_test) {
         binding.llStatus.visibility = View.VISIBLE
         binding.llStatus.setBackgroundResource(R.drawable.bg_status_success)
         binding.ivStatusIcon.setImageResource(R.drawable.ic_check)
-        binding.ivStatusIcon.setColorFilter(0xFF388E3C.toInt())
+        binding.ivStatusIcon.setColorFilter(resources.getColor(R.color.regex_status_success, null))
         binding.tvStatus.text = message
-        binding.tvStatus.setTextColor(0xFF388E3C.toInt())
+        binding.tvStatus.setTextColor(resources.getColor(R.color.regex_status_success, null))
     }
 
     private fun showErrorStatus(message: String) {
         binding.llStatus.visibility = View.VISIBLE
         binding.llStatus.setBackgroundResource(R.drawable.bg_status_error)
         binding.ivStatusIcon.setImageResource(android.R.drawable.ic_dialog_alert)
-        binding.ivStatusIcon.setColorFilter(0xFFD32F2F.toInt())
+        binding.ivStatusIcon.setColorFilter(resources.getColor(R.color.regex_status_error, null))
         binding.tvStatus.text = message
-        binding.tvStatus.setTextColor(0xFFD32F2F.toInt())
+        binding.tvStatus.setTextColor(resources.getColor(R.color.regex_status_error, null))
     }
 
     private data class MatchResult(val start: Int, val end: Int, val value: String)
