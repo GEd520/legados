@@ -28,6 +28,8 @@ import io.legado.app.lib.theme.primaryColor
 import io.legado.app.model.ReadAloud
 import io.legado.app.model.ReadBook
 import io.legado.app.ui.association.ImportHttpTtsDialog
+import io.legado.app.ui.association.ImportUrlDialogHelper
+import io.legado.app.ui.browser.WebViewActivity
 import io.legado.app.ui.file.HandleFileContract
 import io.legado.app.ui.login.SourceLoginActivity
 import io.legado.app.utils.ACache
@@ -236,17 +238,23 @@ class SpeakEngineDialog() : BaseDialogFragment(R.layout.dialog_recycler_view),
             ?.splitNotBlank(",")
             ?.toMutableList() ?: mutableListOf()
         alert(R.string.import_on_line) {
-            val alertBinding = DialogEditTextBinding.inflate(layoutInflater).apply {
-                editView.hint = "url"
-                editView.setFilterValues(cacheUrls)
-                editView.delCallBack = {
-                    cacheUrls.remove(it)
-                    aCache.put(ttsUrlKey, cacheUrls.joinToString(","))
+            val alertBinding = ImportUrlDialogHelper.createBinding(
+                layoutInflater = layoutInflater,
+                context = requireContext(),
+                lifecycleOwner = viewLifecycleOwner,
+                cacheUrls = cacheUrls,
+                onUrlsChanged = {
+                    aCache.put(ttsUrlKey, it.joinToString(","))
+                },
+                openBrowser = { url ->
+                    startActivity<WebViewActivity> {
+                        putExtra("url", url)
+                    }
                 }
-            }
+            )
             customView { alertBinding.root }
             okButton {
-                alertBinding.editView.text?.toString()?.let { url ->
+                alertBinding.editView.text?.toString()?.trim()?.let { url ->
                     if (url.isAbsUrl() && !cacheUrls.contains(url)) {
                         cacheUrls.add(0, url)
                         aCache.put(ttsUrlKey, cacheUrls.joinToString(","))

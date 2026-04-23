@@ -368,6 +368,28 @@ fun Context.openUrl(uri: Uri) {
     }
 }
 
+fun Context.openInInnerBrowser(url: String) {
+    openInInnerBrowser(Uri.parse(url))
+}
+
+fun Context.openInInnerBrowser(uri: Uri) {
+    when (uri.scheme) {
+        "http", "https" -> {
+            startActivity<io.legado.app.ui.browser.WebViewActivity> {
+                putExtra("url", uri.toString())
+            }
+        }
+        "legado", "yuedu" -> {
+            startActivity<io.legado.app.ui.association.OnLineImportActivity> {
+                data = uri
+            }
+        }
+        else -> {
+            openUrl(uri)
+        }
+    }
+}
+
 @SuppressLint("ObsoleteSdkInt")
 fun Context.openFileUri(uri: Uri, type: String? = null) {
     val intent = Intent()

@@ -111,7 +111,9 @@ import io.legado.app.utils.startActivity
 import io.legado.app.utils.toastOnUi
 import io.legado.app.utils.viewbindingdelegate.viewBinding
 import io.legado.app.utils.visible
+import io.legado.app.help.InnerBrowserLinkResolver
 import io.noties.markwon.Markwon
+import io.noties.markwon.MarkwonConfiguration
 import io.noties.markwon.ext.tables.TablePlugin
 import io.noties.markwon.html.HtmlPlugin
 import io.noties.markwon.image.glide.GlideImagesPlugin
@@ -633,6 +635,11 @@ class BookInfoActivity :
                 val markwon: Markwon
                 val markdown = withContext(IO) {
                     markwon = Markwon.builder(context)
+                        .usePlugin(object : io.noties.markwon.AbstractMarkwonPlugin() {
+                            override fun configureConfiguration(builder: MarkwonConfiguration.Builder) {
+                                builder.linkResolver(InnerBrowserLinkResolver)
+                            }
+                        })
                         .usePlugin(
                             GlideImagesPlugin.create(
                                 Glide.with(context)
