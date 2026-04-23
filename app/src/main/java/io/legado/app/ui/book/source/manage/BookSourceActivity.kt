@@ -607,23 +607,23 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
             .getAsString(importRecordKey)
             ?.splitNotBlank(",")
             ?.toMutableList() ?: mutableListOf()
-        val alertBinding = ImportUrlDialogHelper.createBinding(
-            layoutInflater = layoutInflater,
-            context = this@BookSourceActivity,
-            lifecycleOwner = this@BookSourceActivity,
-            cacheUrls = cacheUrls,
-            onUrlsChanged = {
-                aCache.put(importRecordKey, it.joinToString(","))
-            },
-            openBrowser = { url ->
-                startActivity<WebViewActivity> {
-                    putExtra("url", url)
+        alert(titleResource = R.string.import_on_line) {
+            val alertBinding = ImportUrlDialogHelper.createBinding(
+                layoutInflater = layoutInflater,
+                context = this@BookSourceActivity,
+                lifecycleOwner = this@BookSourceActivity,
+                cacheUrls = cacheUrls,
+                onUrlsChanged = {
+                    aCache.put(importRecordKey, it.joinToString(","))
+                },
+                openBrowser = { url ->
+                    startActivity<WebViewActivity> {
+                        putExtra("url", url)
+                    }
                 }
-            }
-        )
-        AlertDialog.Builder(this)
-            .setView(alertBinding.root)
-            .setPositiveButton(android.R.string.ok) { _, _ ->
+            )
+            customView { alertBinding.root }
+            okButton {
                 val text = alertBinding.editView.text?.toString()?.trim()
                 text?.let {
                     if (it.isAbsUrl() && !cacheUrls.contains(it)) {
@@ -633,8 +633,8 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
                     showDialogFragment(ImportBookSourceDialog(it))
                 }
             }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+            cancelButton()
+        }
     }
 
     override fun observeLiveBus() {

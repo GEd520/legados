@@ -5,22 +5,14 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:paddingTop="8dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
-
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/import_on_line"
-            android:textColor="?android:attr/textColorPrimary"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+        android:gravity="center_vertical|end"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp">
 
         <ImageView
             android:id="@+id/iv_signal"
@@ -48,7 +40,8 @@
         android:id="@+id/edit_view"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="8dp"
         android:hint="url"
         android:inputType="textUri"
         android:singleLine="true"

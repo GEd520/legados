@@ -1325,9 +1325,21 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
      * 恢复所有暂停的 WebView
      */
     fun onResume() {
-        // 恢复所有暂停的 WebView
-        activeWebViews.values.forEach { pooledWebView ->
-            pooledWebView.realWebView.onResume()
+        activeWebViews.forEach { (container, pooledWebView) ->
+            val webView = pooledWebView.realWebView
+            webView.onResume()
+            WebViewPool.fitInlineContentSmooth(
+                webView,
+                WebViewPool.currentInlineContentGeneration(webView),
+                afterLayout = {
+                    container.requestLayout()
+                }
+            )
+            webView.postDelayed({
+                WebViewPool.scheduleInlineContentFit(webView, {
+                    container.requestLayout()
+                }, longArrayOf(120L, 360L))
+            }, 100)
         }
     }
 
