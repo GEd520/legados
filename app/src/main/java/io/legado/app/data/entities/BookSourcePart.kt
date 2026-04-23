@@ -24,7 +24,7 @@ data class BookSourcePart(
     var customOrder: Int = 0,
     // 是否启用
     var enabled: Boolean = true,
-    // 启用发现
+    // 是否启用发现
     var enabledExplore: Boolean = true,
     // 是否有登录地址
     var hasLoginUrl: Boolean = false,
@@ -32,7 +32,7 @@ data class BookSourcePart(
     var lastUpdateTime: Long = 0,
     // 响应时间，用于排序
     var respondTime: Long = 180000L,
-    // 智能排序的权重
+    // 智能排序权重
     var weight: Int = 0,
     // 是否有发现 url
     var hasExploreUrl: Boolean = false,
@@ -51,16 +51,16 @@ data class BookSourcePart(
     }
 
     /**
-    RecyclerView 条目唯一标识。
-    仅校验两行数据是否指向同一个源链接。
-    */
+     * RecyclerView item identity.
+     * Only checks whether two rows point to the same source URL.
+     */
     fun isSameSource(other: BookSourcePart): Boolean {
         return bookSourceUrl == other.bookSourceUrl
     }
 
     /**
-     * 影响发现页面列表内容或排序的字段。
-     * 保持此方法与 equals() 方法分离，仅用于模型标识。
+     * Fields that affect the Explore page list content or ordering.
+     * Keep this separate from equals(); equals only models source identity.
      */
     fun hasSameExploreListContent(other: BookSourcePart): Boolean {
         return bookSourceName == other.bookSourceName

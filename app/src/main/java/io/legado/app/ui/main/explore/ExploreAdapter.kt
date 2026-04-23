@@ -57,6 +57,7 @@ import io.legado.app.help.webView.WebViewPool.fitInlineContentSmooth
 import io.legado.app.help.webView.WebViewPool.installInlineContentRefitOnTouch
 import io.legado.app.help.webView.WebViewPool.prepareForInlineContent
 import io.legado.app.help.webView.WebViewPool.currentInlineContentGeneration
+import io.legado.app.help.webView.WebViewPool.scheduleInlineContentFit
 import io.legado.app.help.source.clearExploreKindsCache
 import io.legado.app.help.source.exploreKinds
 import io.legado.app.lib.theme.accentColor
@@ -96,6 +97,9 @@ import kotlin.text.isNullOrEmpty
 class ExploreAdapter(context: Context, val callBack: CallBack) :
     RecyclerAdapter<BookSourcePart, ItemFindBookBinding>(context) {
     companion object {
+        private const val PAYLOAD_TOGGLE_EXPAND = "toggle_expand"
+        private const val PAYLOAD_RESUME = "resume"
+        private const val PAYLOAD_FORCE_REFRESH = "force_refresh"
         val exploreInfoMapList = LruCache<String, InfoMap>(99)
         private val exploreWebViewHeightCache = LruCache<String, Int>(99)
     }
@@ -137,6 +141,7 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
      * @param item 书源数据
      * @param payloads 刷新载荷，用于区分刷新类型：
      *   - 空：完整刷新
+     *   - "toggle_expand"：仅切换展开/折叠状态
      *   - "resume"：页面恢复，保持现有内容
      *   - "force_refresh"：强制刷新，重新创建内容
      */
@@ -159,8 +164,8 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
             }
             
             // 解析 payload 类型，区分不同的刷新场景
-            val isResume = payloads.contains("resume")           // 页面恢复
-            val isForceRefresh = payloads.contains("force_refresh")  // 强制刷新
+            val isResume = payloads.contains(PAYLOAD_RESUME)           // 页面恢复
+            val isForceRefresh = payloads.contains(PAYLOAD_FORCE_REFRESH)  // 强制刷新
             
             if (isForceRefresh) {
                 // 强制刷新时清除 sourceUrl 标记，触发重新创建内容
@@ -809,16 +814,18 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         val useWebHtml = content.substring(8, endIndex)
        // 相同的来源与 useWeb 模板应恢复至同一记忆页面，且
 // 在回收 / 重新绑定后复用上次测算的高度。
-        val pageKey = buildExploreUseWebPageKey(source, useWebHtml)
+        val pageStateKey = buildExploreUseWebStateKey(source, useWebHtml)
+        val initialPage = infoMap["page"]?.toIntOrNull()?.coerceAtLeast(1) ?: 1
+        val pageLayoutKey = buildExploreUseWebLayoutKey(source, useWebHtml, infoMap, initialPage)
         val pageJs = buildExploreUseWebPageInjection(
-            pageKey = pageKey,
-            initialPage = infoMap["page"]?.toIntOrNull()?.coerceAtLeast(1) ?: 1
+            pageKey = pageStateKey,
+            initialPage = initialPage
         )
         val html = wrapExploreUseWebHtml(useWebHtml, source, pageJs)
         val pooledWebView = WebViewPool.acquire(context)
         val webView = pooledWebView.realWebView
         webView.onResume()
-        val cachedHeight = exploreWebViewHeightCache[pageKey]?.takeIf { it > 1 }
+        val cachedHeight = exploreWebViewHeightCache[pageLayoutKey]?.takeIf { it > 1 }
         val loadingHeight = 120.dpToPx()
         prepareForInlineContent(webView, cachedHeight ?: loadingHeight)
         installInlineContentRefitOnTouch(webView) {
@@ -1026,14 +1033,14 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
                 // 折叠旧的展开项
                 oldExpandedSourceUrl?.let { sourceUrl ->
                     findSourcePosition(sourceUrl)?.let {
-                        notifyItemChanged(it, false)
+                        notifyItemChanged(it, PAYLOAD_TOGGLE_EXPAND)
                     }
                 }
                 // 展开新的项
                 expandedSourceUrl?.let { sourceUrl ->
                     scrollToSourceUrl = sourceUrl
                     findSourcePosition(sourceUrl)?.let {
-                        notifyItemChanged(it, false)
+                        notifyItemChanged(it, PAYLOAD_TOGGLE_EXPAND)
                     }
                 } ?: run {
                     scrollToSourceUrl = null
@@ -1081,10 +1088,10 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
                 if (force) {
                     // 强制刷新：清除标记以触发重新创建
                     // 注意：这里不直接操作，而是通过 payload 传递
-                    notifyItemChanged(position, "force_refresh")
+                    notifyItemChanged(position, PAYLOAD_FORCE_REFRESH)
                 } else {
                     // 普通恢复：通过 payload 传递标记，保持现有内容
-                    notifyItemChanged(position, "resume")
+                    notifyItemChanged(position, PAYLOAD_RESUME)
                 }
             }
         }
@@ -1139,7 +1146,7 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
             findSourcePosition(source.bookSourceUrl)?.let {
                 // Rebind the expanded row after clearing exploreKinds cache so inline useWeb/useHtml
                 // content is rebuilt from the latest rule output instead of reusing attached views.
-                notifyItemChanged(it, "force_refresh")
+                notifyItemChanged(it, PAYLOAD_FORCE_REFRESH)
             }
         }.onFinally {
             binding.rotateLoading.gone()
