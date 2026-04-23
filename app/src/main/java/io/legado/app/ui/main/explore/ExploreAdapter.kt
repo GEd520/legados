@@ -70,6 +70,7 @@ import io.legado.app.ui.widget.text.AccentTextView
 import io.legado.app.ui.widget.text.ScrollTextView
 import io.legado.app.utils.InfoMap
 import io.legado.app.utils.GSON
+import io.legado.app.utils.MD5Utils
 import io.legado.app.utils.activity
 import io.legado.app.utils.dpToPx
 import io.legado.app.utils.gone
@@ -170,6 +171,7 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
             if (isForceRefresh) {
                 // 强制刷新时清除 sourceUrl 标记，触发重新创建内容
                 flexbox.setTag(R.id.explore_source_url, null)
+                flexbox.setTag(R.id.explore_content_signature, null)
             }
             
             if (expandedSourceUrl == item.bookSourceUrl) {
@@ -244,7 +246,12 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         // 检查是否已经有内容且 sourceUrl 匹配，避免重复创建 WebView
         // 这是防止页面切换时 WebView 闪烁的关键检查
         val existingSourceUrl = flexbox.getTag(R.id.explore_source_url) as? String
-        if (existingSourceUrl == sourceUrl && flexbox.childCount > 0) {
+        val currentContentSignature = buildExploreContentSignature(sourceUrl, kinds)
+        val existingContentSignature = flexbox.getTag(R.id.explore_content_signature) as? String
+        if (existingSourceUrl == sourceUrl
+            && existingContentSignature == currentContentSignature
+            && flexbox.childCount > 0
+        ) {
             // 已经有相同 sourceUrl 的内容，跳过重新创建
             return
         }
@@ -254,6 +261,7 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
             recyclerFlexbox(flexbox)
             // 标记当前 flexbox 对应的 sourceUrl，用于后续判断是否需要重建
             flexbox.setTag(R.id.explore_source_url, sourceUrl)
+            flexbox.setTag(R.id.explore_content_signature, currentContentSignature)
             flexbox.visible()
             val source by lazy { appDb.bookSourceDao.getBookSource(sourceUrl) }
             val infoMap by lazy {
@@ -814,7 +822,7 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         val useWebHtml = content.substring(8, endIndex)
        // 相同的来源与 useWeb 模板应恢复至同一记忆页面，且
 // 在回收 / 重新绑定后复用上次测算的高度。
-        val pageStateKey = buildExploreUseWebStateKey(source, useWebHtml)
+        val pageStateKey = buildExploreUseWebStateKey(source, useWebHtml, infoMap)
         val initialPage = infoMap["page"]?.toIntOrNull()?.coerceAtLeast(1) ?: 1
         val pageLayoutKey = buildExploreUseWebLayoutKey(source, useWebHtml, infoMap, initialPage)
         val pageJs = buildExploreUseWebPageInjection(
@@ -839,7 +847,7 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
             source,
             source?.bookSourceUrl,
             pageJs,
-            pageKey,
+            pageLayoutKey,
             loadingIndicator
         )
         webView.addJavascriptInterface(WebCacheManager, nameCache)
@@ -895,6 +903,57 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
             append(html.hashCode())
             append('_')
             append(html.length) // 添加长度进一步降低冲突概率
+        }
+    }
+
+    private fun buildExploreUseWebStateKey(
+        source: BookSource?,
+        html: String,
+        infoMap: InfoMap? = null
+    ): String {
+        val contextSignature = buildExploreUseWebContextSignature(infoMap)
+        return buildString {
+            append("useweb_state_")
+            append(source?.bookSourceUrl?.let(MD5Utils::md5Encode16) ?: "default")
+            append('_')
+            append(MD5Utils.md5Encode16(html))
+            append('_')
+            append(contextSignature)
+        }
+    }
+
+    private fun buildExploreUseWebLayoutKey(
+        source: BookSource?,
+        html: String,
+        infoMap: InfoMap?,
+        page: Int
+    ): String {
+        return buildString {
+            append(buildExploreUseWebStateKey(source, html, infoMap))
+            append("_layout_")
+            append(page.coerceAtLeast(1))
+        }
+    }
+
+    private fun buildExploreUseWebContextSignature(infoMap: InfoMap?): String {
+        if (infoMap == null || infoMap.isEmpty()) return "default"
+        val normalizedContext = infoMap.entries
+            .asSequence()
+            .filter { (key, _) -> !key.equals("page", ignoreCase = true) }
+            .sortedBy { it.key }
+            .joinToString("&") { (key, value) -> "$key=$value" }
+        return if (normalizedContext.isBlank()) {
+            "default"
+        } else {
+            MD5Utils.md5Encode16(normalizedContext)
+        }
+    }
+
+    private fun buildExploreContentSignature(sourceUrl: String, kinds: List<ExploreKind>): String {
+        return buildString {
+            append(MD5Utils.md5Encode16(sourceUrl))
+            append('_')
+            append(MD5Utils.md5Encode16(GSON.toJson(kinds)))
         }
     }
 
@@ -985,6 +1044,7 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
     private fun recyclerFlexbox(flexbox: FlexboxLayout) {
         // 清除 sourceUrl 标记，表示内容已被回收
         flexbox.setTag(R.id.explore_source_url, null)
+        flexbox.setTag(R.id.explore_content_signature, null)
         val children = flexbox.children.toList()
         if (children.isEmpty()) return
         flexbox.removeAllViews()
@@ -1205,7 +1265,7 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         private val source: BaseSource?,
         private val sourceUrl: String?,
         private val pageJs: String,
-        private val pageKey: String,
+        private val pageLayoutKey: String,
         private val loadingIndicator: ProgressBar
     ) : WebViewClient() {
         private val jsStr = buildString {
@@ -1240,22 +1300,52 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
             return true
         }
 
+        private fun injectPageState(webView: WebView, delayedRetries: LongArray = longArrayOf()) {
+            if (jsStr.isBlank()) return
+            webView.evaluateJavascript(jsStr, null)
+            delayedRetries.forEach { delayMillis ->
+                webView.postDelayed({
+                    if (!webView.isAttachedToWindow) return@postDelayed
+                    webView.evaluateJavascript(jsStr, null)
+                }, delayMillis)
+            }
+        }
+
+        private fun cacheMeasuredHeight(webView: WebView) {
+            val height = webView.layoutParams?.height ?: 0
+            if (height > 1) {
+                exploreWebViewHeightCache.put(pageLayoutKey, height)
+            }
+            loadingIndicator.gone()
+            webView.visible()
+            container.requestLayout()
+        }
+
+        private fun fitAndCacheHeight(webView: WebView, delayed: Boolean) {
+            if (delayed) {
+                scheduleInlineContentFit(webView, { cacheMeasuredHeight(webView) }, longArrayOf(120L, 360L, 720L))
+            } else {
+                WebViewPool.fitInlineContentSmooth(
+                    webView,
+                    WebViewPool.currentInlineContentGeneration(webView),
+                    afterLayout = { cacheMeasuredHeight(webView) }
+                )
+            }
+        }
+
         override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
             super.onPageStarted(view, url, favicon)
-            view?.evaluateJavascript(jsStr, null)
+            view?.let { webView ->
+                injectPageState(webView)
+            }
         }
 
         override fun onPageFinished(view: WebView?, url: String?) {
             super.onPageFinished(view, url)
             view?.let { webView ->
-                WebViewPool.fitInlineContentSmooth(webView, WebViewPool.currentInlineContentGeneration(webView), afterLayout = {
-                    val height = webView.layoutParams?.height ?: 0
-                    if (height > 1) {
-                        exploreWebViewHeightCache.put(pageKey, height)
-                    }
-                    loadingIndicator.gone()
-                    webView.visible()
-                })
+                injectPageState(webView, longArrayOf(120L, 360L))
+                fitAndCacheHeight(webView, delayed = false)
+                fitAndCacheHeight(webView, delayed = true)
             }
         }
     }

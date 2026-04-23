@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>网络导入界面示意图</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .phone-frame {
+            width: 380px;
+            background: #ffffff;
+            border-radius: 32px;
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
+            overflow: hidden;
+        }
+
+        .status-bar {
+            background: #f5f5f5;
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: #333;
+        }
+
+        .dialog {
+            padding: 24px;
+        }
+
+        .title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .dialog-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .title-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .input-container {
+            display: flex;
+            align-items: center;
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            padding: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .input-container:focus-within {
+            border-color: #4dabf7;
+            background: #fff;
+        }
+
+        .url-input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            padding: 12px 16px;
+            font-size: 15px;
+            outline: none;
+            color: #333;
+        }
+
+        .url-input::placeholder {
+            color: #adb5bd;
+        }
+
+        .signal-indicator {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .signal-indicator svg {
+            width: 14px;
+            height: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .signal-indicator.idle {
+            background: #e9ecef;
+        }
+
+        .signal-indicator.idle svg {
+            color: #adb5bd;
+        }
+
+        .signal-indicator.checking {
+            background: #fff3bf;
+            animation: pulse 1s infinite;
+        }
+
+        .signal-indicator.checking svg {
+            color: #fab005;
+        }
+
+        .signal-indicator.success {
+            background: #d3f9d8;
+        }
+
+        .signal-indicator.success svg {
+            color: #40c057;
+        }
+
+        .signal-indicator.error {
+            background: #ffe3e3;
+        }
+
+        .signal-indicator.error svg {
+            color: #fa5252;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.7; }
+        }
+
+        .globe-btn {
+            width: 36px;
+            height: 36px;
+            border: none;
+            background: linear-gradient(135deg, #4dabf7 0%, #339af0 100%);
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .globe-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(51, 154, 240, 0.4);
+        }
+
+        .globe-btn:active {
+            transform: scale(0.95);
+        }
+
+        .globe-btn svg {
+            width: 18px;
+            height: 18px;
+            color: white;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-cancel {
+            background: #f1f3f5;
+            color: #495057;
+        }
+
+        .btn-cancel:hover {
+            background: #e9ecef;
+        }
+
+        .btn-ok {
+            background: linear-gradient(135deg, #4dabf7 0%, #339af0 100%);
+            color: white;
+        }
+
+        .btn-ok:hover {
+            box-shadow: 0 4px 15px rgba(51, 154, 240, 0.4);
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: #333;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            opacity: 0;
+            transition: all 0.3s ease;
+            pointer-events: none;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        .legend {
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            color: white;
+        }
+
+        .legend h3 {
+            font-size: 16px;
+            margin-bottom: 16px;
+            color: #4dabf7;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+
+        .legend-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .legend-icon.green {
+            background: #d3f9d8;
+        }
+
+        .legend-icon.green svg {
+            color: #40c057;
+        }
+
+        .legend-icon.red {
+            background: #ffe3e3;
+        }
+
+        .legend-icon.red svg {
+            color: #fa5252;
+        }
+
+        .legend-icon.blue {
+            background: linear-gradient(135deg, #4dabf7 0%, #339af0 100%);
+        }
+
+        .legend-icon.blue svg {
+            color: white;
+        }
+
+        .hint {
+            margin-top: 12px;
+            font-size: 12px;
+            color: #868e96;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <div class="phone-frame">
+            <div class="status-bar">
+                <span>9:41</span>
+                <span>📶 🔋</span>
+            </div>
+            <div class="dialog">
+                <div class="title-row">
+                    <div class="dialog-title">网络导入</div>
+                    <div class="title-actions">
+                        <div class="signal-indicator idle" id="signalIndicator" title="连接状态">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M2 20h.01M7 20v-4M12 20v-8M17 20V8M22 20V4"/>
+                            </svg>
+                        </div>
+                        <button class="globe-btn" id="globeBtn" title="用浏览器打开">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="2" y1="12" x2="22" y2="12"/>
+                                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="input-container">
+                    <input type="text" class="url-input" id="urlInput" placeholder="输入书源URL地址...">
+                </div>
+                
+                <div class="hint">输入URL后自动检测连接状态，点击地球图标可在浏览器中预览</div>
+                
+                <div class="buttons">
+                    <button class="btn btn-cancel">取消</button>
+                    <button class="btn btn-ok">确定</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="legend">
+            <h3>📋 功能说明</h3>
+            <div class="legend-item">
+                <div class="legend-icon green">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M2 20h.01M7 20v-4M12 20v-8M17 20V8M22 20V4"/>
+                    </svg>
+                </div>
+                <span><strong>绿色信号</strong> - URL格式正确且链接可访问</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-icon red">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M2 20h.01M7 20v-4M12 20v-8M17 20V8M22 20V4"/>
+                    </svg>
+                </div>
+                <span><strong>红色信号</strong> - URL格式错误或链接无法访问</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-icon blue">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="2" y1="12" x2="22" y2="12"/>
+                    </svg>
+                </div>
+                <span><strong>地球按钮</strong> - 用内置浏览器打开URL预览</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const urlInput = document.getElementById('urlInput');
+        const signalIndicator = document.getElementById('signalIndicator');
+        const globeBtn = document.getElementById('globeBtn');
+        const toast = document.getElementById('toast');
+        
+        let checkTimeout = null;
+        
+        function showToast(message) {
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+        
+        function isValidUrl(string) {
+            try {
+                const url = new URL(string);
+                return url.protocol === 'http:' || url.protocol === 'https:';
+            } catch (_) {
+                return false;
+            }
+        }
+        
+        function setSignalStatus(status) {
+            signalIndicator.className = 'signal-indicator ' + status;
+        }
+        
+        urlInput.addEventListener('input', function() {
+            const value = this.value.trim();
+            
+            if (!value) {
+                setSignalStatus('idle');
+                return;
+            }
+            
+            if (!isValidUrl(value)) {
+                setSignalStatus('error');
+                return;
+            }
+            
+            setSignalStatus('checking');
+            
+            clearTimeout(checkTimeout);
+            checkTimeout = setTimeout(() => {
+                if (Math.random() > 0.3) {
+                    setSignalStatus('success');
+                } else {
+                    setSignalStatus('error');
+                }
+            }, 800);
+        });
+        
+        globeBtn.addEventListener('click', function() {
+            const value = urlInput.value.trim();
+            
+            if (!value) {
+                showToast('请输入URL地址');
+                return;
+            }
+            
+            if (!isValidUrl(value)) {
+                showToast('URL格式不正确');
+                return;
+            }
+            
+            showToast('正在用浏览器打开: ' + value);
+        });
+    </script>
+</body>
+</html>
