@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 90,
-    "identityHash": "5b8b1de4aa1ae9da6e50e8468a990008",
+    "identityHash": "e3d8a9595ac08d8c890a7160901e368d",
     "entities": [
       {
         "tableName": "books",
@@ -2008,12 +2008,12 @@
     "views": [
       {
         "viewName": "book_sources_part",
-        "createSql": "CREATE VIEW `${VIEW_NAME}` AS select bookSourceUrl, bookSourceName, bookSourceGroup, customOrder, enabled, enabledExplore, \n    (loginUrl is not null and trim(loginUrl) <> '') hasLoginUrl, lastUpdateTime, respondTime, weight, \n    (exploreUrl is not null and trim(exploreUrl) <> '') hasExploreUrl, eventListener, bookSourceType\n    from book_sources"
+        "createSql": "CREATE VIEW `${VIEW_NAME}` AS select bookSourceUrl, bookSourceName, bookSourceGroup, customOrder, enabled, enabledExplore,\n    (loginUrl is not null and trim(loginUrl) <> '') hasLoginUrl, lastUpdateTime, respondTime, weight,\n    (exploreUrl is not null and trim(exploreUrl) <> '') hasExploreUrl, eventListener, bookSourceType\n    from book_sources"
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '5b8b1de4aa1ae9da6e50e8468a990008')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'e3d8a9595ac08d8c890a7160901e368d')"
     ]
   }
 }

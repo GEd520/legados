@@ -807,6 +807,8 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
             return
         }
         val useWebHtml = content.substring(8, endIndex)
+       // 相同的来源与 useWeb 模板应恢复至同一记忆页面，且
+// 在回收 / 重新绑定后复用上次测算的高度。
         val pageKey = buildExploreUseWebPageKey(source, useWebHtml)
         val pageJs = buildExploreUseWebPageInjection(
             pageKey = pageKey,
@@ -863,7 +865,8 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
      */
     private fun releaseWebView(container: FrameLayout) {
         activeWebViews.remove(container)?.let { pooledWebView ->
-            // 移除 JavaScript 接口，避免 WebView 复用时接口重复添加
+            // A pooled WebView must not keep source-specific JS bridges when it is attached
+            // to the next row, otherwise callbacks may hit the wrong source/context.
             pooledWebView.realWebView.apply {
                 removeJavascriptInterface(nameCache)
                 removeJavascriptInterface(nameSource)
@@ -1134,7 +1137,9 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
             sourceKinds[source.bookSourceUrl] = source.exploreKinds()
         }.onSuccess {
             findSourcePosition(source.bookSourceUrl)?.let {
-                notifyItemChanged(it, false)
+                // Rebind the expanded row after clearing exploreKinds cache so inline useWeb/useHtml
+                // content is rebuilt from the latest rule output instead of reusing attached views.
+                notifyItemChanged(it, "force_refresh")
             }
         }.onFinally {
             binding.rotateLoading.gone()
