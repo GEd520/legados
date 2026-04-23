@@ -227,9 +227,8 @@ class ExploreFragment() : VMBaseFragment<ExploreViewModel>(R.layout.fragment_exp
                 AppLog.put("发现界面更新数据出错", it)
             }.conflate().flowOn(IO).collect {
                 binding.tvEmptyMsg.isGone = it.isNotEmpty() || searchView.query.isNotEmpty()
-                if (adapter.getItems() == it) {
-                    return@collect
-                }
+                // 不能用 adapter 当前列表和新列表直接判等；BookSourcePart.equals 只比较 URL，
+                // 改名称这类“同一源内容变化”会被误判成相同，导致发现页不刷新。
                 adapter.setItems(it, diffItemCallBack)
                 delay(500)
             }
