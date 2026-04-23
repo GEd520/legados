@@ -51,16 +51,16 @@ data class BookSourcePart(
     }
 
     /**
-     * RecyclerView item identity.
-     * Only checks whether two rows point to the same source URL.
-     */
+    RecyclerView 条目唯一标识。
+    仅校验两行数据是否指向同一个源链接。
+    */
     fun isSameSource(other: BookSourcePart): Boolean {
         return bookSourceUrl == other.bookSourceUrl
     }
 
     /**
-     * Fields that affect the Explore page list content or ordering.
-     * Keep this separate from equals(); equals only models source identity.
+     * 影响发现页面列表内容或排序的字段。
+     * 保持此方法与 equals() 方法分离，仅用于模型标识。
      */
     fun hasSameExploreListContent(other: BookSourcePart): Boolean {
         return bookSourceName == other.bookSourceName
