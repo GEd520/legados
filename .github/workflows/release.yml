@@ -1,4 +1,4 @@
-name: Release Build 双包打包
+name: Release Build 三包打包
 
 on:
   workflow_dispatch:
@@ -19,8 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # 这里一次打 3 个包：app + app·S + app·Max
-        product: [ app, app·S, app·Max ]
+        # 这里一次打 3 个包：app + appS + appMax
+        product: [ app, appS, appMax ]
       fail-fast: false
 
     env:
@@ -37,24 +37,20 @@ jobs:
           java-version: 17
 
       # ==============================================
-      # 重点：自动给 app·S 改 包名 + 软件名
+      # 重点：自动给 appS 改 软件名
       # ==============================================
-      - name: 修改包名 & 应用名 (仅对 app·S 生效)
-        if: env.product == 'app·S'
+      - name: 修改应用名 (仅对 appS 生效)
+        if: env.product == 'appS'
         run: |
-          # 1. 修改包名（自动加 .a）
-          sed -i 's/applicationId "io.legado"/applicationId "io.legado.a"/' app/build.gradle.kts
-          sed -i 's/applicationIdSuffix \"\"/applicationIdSuffix \".a"/' app/build.gradle.kts
-
-          # 2. 修改 APP 名称，自动加 ·S
+          # 修改 APP 名称为 阅读·S
           sed -i 's/app_name\">阅读/app_name\">阅读·S/' app/src/main/res/values/strings.xml
           sed -i 's/app_name">阅读/app_name">阅读·S/' app/src/main/res/values-zh/strings.xml
 
       # ==============================================
-      # 重点：自动给 app·Max 改 软件名
+      # 重点：自动给 appMax 改 软件名
       # ==============================================
-      - name: 修改应用名 (仅对 app·Max 生效)
-        if: env.product == 'app·Max'
+      - name: 修改应用名 (仅对 appMax 生效)
+        if: env.product == 'appMax'
         run: |
           # 修改 APP 名称为 阅读·Max
           sed -i 's/app_name\">阅读/app_name\">阅读·Max/' app/src/main/res/values/strings.xml
