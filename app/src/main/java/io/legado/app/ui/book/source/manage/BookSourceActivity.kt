@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.view.SubMenu
+import android.view.View
 import android.view.WindowManager
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
@@ -27,8 +28,10 @@ import io.legado.app.data.appDb
 import io.legado.app.data.entities.BookSourcePart
 import io.legado.app.databinding.ActivityBookSourceBinding
 import io.legado.app.databinding.DialogEditTextBinding
+import io.legado.app.databinding.DialogImportUrlBinding
 import io.legado.app.help.DirectLinkUpload
 import io.legado.app.help.config.LocalConfig
+import io.legado.app.help.http.okHttpClient
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.lib.theme.primaryTextColor
@@ -39,6 +42,7 @@ import io.legado.app.ui.book.search.SearchActivity
 import io.legado.app.ui.book.search.SearchScope
 import io.legado.app.ui.book.source.debug.BookSourceDebugActivity
 import io.legado.app.ui.book.source.edit.BookSourceEditActivity
+import io.legado.app.ui.browser.WebViewActivity
 import io.legado.app.ui.config.CheckSourceConfig
 import io.legado.app.ui.file.HandleFileContract
 import io.legado.app.ui.qrcode.QrCodeResult
@@ -76,6 +80,8 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.Request
 
 /**
  * 书源管理界面
@@ -601,18 +607,57 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
             .getAsString(importRecordKey)
             ?.splitNotBlank(",")
             ?.toMutableList() ?: mutableListOf()
+        var checkJob: Job? = null
         alert(titleResource = R.string.import_on_line) {
-            val alertBinding = DialogEditTextBinding.inflate(layoutInflater).apply {
+            val alertBinding = DialogImportUrlBinding.inflate(layoutInflater).apply {
                 editView.hint = "url"
                 editView.setFilterValues(cacheUrls)
                 editView.delCallBack = {
                     cacheUrls.remove(it)
                     aCache.put(importRecordKey, cacheUrls.joinToString(","))
                 }
+                ivSignal.setImageResource(R.drawable.ic_signal)
+                ibOpenBrowser.setOnClickListener {
+                    val text = editView.text?.toString()?.trim()
+                    if (text.isNullOrEmpty()) {
+                        toastOnUi(R.string.please_input_url)
+                        return@setOnClickListener
+                    }
+                    if (!text.isAbsUrl()) {
+                        toastOnUi(R.string.url_format_error)
+                        return@setOnClickListener
+                    }
+                    startActivity<WebViewActivity> {
+                        putExtra("url", text)
+                    }
+                }
+                editView.addTextChangedListener(object : android.text.TextWatcher {
+                    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                    override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                    override fun afterTextChanged(s: android.text.Editable?) {
+                        val text = s?.toString()?.trim()
+                        if (text.isNullOrEmpty() || !text.isAbsUrl()) {
+                            ivSignal.visibility = View.GONE
+                            return
+                        }
+                        ivSignal.visibility = View.VISIBLE
+                        ivSignal.setImageResource(R.drawable.ic_signal)
+                        checkJob?.cancel()
+                        checkJob = lifecycleScope.launch {
+                            delay(500)
+                            val isConnected = checkUrlConnection(text)
+                            if (isConnected) {
+                                ivSignal.setImageResource(R.drawable.ic_signal_green)
+                            } else {
+                                ivSignal.setImageResource(R.drawable.ic_signal_red)
+                            }
+                        }
+                    }
+                })
             }
             customView { alertBinding.root }
             okButton {
-                val text = alertBinding.editView.text?.toString()
+                val text = alertBinding.editView.text?.toString()?.trim()
                 text?.let {
                     if (it.isAbsUrl() && !cacheUrls.contains(it)) {
                         cacheUrls.add(0, it)
@@ -622,6 +667,20 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
                 }
             }
             cancelButton()
+        }
+    }
+
+    private suspend fun checkUrlConnection(url: String): Boolean {
+        return withContext(IO) {
+            try {
+                val request = Request.Builder().url(url).head().build()
+                okHttpClient.newCall(request).execute().use { response ->
+                    response.isSuccessful
+                }
+            } catch (e: Exception) {
+                AppLog.put("URL连接检测失败: $url", e)
+                false
+            }
         }
     }
 

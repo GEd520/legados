@@ -116,6 +116,13 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
     private val activeWebViews = linkedMapOf<FrameLayout, PooledWebView>()
     private var saveInfoMapJob: Job? = null
 
+    /**
+     * 完成待处理的滚动到指定书源位置
+     * 如果当前滚动目标与指定的 sourceUrl 匹配，则执行滚动并清除待处理状态
+     *
+     * @param sourceUrl 目标书源 URL
+     * @param anchor 锚点视图，用于在视图树中执行滚动操作
+     */
     private fun completePendingScrollToSource(sourceUrl: String?, anchor: View? = null) {
         if (sourceUrl == null || scrollToSourceUrl != sourceUrl) {
             return
@@ -129,6 +136,10 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         anchor?.post(scrollAction) ?: scrollAction()
     }
 
+    /**
+     * 创建视图绑定对象
+     * 用于 RecyclerView 的 ViewHolder 创建
+     */
     override fun getViewBinding(parent: ViewGroup): ItemFindBookBinding {
         return ItemFindBookBinding.inflate(inflater, parent, false)
     }
@@ -633,6 +644,15 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         }
     }
 
+    /**
+     * 执行 UI JavaScript 表达式
+     * 用于动态计算视图名称等 UI 相关的值
+     *
+     * @param jsStr JavaScript 表达式字符串
+     * @param source 书源对象
+     * @param infoMap 信息映射表
+     * @return 执行结果字符串，执行失败返回 null
+     */
     private suspend fun evalUiJs(jsStr: String, source: BookSource?, infoMap: InfoMap): String? {
         val source = source ?: return null
         return try {
@@ -647,6 +667,16 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         }
     }
 
+    /**
+     * 执行按钮点击的 JavaScript 动作
+     * 用于处理 button、toggle、select 等交互元素的点击事件
+     *
+     * @param jsStr JavaScript 表达式字符串
+     * @param source 书源对象
+     * @param infoMap 信息映射表
+     * @param name 按钮名称，用于日志记录
+     * @param java JavaScript 扩展接口对象
+     */
     private suspend fun evalButtonClick(jsStr: String, source: BaseSource?, infoMap: InfoMap, name: String, java: SourceLoginJsExtensions) {
         val source = source ?: return
         try {
@@ -661,6 +691,10 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         }
     }
 
+    /**
+     * 从回收池获取或创建 TextView
+     * 用于 url、button、toggle 类型的分类项
+     */
     @Synchronized
     private fun getFlexboxChild(flexbox: FlexboxLayout): TextView {
         return if (recycler.isEmpty()) {
@@ -670,6 +704,10 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         }
     }
 
+    /**
+     * 从回收池获取或创建 AutoCompleteTextView
+     * 用于 text 类型的分类项（文本输入框）
+     */
     @Synchronized
     private fun getFlexboxChildText(flexbox: FlexboxLayout): AutoCompleteTextView {
         return if (textRecycler.isEmpty()) {
@@ -679,6 +717,10 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         }
     }
 
+    /**
+     * 从回收池获取或创建 LinearLayout（下拉选择器容器）
+     * 用于 select 类型的分类项
+     */
     @Synchronized
     private fun getFlexboxChildSelect(flexbox: FlexboxLayout): LinearLayout {
         return if (selectRecycler.isEmpty()) {
@@ -688,6 +730,10 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         }
     }
 
+    /**
+     * 从回收池获取或创建 FrameLayout（HTML 内容容器）
+     * 用于 html 类型的分类项
+     */
     @Synchronized
     private fun getFlexboxChildHtml(flexbox: FlexboxLayout): FrameLayout {
         return if (htmlRecycler.isEmpty()) {
@@ -697,6 +743,17 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         }
     }
 
+    /**
+     * 绑定 HTML 视图
+     * 根据内容前缀判断使用 WebView（useweb）还是 TextView（usehtml）展示
+     *
+     * @param container 容器布局
+     * @param kind 发现分类对象
+     * @param source 书源对象
+     * @param infoMap 信息映射表
+     * @param title 分类标题
+     * @param sourceJsExtensions 书源 JavaScript 扩展接口
+     */
     private fun bindHtmlView(
         container: FrameLayout,
         kind: ExploreKind,
@@ -728,6 +785,16 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         }
     }
 
+    /**
+     * 解析 HTML 内容
+     * 从 kind 的 url、title 或 viewName 中提取内容
+     *
+     * @param kind 发现分类对象
+     * @param source 书源对象
+     * @param infoMap 信息映射表
+     * @param title 分类标题
+     * @return 异步返回解析后的内容字符串
+     */
     private fun resolveHtmlContent(
         kind: ExploreKind,
         source: BookSource?,
@@ -746,6 +813,17 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
             }
     }
 
+    /**
+     * 绑定 TextView 显示 usehtml 内容
+     * 使用 Html.fromHtml 解析内容，支持图片加载和自定义标签处理
+     *
+     * @param container 容器布局
+     * @param content 包含 usehtml 标签的内容字符串
+     * @param source 书源对象
+     * @param infoMap 信息映射表
+     * @param title 分类标题
+     * @param sourceJsExtensions 书源 JavaScript 扩展接口
+     */
     private fun bindExploreTextView(
         container: FrameLayout,
         content: String,
@@ -863,6 +941,13 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         container.visible()
     }
 
+    /**
+     * 创建加载指示器
+     * 用于 WebView 加载过程中显示的进度条
+     *
+     * @param container 父容器
+     * @return ProgressBar 实例
+     */
     private fun createLoadingIndicator(container: FrameLayout): ProgressBar {
         return ProgressBar(context).apply {
             layoutParams = FrameLayout.LayoutParams(
@@ -895,6 +980,14 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
      * 构建高度缓存的唯一标识 Key
      * 使用书源URL哈希、HTML哈希和HTML长度组合，降低哈希冲突概率
      */
+    /**
+     * 构建 useweb 页面状态缓存 Key
+     * 用于标识 WebView 页面状态的唯一性
+     *
+     * @param source 书源对象
+     * @param html HTML 内容字符串
+     * @return 页面状态 Key
+     */
     private fun buildExploreUseWebPageKey(source: BookSource?, html: String): String {
         return buildString {
             append("useweb_page_")
@@ -906,6 +999,15 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         }
     }
 
+    /**
+     * 构建 useweb 状态 Key
+     * 用于标识特定上下文下的 WebView 状态，支持页面恢复
+     *
+     * @param source 书源对象
+     * @param html HTML 内容字符串
+     * @param infoMap 信息映射表
+     * @return 状态 Key
+     */
     private fun buildExploreUseWebStateKey(
         source: BookSource?,
         html: String,
@@ -922,6 +1024,16 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         }
     }
 
+    /**
+     * 构建 useweb 布局 Key
+     * 用于缓存特定页面的 WebView 高度
+     *
+     * @param source 书源对象
+     * @param html HTML 内容字符串
+     * @param infoMap 信息映射表
+     * @param page 页码
+     * @return 布局 Key
+     */
     private fun buildExploreUseWebLayoutKey(
         source: BookSource?,
         html: String,
@@ -935,6 +1047,13 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         }
     }
 
+    /**
+     * 构建 useweb 上下文签名
+     * 排除 page 字段后对 infoMap 进行签名，用于判断上下文是否变化
+     *
+     * @param infoMap 信息映射表
+     * @return 上下文签名字符串
+     */
     private fun buildExploreUseWebContextSignature(infoMap: InfoMap?): String {
         if (infoMap == null || infoMap.isEmpty()) return "default"
         val normalizedContext = infoMap.entries
@@ -949,6 +1068,14 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         }
     }
 
+    /**
+     * 构建发现内容签名
+     * 用于判断分类列表是否发生变化，避免重复创建视图
+     *
+     * @param sourceUrl 书源 URL
+     * @param kinds 分类列表
+     * @return 内容签名字符串
+     */
     private fun buildExploreContentSignature(sourceUrl: String, kinds: List<ExploreKind>): String {
         return buildString {
             append(MD5Utils.md5Encode16(sourceUrl))
@@ -957,6 +1084,14 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         }
     }
 
+    /**
+     * 构建 useweb 页面注入脚本
+     * 提供 page 属性的读写能力，支持分页状态管理
+     *
+     * @param pageKey 页面状态缓存 Key
+     * @param initialPage 初始页码
+     * @return JavaScript 注入代码
+     */
     private fun buildExploreUseWebPageInjection(pageKey: String, initialPage: Int): String {
         val safePage = initialPage.coerceAtLeast(1)
         val keyJson = GSON.toJson(pageKey)
@@ -1011,6 +1146,15 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         """.trimIndent()
     }
 
+    /**
+     * 包装 useweb HTML 内容
+     * 添加透明背景样式和 JavaScript 注入脚本
+     *
+     * @param html 原始 HTML 内容
+     * @param source 书源对象
+     * @param pageJs 页面 JavaScript 注入代码
+     * @return 包装后的完整 HTML
+     */
     private fun wrapExploreUseWebHtml(html: String, source: BookSource?, pageJs: String): String {
         val inlineStyle = """
             <style>
@@ -1197,6 +1341,13 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         saveInfoMapJob?.cancel()
     }
 
+    /**
+     * 刷新发现分类内容
+     * 清除缓存并重新加载分类列表
+     *
+     * @param source 书源分部对象
+     * @param binding 视图绑定对象
+     */
     private fun refreshExplore(source: BookSourcePart, binding: ItemFindBookBinding) {
         binding.rotateLoading.visible()
         Coroutine.async(callBack.scope) {
@@ -1213,6 +1364,14 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         }
     }
 
+    /**
+     * 显示书源操作菜单
+     * 提供编辑、置顶、查询、搜索、登录、刷新、删除等操作
+     *
+     * @param binding 视图绑定对象
+     * @param position 列表位置
+     * @return 是否成功显示菜单
+     */
     private fun showMenu(binding: ItemFindBookBinding, position: Int): Boolean {
         val source = getItem(position) ?: return true
         val popupMenu = PopupMenu(context, binding.llTitle)
@@ -1250,6 +1409,12 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         fun showKindQueryDialog(source: BookSourcePart)
     }
 
+    /**
+     * 根据书源 URL 查找其在列表中的位置
+     *
+     * @param sourceUrl 书源 URL
+     * @return 列表位置，未找到返回 null
+     */
     private fun findSourcePosition(sourceUrl: String): Int? {
         for (index in 0 until itemCount) {
             val item = getItem(index) ?: continue

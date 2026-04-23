@@ -1451,4 +1451,10 @@
     <string name="zero_match">0 处匹配</string>
     <string name="input_test_text_hint">请输入测试文本</string>
     <string name="regex_mode">正则</string>
+    <string name="connection_status">连接状态</string>
+    <string name="please_input_url">请输入URL地址</string>
+    <string name="url_format_error">URL格式不正确</string>
+    <string name="checking_connection">检测中...</string>
+    <string name="connection_success">连接成功</string>
+    <string name="connection_failed">连接失败</string>
 </resources>
