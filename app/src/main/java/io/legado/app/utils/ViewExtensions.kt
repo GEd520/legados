@@ -56,6 +56,7 @@ import androidx.core.view.postDelayed
 import io.legado.app.help.TextViewTagHandler
 import io.legado.app.model.analyzeRule.AnalyzeUrl.Companion.paramPattern
 import io.noties.markwon.Markwon
+import io.legado.app.help.InnerBrowserUrlSpan
 import io.noties.markwon.image.AsyncDrawableSpan
 
 private tailrec fun getCompatActivity(context: Context?): AppCompatActivity? {
@@ -235,11 +236,14 @@ fun RadioGroup.checkByIndex(index: Int) {
 }
 
 fun TextView.setHtml(html: String, imageGetter: GlideImageGetter? = null, textViewTagHandler: TextViewTagHandler? = null) {
-    text = html.parseAsHtml(HtmlCompat.FROM_HTML_MODE_COMPACT, imageGetter, textViewTagHandler)
+    val spanned = html.parseAsHtml(HtmlCompat.FROM_HTML_MODE_COMPACT, imageGetter, textViewTagHandler)
+    // 替换 URLSpan 为 InnerBrowserUrlSpan，使链接走内置浏览器
+    text = replaceUrlSpans(spanned)
 }
 
 fun TextView.setHtml(html: String, imageGetter: GlideImageGetter? = null, textViewTagHandler: TextViewTagHandler? = null, imgOnLongClickListener: (source: String) -> Unit, imgOnClickListener: (click: String) -> Unit) {
-    val spanned = html.parseAsHtml(HtmlCompat.FROM_HTML_MODE_COMPACT, imageGetter, textViewTagHandler)
+    // 替换 URLSpan 为 InnerBrowserUrlSpan，使链接走内置浏览器
+    val spanned = replaceUrlSpans(html.parseAsHtml(HtmlCompat.FROM_HTML_MODE_COMPACT, imageGetter, textViewTagHandler))
     val imageSpans = spanned.getSpans(0, spanned.length, ImageSpan::class.java)
     val clickSpans = mutableListOf<Triple<Pair<Int, Int>, String, String?>>()
     for (imageSpan in imageSpans) {
@@ -337,12 +341,32 @@ fun TextView.setHtml(html: String, imageGetter: GlideImageGetter? = null, textVi
     }
 }
 
+/**
+ * 将 Spanned 中所有 URLSpan 替换为 InnerBrowserUrlSpan
+ * 使链接点击走内置浏览器而非外部浏览器
+ */
+private fun replaceUrlSpans(spanned: Spanned): Spanned {
+    val urlSpans = spanned.getSpans(0, spanned.length, android.text.style.URLSpan::class.java)
+    if (urlSpans.isEmpty()) return spanned
+    val spannable = android.text.SpannableString(spanned)
+    for (urlSpan in urlSpans) {
+        val start = spannable.getSpanStart(urlSpan)
+        val end = spannable.getSpanEnd(urlSpan)
+        val flags = spannable.getSpanFlags(urlSpan)
+        spannable.removeSpan(urlSpan)
+        spannable.setSpan(InnerBrowserUrlSpan(urlSpan.url), start, end, flags)
+    }
+    return spannable
+}
+
 fun TextView.setMarkdown(markwon: Markwon, spanned: Spanned, imgOnLongClickListener: (source: String) -> Unit) {
-    val imageSpans = spanned.getSpans(0, spanned.length, AsyncDrawableSpan::class.java)
+    // 替换 URLSpan 为 InnerBrowserUrlSpan，使链接走内置浏览器
+    val processedSpanned = replaceUrlSpans(spanned)
+    val imageSpans = processedSpanned.getSpans(0, processedSpanned.length, AsyncDrawableSpan::class.java)
     val clickSpans = mutableListOf<Pair<Pair<Int, Int>, String>>()
     for (imageSpan in imageSpans) {
-        val start = spanned.getSpanStart(imageSpan)
-        val end = spanned.getSpanEnd(imageSpan)
+        val start = processedSpanned.getSpanStart(imageSpan)
+        val end = processedSpanned.getSpanEnd(imageSpan)
         if (start >= 0 && end >= 0) {
             val source = imageSpan.drawable.destination
             clickSpans.add((start to end) to source)
@@ -413,7 +437,7 @@ fun TextView.setMarkdown(markwon: Markwon, spanned: Spanned, imgOnLongClickListe
             }
         }
     }
-    markwon.setParsedMarkdown(this, spanned)
+    markwon.setParsedMarkdown(this, processedSpanned)
 }
 
 fun TextView.setTextIfNotEqual(charSequence: CharSequence?) {

@@ -35,10 +35,12 @@ import io.legado.app.lib.theme.primaryTextColor
 import io.legado.app.model.CheckSource
 import io.legado.app.model.Debug
 import io.legado.app.ui.association.ImportBookSourceDialog
+import io.legado.app.ui.association.ImportUrlDialogHelper
 import io.legado.app.ui.book.search.SearchActivity
 import io.legado.app.ui.book.search.SearchScope
 import io.legado.app.ui.book.source.debug.BookSourceDebugActivity
 import io.legado.app.ui.book.source.edit.BookSourceEditActivity
+import io.legado.app.ui.browser.WebViewActivity
 import io.legado.app.ui.config.CheckSourceConfig
 import io.legado.app.ui.file.HandleFileContract
 import io.legado.app.ui.qrcode.QrCodeResult
@@ -594,6 +596,10 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
         }
     }
 
+    /**
+     * 网络导入对话框
+     * 标题行包含信号标志（检测URL连接状态）和地球按钮（用内置浏览器打开URL）
+     */
     @SuppressLint("InflateParams")
     private fun showImportDialog() {
         val aCache = ACache.get(cacheDir = false)
@@ -602,17 +608,23 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
             ?.splitNotBlank(",")
             ?.toMutableList() ?: mutableListOf()
         alert(titleResource = R.string.import_on_line) {
-            val alertBinding = DialogEditTextBinding.inflate(layoutInflater).apply {
-                editView.hint = "url"
-                editView.setFilterValues(cacheUrls)
-                editView.delCallBack = {
-                    cacheUrls.remove(it)
-                    aCache.put(importRecordKey, cacheUrls.joinToString(","))
+            val alertBinding = ImportUrlDialogHelper.createBinding(
+                layoutInflater = layoutInflater,
+                context = this@BookSourceActivity,
+                lifecycleOwner = this@BookSourceActivity,
+                cacheUrls = cacheUrls,
+                onUrlsChanged = {
+                    aCache.put(importRecordKey, it.joinToString(","))
+                },
+                openBrowser = { url ->
+                    startActivity<WebViewActivity> {
+                        putExtra("url", url)
+                    }
                 }
-            }
+            )
             customView { alertBinding.root }
             okButton {
-                val text = alertBinding.editView.text?.toString()
+                val text = alertBinding.editView.text?.toString()?.trim()
                 text?.let {
                     if (it.isAbsUrl() && !cacheUrls.contains(it)) {
                         cacheUrls.add(0, it)

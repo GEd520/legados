@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!--App-->
-    <string name="app_name">Legado</string>
+    <string name="app_name">Legado·Max</string>
     <string name="app_name_a">Legado·A</string>
     <string name="app_name_s" translatable="false">LegadoPlus</string>
     <string name="app_name_max" translatable="false">Legado·Max</string>
+    <string name="app_name_debug" translatable="false">LegadoD·Max</string>
     <string name="receiving_shared_label">Legado·search</string>
     <string name="tip_perm_request_storage">Legado needs storage access to find and read books. please go "App Settings" to allow "Storage permission".</string>
 
@@ -1451,4 +1452,15 @@
     <string name="zero_match">0 处匹配</string>
     <string name="input_test_text_hint">请输入测试文本</string>
     <string name="regex_mode">正则</string>
+    <string name="connection_status">连接状态</string>
+    <string name="please_input_url">请输入URL地址</string>
+    <string name="url_format_error">URL格式不正确</string>
+    <string name="checking_connection">检测中...</string>
+    <string name="connection_success">连接成功</string>
+    <string name="connection_failed">连接失败</string>
+    <string name="smart_import">Smart Import</string>
+    <string name="history_record">History</string>
+    <string name="detected_as">Detected as: %1$s (%2$d items)</string>
+    <string name="detecting">Detecting...</string>
+    <string name="unknown_type">Unknown type</string>
 </resources>

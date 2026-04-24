@@ -22,6 +22,8 @@ import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.lib.theme.primaryTextColor
 import io.legado.app.ui.association.ImportRssSourceDialog
+import io.legado.app.ui.association.ImportUrlDialogHelper
+import io.legado.app.ui.browser.WebViewActivity
 import io.legado.app.ui.file.HandleFileContract
 import io.legado.app.ui.qrcode.QrCodeResult
 import io.legado.app.ui.rss.source.edit.RssSourceEditActivity
@@ -415,17 +417,23 @@ class RssSourceActivity : VMBaseActivity<ActivityRssSourceBinding, RssSourceView
             ?.splitNotBlank(",")
             ?.toMutableList() ?: mutableListOf()
         alert(titleResource = R.string.import_on_line) {
-            val alertBinding = DialogEditTextBinding.inflate(layoutInflater).apply {
-                editView.hint = "url"
-                editView.setFilterValues(cacheUrls)
-                editView.delCallBack = {
-                    cacheUrls.remove(it)
-                    aCache.put(importRecordKey, cacheUrls.joinToString(","))
+            val alertBinding = ImportUrlDialogHelper.createBinding(
+                layoutInflater = layoutInflater,
+                context = this@RssSourceActivity,
+                lifecycleOwner = this@RssSourceActivity,
+                cacheUrls = cacheUrls,
+                onUrlsChanged = {
+                    aCache.put(importRecordKey, it.joinToString(","))
+                },
+                openBrowser = { url ->
+                    startActivity<WebViewActivity> {
+                        putExtra("url", url)
+                    }
                 }
-            }
+            )
             customView { alertBinding.root }
             okButton {
-                val text = alertBinding.editView.text?.toString()
+                val text = alertBinding.editView.text?.toString()?.trim()
                 text?.let {
                     if (it.isAbsUrl() && !cacheUrls.contains(it)) {
                         cacheUrls.add(0, it)

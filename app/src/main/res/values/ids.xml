@@ -18,5 +18,6 @@
     <item name="text_watcher" type="id" />
     <item name="inline_content_generation" type="id" />
     <item name="explore_source_url" type="id" />
+    <item name="explore_content_signature" type="id" />
 
 </resources>

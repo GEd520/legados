@@ -57,6 +57,7 @@ import io.legado.app.help.webView.WebViewPool.fitInlineContentSmooth
 import io.legado.app.help.webView.WebViewPool.installInlineContentRefitOnTouch
 import io.legado.app.help.webView.WebViewPool.prepareForInlineContent
 import io.legado.app.help.webView.WebViewPool.currentInlineContentGeneration
+import io.legado.app.help.webView.WebViewPool.scheduleInlineContentFit
 import io.legado.app.help.source.clearExploreKindsCache
 import io.legado.app.help.source.exploreKinds
 import io.legado.app.lib.theme.accentColor
@@ -69,6 +70,7 @@ import io.legado.app.ui.widget.text.AccentTextView
 import io.legado.app.ui.widget.text.ScrollTextView
 import io.legado.app.utils.InfoMap
 import io.legado.app.utils.GSON
+import io.legado.app.utils.MD5Utils
 import io.legado.app.utils.activity
 import io.legado.app.utils.dpToPx
 import io.legado.app.utils.gone
@@ -96,6 +98,9 @@ import kotlin.text.isNullOrEmpty
 class ExploreAdapter(context: Context, val callBack: CallBack) :
     RecyclerAdapter<BookSourcePart, ItemFindBookBinding>(context) {
     companion object {
+        private const val PAYLOAD_TOGGLE_EXPAND = "toggle_expand"
+        private const val PAYLOAD_RESUME = "resume"
+        private const val PAYLOAD_FORCE_REFRESH = "force_refresh"
         val exploreInfoMapList = LruCache<String, InfoMap>(99)
         private val exploreWebViewHeightCache = LruCache<String, Int>(99)
     }
@@ -111,6 +116,13 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
     private val activeWebViews = linkedMapOf<FrameLayout, PooledWebView>()
     private var saveInfoMapJob: Job? = null
 
+    /**
+     * 完成待处理的滚动到指定书源位置
+     * 如果当前滚动目标与指定的 sourceUrl 匹配，则执行滚动并清除待处理状态
+     *
+     * @param sourceUrl 目标书源 URL
+     * @param anchor 锚点视图，用于在视图树中执行滚动操作
+     */
     private fun completePendingScrollToSource(sourceUrl: String?, anchor: View? = null) {
         if (sourceUrl == null || scrollToSourceUrl != sourceUrl) {
             return
@@ -124,6 +136,10 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         anchor?.post(scrollAction) ?: scrollAction()
     }
 
+    /**
+     * 创建视图绑定对象
+     * 用于 RecyclerView 的 ViewHolder 创建
+     */
     override fun getViewBinding(parent: ViewGroup): ItemFindBookBinding {
         return ItemFindBookBinding.inflate(inflater, parent, false)
     }
@@ -137,6 +153,7 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
      * @param item 书源数据
      * @param payloads 刷新载荷，用于区分刷新类型：
      *   - 空：完整刷新
+     *   - "toggle_expand"：仅切换展开/折叠状态
      *   - "resume"：页面恢复，保持现有内容
      *   - "force_refresh"：强制刷新，重新创建内容
      */
@@ -159,12 +176,13 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
             }
             
             // 解析 payload 类型，区分不同的刷新场景
-            val isResume = payloads.contains("resume")           // 页面恢复
-            val isForceRefresh = payloads.contains("force_refresh")  // 强制刷新
+            val isResume = payloads.contains(PAYLOAD_RESUME)           // 页面恢复
+            val isForceRefresh = payloads.contains(PAYLOAD_FORCE_REFRESH)  // 强制刷新
             
             if (isForceRefresh) {
                 // 强制刷新时清除 sourceUrl 标记，触发重新创建内容
                 flexbox.setTag(R.id.explore_source_url, null)
+                flexbox.setTag(R.id.explore_content_signature, null)
             }
             
             if (expandedSourceUrl == item.bookSourceUrl) {
@@ -239,7 +257,12 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         // 检查是否已经有内容且 sourceUrl 匹配，避免重复创建 WebView
         // 这是防止页面切换时 WebView 闪烁的关键检查
         val existingSourceUrl = flexbox.getTag(R.id.explore_source_url) as? String
-        if (existingSourceUrl == sourceUrl && flexbox.childCount > 0) {
+        val currentContentSignature = buildExploreContentSignature(sourceUrl, kinds)
+        val existingContentSignature = flexbox.getTag(R.id.explore_content_signature) as? String
+        if (existingSourceUrl == sourceUrl
+            && existingContentSignature == currentContentSignature
+            && flexbox.childCount > 0
+        ) {
             // 已经有相同 sourceUrl 的内容，跳过重新创建
             return
         }
@@ -249,6 +272,7 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
             recyclerFlexbox(flexbox)
             // 标记当前 flexbox 对应的 sourceUrl，用于后续判断是否需要重建
             flexbox.setTag(R.id.explore_source_url, sourceUrl)
+            flexbox.setTag(R.id.explore_content_signature, currentContentSignature)
             flexbox.visible()
             val source by lazy { appDb.bookSourceDao.getBookSource(sourceUrl) }
             val infoMap by lazy {
@@ -620,6 +644,15 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         }
     }
 
+    /**
+     * 执行 UI JavaScript 表达式
+     * 用于动态计算视图名称等 UI 相关的值
+     *
+     * @param jsStr JavaScript 表达式字符串
+     * @param source 书源对象
+     * @param infoMap 信息映射表
+     * @return 执行结果字符串，执行失败返回 null
+     */
     private suspend fun evalUiJs(jsStr: String, source: BookSource?, infoMap: InfoMap): String? {
         val source = source ?: return null
         return try {
@@ -634,6 +667,16 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         }
     }
 
+    /**
+     * 执行按钮点击的 JavaScript 动作
+     * 用于处理 button、toggle、select 等交互元素的点击事件
+     *
+     * @param jsStr JavaScript 表达式字符串
+     * @param source 书源对象
+     * @param infoMap 信息映射表
+     * @param name 按钮名称，用于日志记录
+     * @param java JavaScript 扩展接口对象
+     */
     private suspend fun evalButtonClick(jsStr: String, source: BaseSource?, infoMap: InfoMap, name: String, java: SourceLoginJsExtensions) {
         val source = source ?: return
         try {
@@ -648,6 +691,10 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         }
     }
 
+    /**
+     * 从回收池获取或创建 TextView
+     * 用于 url、button、toggle 类型的分类项
+     */
     @Synchronized
     private fun getFlexboxChild(flexbox: FlexboxLayout): TextView {
         return if (recycler.isEmpty()) {
@@ -657,6 +704,10 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         }
     }
 
+    /**
+     * 从回收池获取或创建 AutoCompleteTextView
+     * 用于 text 类型的分类项（文本输入框）
+     */
     @Synchronized
     private fun getFlexboxChildText(flexbox: FlexboxLayout): AutoCompleteTextView {
         return if (textRecycler.isEmpty()) {
@@ -666,6 +717,10 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         }
     }
 
+    /**
+     * 从回收池获取或创建 LinearLayout（下拉选择器容器）
+     * 用于 select 类型的分类项
+     */
     @Synchronized
     private fun getFlexboxChildSelect(flexbox: FlexboxLayout): LinearLayout {
         return if (selectRecycler.isEmpty()) {
@@ -675,6 +730,10 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         }
     }
 
+    /**
+     * 从回收池获取或创建 FrameLayout（HTML 内容容器）
+     * 用于 html 类型的分类项
+     */
     @Synchronized
     private fun getFlexboxChildHtml(flexbox: FlexboxLayout): FrameLayout {
         return if (htmlRecycler.isEmpty()) {
@@ -684,6 +743,17 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         }
     }
 
+    /**
+     * 绑定 HTML 视图
+     * 根据内容前缀判断使用 WebView（useweb）还是 TextView（usehtml）展示
+     *
+     * @param container 容器布局
+     * @param kind 发现分类对象
+     * @param source 书源对象
+     * @param infoMap 信息映射表
+     * @param title 分类标题
+     * @param sourceJsExtensions 书源 JavaScript 扩展接口
+     */
     private fun bindHtmlView(
         container: FrameLayout,
         kind: ExploreKind,
@@ -715,6 +785,16 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         }
     }
 
+    /**
+     * 解析 HTML 内容
+     * 从 kind 的 url、title 或 viewName 中提取内容
+     *
+     * @param kind 发现分类对象
+     * @param source 书源对象
+     * @param infoMap 信息映射表
+     * @param title 分类标题
+     * @return 异步返回解析后的内容字符串
+     */
     private fun resolveHtmlContent(
         kind: ExploreKind,
         source: BookSource?,
@@ -733,6 +813,17 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
             }
     }
 
+    /**
+     * 绑定 TextView 显示 usehtml 内容
+     * 使用 Html.fromHtml 解析内容，支持图片加载和自定义标签处理
+     *
+     * @param container 容器布局
+     * @param content 包含 usehtml 标签的内容字符串
+     * @param source 书源对象
+     * @param infoMap 信息映射表
+     * @param title 分类标题
+     * @param sourceJsExtensions 书源 JavaScript 扩展接口
+     */
     private fun bindExploreTextView(
         container: FrameLayout,
         content: String,
@@ -807,16 +898,20 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
             return
         }
         val useWebHtml = content.substring(8, endIndex)
-        val pageKey = buildExploreUseWebPageKey(source, useWebHtml)
+       // 相同的来源与 useWeb 模板应恢复至同一记忆页面，且
+// 在回收 / 重新绑定后复用上次测算的高度。
+        val pageStateKey = buildExploreUseWebStateKey(source, useWebHtml, infoMap)
+        val initialPage = infoMap["page"]?.toIntOrNull()?.coerceAtLeast(1) ?: 1
+        val pageLayoutKey = buildExploreUseWebLayoutKey(source, useWebHtml, infoMap, initialPage)
         val pageJs = buildExploreUseWebPageInjection(
-            pageKey = pageKey,
-            initialPage = infoMap["page"]?.toIntOrNull()?.coerceAtLeast(1) ?: 1
+            pageKey = pageStateKey,
+            initialPage = initialPage
         )
         val html = wrapExploreUseWebHtml(useWebHtml, source, pageJs)
         val pooledWebView = WebViewPool.acquire(context)
         val webView = pooledWebView.realWebView
         webView.onResume()
-        val cachedHeight = exploreWebViewHeightCache[pageKey]?.takeIf { it > 1 }
+        val cachedHeight = exploreWebViewHeightCache[pageLayoutKey]?.takeIf { it > 1 }
         val loadingHeight = 120.dpToPx()
         prepareForInlineContent(webView, cachedHeight ?: loadingHeight)
         installInlineContentRefitOnTouch(webView) {
@@ -830,7 +925,7 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
             source,
             source?.bookSourceUrl,
             pageJs,
-            pageKey,
+            pageLayoutKey,
             loadingIndicator
         )
         webView.addJavascriptInterface(WebCacheManager, nameCache)
@@ -846,6 +941,13 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         container.visible()
     }
 
+    /**
+     * 创建加载指示器
+     * 用于 WebView 加载过程中显示的进度条
+     *
+     * @param container 父容器
+     * @return ProgressBar 实例
+     */
     private fun createLoadingIndicator(container: FrameLayout): ProgressBar {
         return ProgressBar(context).apply {
             layoutParams = FrameLayout.LayoutParams(
@@ -863,7 +965,8 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
      */
     private fun releaseWebView(container: FrameLayout) {
         activeWebViews.remove(container)?.let { pooledWebView ->
-            // 移除 JavaScript 接口，避免 WebView 复用时接口重复添加
+            // A pooled WebView must not keep source-specific JS bridges when it is attached
+            // to the next row, otherwise callbacks may hit the wrong source/context.
             pooledWebView.realWebView.apply {
                 removeJavascriptInterface(nameCache)
                 removeJavascriptInterface(nameSource)
@@ -877,6 +980,14 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
      * 构建高度缓存的唯一标识 Key
      * 使用书源URL哈希、HTML哈希和HTML长度组合，降低哈希冲突概率
      */
+    /**
+     * 构建 useweb 页面状态缓存 Key
+     * 用于标识 WebView 页面状态的唯一性
+     *
+     * @param source 书源对象
+     * @param html HTML 内容字符串
+     * @return 页面状态 Key
+     */
     private fun buildExploreUseWebPageKey(source: BookSource?, html: String): String {
         return buildString {
             append("useweb_page_")
@@ -888,6 +999,99 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         }
     }
 
+    /**
+     * 构建 useweb 状态 Key
+     * 用于标识特定上下文下的 WebView 状态，支持页面恢复
+     *
+     * @param source 书源对象
+     * @param html HTML 内容字符串
+     * @param infoMap 信息映射表
+     * @return 状态 Key
+     */
+    private fun buildExploreUseWebStateKey(
+        source: BookSource?,
+        html: String,
+        infoMap: InfoMap? = null
+    ): String {
+        val contextSignature = buildExploreUseWebContextSignature(infoMap)
+        return buildString {
+            append("useweb_state_")
+            append(source?.bookSourceUrl?.let(MD5Utils::md5Encode16) ?: "default")
+            append('_')
+            append(MD5Utils.md5Encode16(html))
+            append('_')
+            append(contextSignature)
+        }
+    }
+
+    /**
+     * 构建 useweb 布局 Key
+     * 用于缓存特定页面的 WebView 高度
+     *
+     * @param source 书源对象
+     * @param html HTML 内容字符串
+     * @param infoMap 信息映射表
+     * @param page 页码
+     * @return 布局 Key
+     */
+    private fun buildExploreUseWebLayoutKey(
+        source: BookSource?,
+        html: String,
+        infoMap: InfoMap?,
+        page: Int
+    ): String {
+        return buildString {
+            append(buildExploreUseWebStateKey(source, html, infoMap))
+            append("_layout_")
+            append(page.coerceAtLeast(1))
+        }
+    }
+
+    /**
+     * 构建 useweb 上下文签名
+     * 排除 page 字段后对 infoMap 进行签名，用于判断上下文是否变化
+     *
+     * @param infoMap 信息映射表
+     * @return 上下文签名字符串
+     */
+    private fun buildExploreUseWebContextSignature(infoMap: InfoMap?): String {
+        if (infoMap == null || infoMap.isEmpty()) return "default"
+        val normalizedContext = infoMap.entries
+            .asSequence()
+            .filter { (key, _) -> !key.equals("page", ignoreCase = true) }
+            .sortedBy { it.key }
+            .joinToString("&") { (key, value) -> "$key=$value" }
+        return if (normalizedContext.isBlank()) {
+            "default"
+        } else {
+            MD5Utils.md5Encode16(normalizedContext)
+        }
+    }
+
+    /**
+     * 构建发现内容签名
+     * 用于判断分类列表是否发生变化，避免重复创建视图
+     *
+     * @param sourceUrl 书源 URL
+     * @param kinds 分类列表
+     * @return 内容签名字符串
+     */
+    private fun buildExploreContentSignature(sourceUrl: String, kinds: List<ExploreKind>): String {
+        return buildString {
+            append(MD5Utils.md5Encode16(sourceUrl))
+            append('_')
+            append(MD5Utils.md5Encode16(GSON.toJson(kinds)))
+        }
+    }
+
+    /**
+     * 构建 useweb 页面注入脚本
+     * 提供 page 属性的读写能力，支持分页状态管理
+     *
+     * @param pageKey 页面状态缓存 Key
+     * @param initialPage 初始页码
+     * @return JavaScript 注入代码
+     */
     private fun buildExploreUseWebPageInjection(pageKey: String, initialPage: Int): String {
         val safePage = initialPage.coerceAtLeast(1)
         val keyJson = GSON.toJson(pageKey)
@@ -942,6 +1146,15 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         """.trimIndent()
     }
 
+    /**
+     * 包装 useweb HTML 内容
+     * 添加透明背景样式和 JavaScript 注入脚本
+     *
+     * @param html 原始 HTML 内容
+     * @param source 书源对象
+     * @param pageJs 页面 JavaScript 注入代码
+     * @return 包装后的完整 HTML
+     */
     private fun wrapExploreUseWebHtml(html: String, source: BookSource?, pageJs: String): String {
         val inlineStyle = """
             <style>
@@ -975,6 +1188,7 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
     private fun recyclerFlexbox(flexbox: FlexboxLayout) {
         // 清除 sourceUrl 标记，表示内容已被回收
         flexbox.setTag(R.id.explore_source_url, null)
+        flexbox.setTag(R.id.explore_content_signature, null)
         val children = flexbox.children.toList()
         if (children.isEmpty()) return
         flexbox.removeAllViews()
@@ -1023,14 +1237,14 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
                 // 折叠旧的展开项
                 oldExpandedSourceUrl?.let { sourceUrl ->
                     findSourcePosition(sourceUrl)?.let {
-                        notifyItemChanged(it, false)
+                        notifyItemChanged(it, PAYLOAD_TOGGLE_EXPAND)
                     }
                 }
                 // 展开新的项
                 expandedSourceUrl?.let { sourceUrl ->
                     scrollToSourceUrl = sourceUrl
                     findSourcePosition(sourceUrl)?.let {
-                        notifyItemChanged(it, false)
+                        notifyItemChanged(it, PAYLOAD_TOGGLE_EXPAND)
                     }
                 } ?: run {
                     scrollToSourceUrl = null
@@ -1078,10 +1292,10 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
                 if (force) {
                     // 强制刷新：清除标记以触发重新创建
                     // 注意：这里不直接操作，而是通过 payload 传递
-                    notifyItemChanged(position, "force_refresh")
+                    notifyItemChanged(position, PAYLOAD_FORCE_REFRESH)
                 } else {
                     // 普通恢复：通过 payload 传递标记，保持现有内容
-                    notifyItemChanged(position, "resume")
+                    notifyItemChanged(position, PAYLOAD_RESUME)
                 }
             }
         }
@@ -1111,9 +1325,21 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
      * 恢复所有暂停的 WebView
      */
     fun onResume() {
-        // 恢复所有暂停的 WebView
-        activeWebViews.values.forEach { pooledWebView ->
-            pooledWebView.realWebView.onResume()
+        activeWebViews.forEach { (container, pooledWebView) ->
+            val webView = pooledWebView.realWebView
+            webView.onResume()
+            WebViewPool.fitInlineContentSmooth(
+                webView,
+                WebViewPool.currentInlineContentGeneration(webView),
+                afterLayout = {
+                    container.requestLayout()
+                }
+            )
+            webView.postDelayed({
+                WebViewPool.scheduleInlineContentFit(webView, {
+                    container.requestLayout()
+                }, longArrayOf(120L, 360L))
+            }, 100)
         }
     }
 
@@ -1127,6 +1353,13 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         saveInfoMapJob?.cancel()
     }
 
+    /**
+     * 刷新发现分类内容
+     * 清除缓存并重新加载分类列表
+     *
+     * @param source 书源分部对象
+     * @param binding 视图绑定对象
+     */
     private fun refreshExplore(source: BookSourcePart, binding: ItemFindBookBinding) {
         binding.rotateLoading.visible()
         Coroutine.async(callBack.scope) {
@@ -1134,13 +1367,23 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
             sourceKinds[source.bookSourceUrl] = source.exploreKinds()
         }.onSuccess {
             findSourcePosition(source.bookSourceUrl)?.let {
-                notifyItemChanged(it, false)
+                // Rebind the expanded row after clearing exploreKinds cache so inline useWeb/useHtml
+                // content is rebuilt from the latest rule output instead of reusing attached views.
+                notifyItemChanged(it, PAYLOAD_FORCE_REFRESH)
             }
         }.onFinally {
             binding.rotateLoading.gone()
         }
     }
 
+    /**
+     * 显示书源操作菜单
+     * 提供编辑、置顶、查询、搜索、登录、刷新、删除等操作
+     *
+     * @param binding 视图绑定对象
+     * @param position 列表位置
+     * @return 是否成功显示菜单
+     */
     private fun showMenu(binding: ItemFindBookBinding, position: Int): Boolean {
         val source = getItem(position) ?: return true
         val popupMenu = PopupMenu(context, binding.llTitle)
@@ -1178,6 +1421,12 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         fun showKindQueryDialog(source: BookSourcePart)
     }
 
+    /**
+     * 根据书源 URL 查找其在列表中的位置
+     *
+     * @param sourceUrl 书源 URL
+     * @return 列表位置，未找到返回 null
+     */
     private fun findSourcePosition(sourceUrl: String): Int? {
         for (index in 0 until itemCount) {
             val item = getItem(index) ?: continue
@@ -1193,7 +1442,7 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         private val source: BaseSource?,
         private val sourceUrl: String?,
         private val pageJs: String,
-        private val pageKey: String,
+        private val pageLayoutKey: String,
         private val loadingIndicator: ProgressBar
     ) : WebViewClient() {
         private val jsStr = buildString {
@@ -1228,22 +1477,52 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
             return true
         }
 
+        private fun injectPageState(webView: WebView, delayedRetries: LongArray = longArrayOf()) {
+            if (jsStr.isBlank()) return
+            webView.evaluateJavascript(jsStr, null)
+            delayedRetries.forEach { delayMillis ->
+                webView.postDelayed({
+                    if (!webView.isAttachedToWindow) return@postDelayed
+                    webView.evaluateJavascript(jsStr, null)
+                }, delayMillis)
+            }
+        }
+
+        private fun cacheMeasuredHeight(webView: WebView) {
+            val height = webView.layoutParams?.height ?: 0
+            if (height > 1) {
+                exploreWebViewHeightCache.put(pageLayoutKey, height)
+            }
+            loadingIndicator.gone()
+            webView.visible()
+            container.requestLayout()
+        }
+
+        private fun fitAndCacheHeight(webView: WebView, delayed: Boolean) {
+            if (delayed) {
+                scheduleInlineContentFit(webView, { cacheMeasuredHeight(webView) }, longArrayOf(120L, 360L, 720L))
+            } else {
+                WebViewPool.fitInlineContentSmooth(
+                    webView,
+                    WebViewPool.currentInlineContentGeneration(webView),
+                    afterLayout = { cacheMeasuredHeight(webView) }
+                )
+            }
+        }
+
         override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
             super.onPageStarted(view, url, favicon)
-            view?.evaluateJavascript(jsStr, null)
+            view?.let { webView ->
+                injectPageState(webView)
+            }
         }
 
         override fun onPageFinished(view: WebView?, url: String?) {
             super.onPageFinished(view, url)
             view?.let { webView ->
-                WebViewPool.fitInlineContentSmooth(webView, WebViewPool.currentInlineContentGeneration(webView), afterLayout = {
-                    val height = webView.layoutParams?.height ?: 0
-                    if (height > 1) {
-                        exploreWebViewHeightCache.put(pageKey, height)
-                    }
-                    loadingIndicator.gone()
-                    webView.visible()
-                })
+                injectPageState(webView, longArrayOf(120L, 360L))
+                fitAndCacheHeight(webView, delayed = false)
+                fitAndCacheHeight(webView, delayed = true)
             }
         }
     }

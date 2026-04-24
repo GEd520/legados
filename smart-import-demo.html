@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能导入 - 界面示意</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Noto Sans SC', -apple-system, sans-serif;
+            background: #0f0f13;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .phone-frame {
+            width: 390px;
+            background: #1a1a22;
+            border-radius: 28px;
+            box-shadow: 0 30px 100px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05);
+            overflow: hidden;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            padding: 14px 24px;
+            font-size: 12px;
+            color: #888;
+        }
+
+        .content {
+            padding: 0 20px 24px;
+        }
+
+        .title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #f0f0f5;
+            letter-spacing: -0.5px;
+        }
+
+        .title-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .signal-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #555;
+            transition: all 0.4s ease;
+        }
+
+        .signal-dot.checking {
+            background: #f0a500;
+            box-shadow: 0 0 8px rgba(240,165,0,0.5);
+            animation: blink 1s infinite;
+        }
+
+        .signal-dot.success {
+            background: #34d058;
+            box-shadow: 0 0 8px rgba(52,208,88,0.5);
+        }
+
+        .signal-dot.error {
+            background: #f85149;
+            box-shadow: 0 0 8px rgba(248,81,73,0.5);
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .globe-btn {
+            width: 34px;
+            height: 34px;
+            border: none;
+            background: linear-gradient(135deg, #5865f2, #4752c4);
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .globe-btn:hover { transform: scale(1.08); }
+        .globe-btn:active { transform: scale(0.94); }
+        .globe-btn svg { width: 16px; height: 16px; color: #fff; }
+
+        .input-wrap {
+            position: relative;
+            margin-bottom: 16px;
+        }
+
+        .url-input {
+            width: 100%;
+            background: #25252f;
+            border: 1.5px solid #333;
+            border-radius: 12px;
+            padding: 14px 16px;
+            font-size: 14px;
+            color: #e0e0e8;
+            outline: none;
+            transition: all 0.3s;
+            font-family: 'Noto Sans SC', monospace;
+        }
+
+        .url-input::placeholder { color: #555; }
+        .url-input:focus { border-color: #5865f2; background: #282835; }
+
+        .detect-result {
+            margin-bottom: 20px;
+            overflow: hidden;
+            transition: all 0.4s ease;
+        }
+
+        .detect-card {
+            border-radius: 12px;
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .detect-card.book-source {
+            background: linear-gradient(135deg, rgba(88,101,242,0.15), rgba(88,101,242,0.05));
+            border: 1px solid rgba(88,101,242,0.25);
+        }
+
+        .detect-card.rss-source {
+            background: linear-gradient(135deg, rgba(240,165,0,0.15), rgba(240,165,0,0.05));
+            border: 1px solid rgba(240,165,0,0.25);
+        }
+
+        .detect-card.toc-rule {
+            background: linear-gradient(135deg, rgba(52,208,88,0.15), rgba(52,208,88,0.05));
+            border: 1px solid rgba(52,208,88,0.25);
+        }
+
+        .detect-card.replace-rule {
+            background: linear-gradient(135deg, rgba(248,81,73,0.15), rgba(248,81,73,0.05));
+            border: 1px solid rgba(248,81,73,0.25);
+        }
+
+        .detect-card.dict-rule {
+            background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(139,92,246,0.05));
+            border: 1px solid rgba(139,92,246,0.25);
+        }
+
+        .detect-card.tts {
+            background: linear-gradient(135deg, rgba(236,72,153,0.15), rgba(236,72,153,0.05));
+            border: 1px solid rgba(236,72,153,0.25);
+        }
+
+        .detect-card.unknown {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .detect-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .book-source .detect-icon { background: rgba(88,101,242,0.2); }
+        .rss-source .detect-icon { background: rgba(240,165,0,0.2); }
+        .toc-rule .detect-icon { background: rgba(52,208,88,0.2); }
+        .replace-rule .detect-icon { background: rgba(248,81,73,0.2); }
+        .dict-rule .detect-icon { background: rgba(139,92,246,0.2); }
+        .tts .detect-icon { background: rgba(236,72,153,0.2); }
+
+        .detect-info { flex: 1; min-width: 0; }
+
+        .detect-type {
+            font-size: 13px;
+            font-weight: 600;
+            color: #e0e0e8;
+            margin-bottom: 2px;
+        }
+
+        .detect-count {
+            font-size: 11px;
+            color: #888;
+        }
+
+        .detect-arrow {
+            color: #555;
+            font-size: 16px;
+        }
+
+        .section-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .history-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: #25252f;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .history-item:hover {
+            background: #2a2a38;
+            border-color: #333;
+        }
+
+        .history-type-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .history-type-dot.book-source { background: #5865f2; }
+        .history-type-dot.rss-source { background: #f0a500; }
+        .history-type-dot.toc-rule { background: #34d058; }
+        .history-type-dot.replace-rule { background: #f85149; }
+        .history-type-dot.dict-rule { background: #8b5cf6; }
+        .history-type-dot.tts { background: #ec4899; }
+
+        .history-url {
+            flex: 1;
+            font-size: 12px;
+            color: #999;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .history-del {
+            width: 20px;
+            height: 20px;
+            border: none;
+            background: transparent;
+            color: #555;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .history-del:hover { color: #f85149; background: rgba(248,81,73,0.1); }
+
+        .buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 13px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Noto Sans SC', sans-serif;
+        }
+
+        .btn-cancel {
+            background: #25252f;
+            color: #888;
+        }
+
+        .btn-cancel:hover { background: #2a2a38; }
+
+        .btn-import {
+            background: linear-gradient(135deg, #5865f2, #4752c4);
+            color: #fff;
+        }
+
+        .btn-import:hover { box-shadow: 0 4px 20px rgba(88,101,242,0.4); }
+        .btn-import:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .legend {
+            margin-top: 28px;
+            padding: 20px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .legend h3 {
+            font-size: 14px;
+            color: #5865f2;
+            margin-bottom: 14px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+            font-size: 12px;
+            color: #aaa;
+        }
+
+        .legend-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%) translateY(60px);
+            background: #333;
+            color: #eee;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 13px;
+            opacity: 0;
+            transition: all 0.3s;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <div class="phone-frame">
+            <div class="status-bar">
+                <span>9:41</span>
+                <span>📶 🔋</span>
+            </div>
+            <div class="content">
+                <div class="title-row">
+                    <div class="title">智能导入</div>
+                    <div class="title-actions">
+                        <div class="signal-dot" id="signalDot"></div>
+                        <button class="globe-btn" id="globeBtn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="2" y1="12" x2="22" y2="12"/>
+                                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="input-wrap">
+                    <input type="text" class="url-input" id="urlInput" placeholder="粘贴URL，自动识别类型...">
+                </div>
+
+                <div class="detect-result" id="detectResult"></div>
+
+                <div class="buttons">
+                    <button class="btn btn-cancel">取消</button>
+                    <button class="btn btn-import" id="importBtn" disabled>导入</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="legend">
+            <h3>📋 功能说明</h3>
+            <div class="legend-item">
+                <div class="legend-dot" style="background:#5865f2"></div>
+                <span><strong>书源</strong> - BookSource JSON</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-dot" style="background:#f0a500"></div>
+                <span><strong>订阅源</strong> - RssSource JSON</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-dot" style="background:#34d058"></div>
+                <span><strong>目录规则</strong> - TxtTocRule JSON</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-dot" style="background:#f85149"></div>
+                <span><strong>替换净化</strong> - ReplaceRule JSON</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-dot" style="background:#8b5cf6"></div>
+                <span><strong>字典规则</strong> - DictRule JSON</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-dot" style="background:#ec4899"></div>
+                <span><strong>TTS引擎</strong> - HttpTTS JSON</span>
+            </div>
+
+            <div style="margin-top:18px">
+                <div class="section-label">历史记录</div>
+                <div class="history-list" id="historyList">
+                    <div class="history-item" data-url="https://example.com/booksources.json">
+                        <div class="history-type-dot book-source"></div>
+                        <div class="history-url">https://example.com/booksources.json</div>
+                        <button class="history-del">×</button>
+                    </div>
+                    <div class="history-item" data-url="https://example.com/rss.json">
+                        <div class="history-type-dot rss-source"></div>
+                        <div class="history-url">https://example.com/rss.json</div>
+                        <button class="history-del">×</button>
+                    </div>
+                    <div class="history-item" data-url="https://example.com/toc.json">
+                        <div class="history-type-dot toc-rule"></div>
+                        <div class="history-url">https://example.com/toc.json</div>
+                        <button class="history-del">×</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const urlInput = document.getElementById('urlInput');
+        const signalDot = document.getElementById('signalDot');
+        const globeBtn = document.getElementById('globeBtn');
+        const detectResult = document.getElementById('detectResult');
+        const importBtn = document.getElementById('importBtn');
+        const historyList = document.getElementById('historyList');
+        const toast = document.getElementById('toast');
+
+        const typeConfig = {
+            'book-source': { label: '书源', icon: '📚', cls: 'book-source' },
+            'rss-source': { label: '订阅源', icon: '📡', cls: 'rss-source' },
+            'toc-rule': { label: '目录规则', icon: '📑', cls: 'toc-rule' },
+            'replace-rule': { label: '替换净化', icon: '🔄', cls: 'replace-rule' },
+            'dict-rule': { label: '字典规则', icon: '📖', cls: 'dict-rule' },
+            'tts': { label: 'TTS引擎', icon: '🔊', cls: 'tts' },
+            'unknown': { label: '未知类型', icon: '❓', cls: 'unknown' }
+        };
+
+        let currentType = null;
+        let checkTimeout = null;
+
+        function showToast(msg) {
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+
+        function isValidUrl(s) {
+            try { const u = new URL(s); return u.protocol === 'http:' || u.protocol === 'https:'; }
+            catch { return false; }
+        }
+
+        function simulateDetect(url) {
+            const types = ['book-source', 'rss-source', 'toc-rule', 'replace-rule', 'dict-rule', 'tts'];
+            const hash = url.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+            const type = types[hash % types.length];
+            const count = (hash % 50) + 1;
+            return { type, count };
+        }
+
+        function renderDetectResult(type, count) {
+            const cfg = typeConfig[type];
+            detectResult.innerHTML = `
+                <div class="detect-card ${cfg.cls}">
+                    <div class="detect-icon">${cfg.icon}</div>
+                    <div class="detect-info">
+                        <div class="detect-type">${cfg.label}</div>
+                        <div class="detect-count">检测到 ${count} 条规则</div>
+                    </div>
+                    <div class="detect-arrow">›</div>
+                </div>
+            `;
+            importBtn.disabled = false;
+        }
+
+        urlInput.addEventListener('input', function() {
+            const val = this.value.trim();
+            currentType = null;
+            importBtn.disabled = true;
+            detectResult.innerHTML = '';
+
+            if (!val || !isValidUrl(val)) {
+                signalDot.className = 'signal-dot';
+                return;
+            }
+
+            signalDot.className = 'signal-dot checking';
+            clearTimeout(checkTimeout);
+            checkTimeout = setTimeout(() => {
+                const success = Math.random() > 0.2;
+                signalDot.className = success ? 'signal-dot success' : 'signal-dot error';
+
+                if (success) {
+                    const result = simulateDetect(val);
+                    currentType = result.type;
+                    renderDetectResult(result.type, result.count);
+                }
+            }, 800);
+        });
+
+        globeBtn.addEventListener('click', function() {
+            const val = urlInput.value.trim();
+            if (!val) { showToast('请输入URL地址'); return; }
+            if (!isValidUrl(val)) { showToast('URL格式不正确'); return; }
+            showToast('正在用浏览器打开: ' + val);
+        });
+
+        importBtn.addEventListener('click', function() {
+            if (!currentType) return;
+            const cfg = typeConfig[currentType];
+            showToast(`正在导入 ${cfg.label}...`);
+        });
+
+        historyList.addEventListener('click', function(e) {
+            if (e.target.classList.contains('history-del')) {
+                e.target.closest('.history-item').remove();
+                return;
+            }
+            const item = e.target.closest('.history-item');
+            if (item) {
+                urlInput.value = item.dataset.url;
+                urlInput.dispatchEvent(new Event('input'));
+            }
+        });
+    </script>
+</body>
+</html>

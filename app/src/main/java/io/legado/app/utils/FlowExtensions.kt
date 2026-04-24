@@ -1,6 +1,7 @@
 package io.legado.app.utils
 
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.flowWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import io.legado.app.data.appDb
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flatMapMerge
 import kotlinx.coroutines.flow.flow
@@ -210,54 +212,37 @@ fun <T> Flow<T>.flowWithLifecycleFirst(
     close()
 }
 
+@OptIn(ExperimentalCoroutinesApi::class)
 fun <T> Flow<T>.flowWithLifecycleAndDatabaseChange(
     lifecycle: Lifecycle,
     minActiveState: Lifecycle.State = Lifecycle.State.STARTED,
     table: String
-): Flow<T> = callbackFlow {
-    var update = 0
-    val channel = appDb.invalidationTracker
-        .createFlow(table)
-        .conflate()
-        .onEach { update++ }
-        .produceIn(this)
-    lifecycle.repeatOnLifecycle(minActiveState) {
-        if (update == 0) {
-            channel.receive()
-        }
-        this@flowWithLifecycleAndDatabaseChange.collect {
-            update = 0
-            send(it)
-        }
+): Flow<T> = appDb.invalidationTracker
+    .createFlow(table)
+    .conflate()
+    .flatMapLatest {
+        this@flowWithLifecycleAndDatabaseChange
     }
-    close()
-}
+    .flowWithLifecycle(lifecycle, minActiveState)
 
+@OptIn(ExperimentalCoroutinesApi::class)
 fun <T> Flow<T>.flowWithLifecycleAndDatabaseChangeFirst(
     lifecycle: Lifecycle,
     minActiveState: Lifecycle.State = Lifecycle.State.STARTED,
     table: String
 ): Flow<T> = callbackFlow {
-    var update = 0
     val isActive = lifecycle.currentState.isAtLeast(minActiveState)
-    val channel = appDb.invalidationTracker
-        .createFlow(table, emitInitialState = isActive)
-        .conflate()
-        .onEach { update++ }
-        .produceIn(this)
     if (!isActive) {
-        firstOrNull()?.let {
+        this@flowWithLifecycleAndDatabaseChangeFirst.firstOrNull()?.let {
             send(it)
         }
     }
-    lifecycle.repeatOnLifecycle(minActiveState) {
-        if (update == 0) {
-            channel.receive()
+    appDb.invalidationTracker.createFlow(table, emitInitialState = isActive)
+        .conflate()
+        .flatMapLatest {
+            this@flowWithLifecycleAndDatabaseChangeFirst
         }
-        this@flowWithLifecycleAndDatabaseChangeFirst.collect {
-            update = 0
-            send(it)
-        }
-    }
+        .flowWithLifecycle(lifecycle, minActiveState)
+        .collect { send(it) }
     close()
 }
