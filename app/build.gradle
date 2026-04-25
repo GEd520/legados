@@ -120,6 +120,15 @@ android {
             dimension "mode"
             manifestPlaceholders.put("APP_CHANNEL_VALUE", "app")
         }
+        appS {
+            dimension "mode"
+            applicationIdSuffix ".a"
+            manifestPlaceholders.put("APP_CHANNEL_VALUE", "appS")
+        }
+        appMax {
+            dimension "mode"
+            manifestPlaceholders.put("APP_CHANNEL_VALUE", "appMax")
+        }
     }
     
     android.applicationVariants.configureEach { variant ->

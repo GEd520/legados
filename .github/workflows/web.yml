@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 env:
-  UPSTREAM_REPOSITORY: Luoyacheng/legado
+  UPSTREAM_REPOSITORY: GEd520/Legados
 
 jobs:
   build:
