@@ -19,8 +19,16 @@ import io.noties.markwon.ext.tables.TablePlugin
 import io.noties.markwon.html.HtmlPlugin
 import io.noties.markwon.image.glide.GlideImagesPlugin
 
+/**
+ * 应用更新对话框
+ * 用于显示新版本更新信息并提供下载功能
+ * 支持 Markdown 格式的更新日志渲染
+ */
 class UpdateDialog() : BaseDialogFragment(R.layout.dialog_update) {
 
+    /**
+     * 便利构造函数，用于传入更新信息自动构建参数
+     */
     constructor(updateInfo: AppUpdate.UpdateInfo) : this() {
         arguments = Bundle().apply {
             putString("newVersion", updateInfo.tagName)
@@ -41,13 +49,21 @@ class UpdateDialog() : BaseDialogFragment(R.layout.dialog_update) {
         binding.toolBar.setBackgroundColor(primaryColor)
         binding.toolBar.title = arguments?.getString("newVersion")
         val updateBody = arguments?.getString("updateBody")
+
+        // 检查更新日志是否存在，不存在则关闭对话框
         if (updateBody == null) {
             toastOnUi("没有数据")
             dismiss()
             return
         }
+
+        // 使用 Markwon 渲染 Markdown 格式的更新日志
+        // Markwon 配置说明：
+        // - InnerBrowserLinkResolver: 使 Markdown 中的链接点击后使用内置浏览器打开
+        // - GlideImagesPlugin: 支持 Markdown 中的图片显示
+        // - HtmlPlugin: 支持 Markdown 中的 HTML 标签
+        // - TablePlugin: 支持 Markdown 中的表格渲染
         binding.textView.post {
-            // 配置链接点击使用内置浏览器打开
             Markwon.builder(requireContext())
                 .usePlugin(object : io.noties.markwon.AbstractMarkwonPlugin() {
                     override fun configureConfiguration(builder: MarkwonConfiguration.Builder) {
@@ -60,6 +76,8 @@ class UpdateDialog() : BaseDialogFragment(R.layout.dialog_update) {
                 .build()
                 .setMarkdown(binding.textView, updateBody)
         }
+
+        // 设置下载菜单
         binding.toolBar.inflateMenu(R.menu.app_update)
         binding.toolBar.setOnMenuItemClickListener {
             when (it.itemId) {
@@ -75,5 +93,4 @@ class UpdateDialog() : BaseDialogFragment(R.layout.dialog_update) {
             return@setOnMenuItemClickListener true
         }
     }
-
 }

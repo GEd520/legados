@@ -34,11 +34,20 @@ import io.legado.app.utils.viewbindingdelegate.viewBinding
 import kotlinx.coroutines.isActive
 import java.io.FileFilter
 
+/**
+ * 应用崩溃日志对话框
+ * 用于查看和清除应用崩溃时记录的日志文件
+ * 崩溃日志来源包括：
+ * 1. 应用缓存目录下的 crash 文件夹
+ * 2. 用户配置的备份路径下的 crash 文件夹
+ */
 class CrashLogsDialog : BaseDialogFragment(R.layout.dialog_recycler_view),
     Toolbar.OnMenuItemClickListener {
 
     private val binding by viewBinding(DialogRecyclerViewBinding::bind)
+
     private val viewModel by viewModels<CrashViewModel>()
+
     private val adapter by lazy { LogAdapter() }
 
     override fun onStart() {
@@ -59,6 +68,10 @@ class CrashLogsDialog : BaseDialogFragment(R.layout.dialog_recycler_view),
         viewModel.initData()
     }
 
+    /**
+     * 处理菜单项点击事件
+     * 目前仅支持清除崩溃日志操作
+     */
     override fun onMenuItemClick(item: MenuItem): Boolean {
         when (item.itemId) {
             R.id.menu_clear -> viewModel.clearCrashLog()
@@ -66,15 +79,23 @@ class CrashLogsDialog : BaseDialogFragment(R.layout.dialog_recycler_view),
         return true
     }
 
+    /**
+     * 显示日志文件内容
+     * 将文件内容读取后通过 TextDialog 显示
+     */
     private fun showLogFile(fileDoc: FileDoc) {
         viewModel.readFile(fileDoc) {
             if (lifecycleScope.isActive) {
                 showDialogFragment(TextDialog(fileDoc.name, it))
             }
         }
-
     }
 
+    /**
+     * 崩溃日志列表适配器
+     * 用于展示 FileDoc 类型的文件对象
+     * 每个条目显示文件名，点击后查看文件内容
+     */
     inner class LogAdapter : RecyclerAdapter<FileDoc, Item1lineTextBinding>(requireContext()) {
 
         override fun getViewBinding(parent: ViewGroup): Item1lineTextBinding {
@@ -89,6 +110,9 @@ class CrashLogsDialog : BaseDialogFragment(R.layout.dialog_recycler_view),
             }
         }
 
+        /**
+         * 绑定文件名到视图
+         */
         override fun convert(
             holder: ItemViewHolder,
             binding: Item1lineTextBinding,
@@ -97,13 +121,23 @@ class CrashLogsDialog : BaseDialogFragment(R.layout.dialog_recycler_view),
         ) {
             binding.textView.text = item.name
         }
-
     }
 
+    /**
+     * 崩溃日志对话框的 ViewModel
+     * 负责加载、读取和清除崩溃日志文件
+     */
     class CrashViewModel(application: Application) : BaseViewModel(application) {
 
         val logLiveData = MutableLiveData<List<FileDoc>>()
 
+        /**
+         * 初始化数据
+         * 从以下来源加载崩溃日志文件：
+         * 1. 应用外部缓存目录的 crash 子目录
+         * 2. 用户配置的备份路径下的 crash 目录
+         * 加载后按文件名降序排列并去重
+         */
         fun initData() {
             execute {
                 val list = arrayListOf<FileDoc>()
@@ -130,6 +164,11 @@ class CrashLogsDialog : BaseDialogFragment(R.layout.dialog_recycler_view),
             }
         }
 
+        /**
+         * 读取指定日志文件的内容
+         * @param fileDoc 日志文件对象
+         * @param success 读取成功后的回调，参数为文件内容字符串
+         */
         fun readFile(fileDoc: FileDoc, success: (String) -> Unit) {
             execute {
                 String(fileDoc.readBytes())
@@ -140,6 +179,13 @@ class CrashLogsDialog : BaseDialogFragment(R.layout.dialog_recycler_view),
             }
         }
 
+        /**
+         * 清除所有崩溃日志
+         * 同时清理以下位置的文件：
+         * 1. 应用外部缓存目录的 crash 目录
+         * 2. 用户备份路径下的 crash 目录
+         * 清除完成后重新加载数据
+         */
         fun clearCrashLog() {
             execute {
                 context.externalCacheDir
@@ -160,7 +206,5 @@ class CrashLogsDialog : BaseDialogFragment(R.layout.dialog_recycler_view),
                 initData()
             }
         }
-
     }
-
 }
