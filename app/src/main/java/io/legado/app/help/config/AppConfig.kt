@@ -302,6 +302,10 @@ object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
     val copyCrashLog: Boolean
         get() = appCtx.getPrefBoolean(PreferKey.copyCrashLog, true)
 
+    // MD链接用内置浏览器打开，默认关闭
+    val mdLinkInnerBrowser: Boolean
+        get() = appCtx.getPrefBoolean(PreferKey.mdLinkInnerBrowser, false)
+
     val autoRefreshBook: Boolean
         get() = appCtx.getPrefBoolean(PreferKey.autoRefresh)
 

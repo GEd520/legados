@@ -92,6 +92,14 @@
             android:title="@string/copy_crash_log_title"
             app:iconSpaceReserved="false" />
 
+        <!-- MD链接用内置浏览器打开：默认关闭 -->
+        <io.legado.app.lib.prefs.SwitchPreference
+            android:defaultValue="false"
+            android:key="mdLinkInnerBrowser"
+            android:summary="@string/md_link_inner_browser_summary"
+            android:title="@string/md_link_inner_browser"
+            app:iconSpaceReserved="false" />
+
     </io.legado.app.lib.prefs.PreferenceCategory>
 
     <io.legado.app.lib.prefs.PreferenceCategory

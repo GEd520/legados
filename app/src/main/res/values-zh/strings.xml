@@ -1336,4 +1336,8 @@
     <string name="detected_as">识别为: %1$s (%2$d条)</string>
     <string name="detecting">识别中...</string>
     <string name="unknown_type">未知类型</string>
+    <string name="add_all_to_shelf">全部加入书架</string>
+    <string name="adding_books">正在添加 %d 本书…</string>
+    <string name="add_books_success">成功添加 %d 本书</string>
+    <string name="all_books_in_shelf">列表书籍已全部在书架</string>
 </resources>

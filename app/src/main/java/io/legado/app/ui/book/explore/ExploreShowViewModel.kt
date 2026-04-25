@@ -8,6 +8,7 @@ import io.legado.app.BuildConfig
 import io.legado.app.base.BaseViewModel
 import io.legado.app.constant.AppLog
 import io.legado.app.data.appDb
+import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookSource
 import io.legado.app.data.entities.SearchBook
 import io.legado.app.help.book.isNotShelf
@@ -34,6 +35,8 @@ class ExploreShowViewModel(application: Application) : BaseViewModel(application
     val errorLiveData = MutableLiveData<String>()
     val errorTopLiveData = MutableLiveData<String>()
     val pageLiveData = MutableLiveData<Int>()
+    val addAllToShelfResult = MutableLiveData<Int>()
+    val booksCount: Int get() = books.size
     private var bookSource: BookSource? = null
     private var exploreUrl: String? = null
     private var page = 1
@@ -159,6 +162,36 @@ class ExploreShowViewModel(application: Application) : BaseViewModel(application
         val bookUrl = book.bookUrl
         val key = if (author.isNotBlank()) "$name-$author" else name
         return bookshelf.contains(key) || bookshelf.contains(bookUrl)
+    }
+
+    fun addAllToShelf(groupId: Long) {
+        execute {
+            val booksToAdd = books.filterNot { isInBookShelf(it) }
+            if (booksToAdd.isEmpty()) {
+                addAllToShelfResult.postValue(0)
+                return@execute
+            }
+            
+            val bookEntities = booksToAdd.mapIndexed { index, searchBook ->
+                searchBook.toBook().apply {
+                    this.group = groupId
+                    this.order = index
+                }
+            }
+            
+            appDb.bookDao.insert(*bookEntities.toTypedArray())
+            
+            bookEntities.forEach { book ->
+                val key = if (book.author.isNotBlank()) "${book.name}-${book.author}" else book.name
+                bookshelf.add(key)
+                bookshelf.add(book.bookUrl)
+            }
+            
+            addAllToShelfResult.postValue(booksToAdd.size)
+        }.onError {
+            AppLog.put("批量加入书架失败", it)
+            errorLiveData.postValue("批量加入书架失败: ${it.localizedMessage}")
+        }
     }
 
 }

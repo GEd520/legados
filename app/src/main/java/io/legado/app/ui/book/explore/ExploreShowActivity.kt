@@ -13,18 +13,26 @@ import io.legado.app.data.entities.SearchBook
 import io.legado.app.databinding.ActivityExploreShowBinding
 import io.legado.app.databinding.ViewLoadMoreBinding
 import io.legado.app.ui.book.info.BookInfoActivity
+import io.legado.app.ui.book.group.GroupSelectDialog
 import io.legado.app.ui.widget.number.NumberPickerDialog
 import io.legado.app.ui.widget.recycler.LoadMoreView
 import io.legado.app.ui.widget.recycler.VerticalDivider
 import io.legado.app.utils.applyNavigationBarPadding
+import io.legado.app.utils.showDialogFragment
 import io.legado.app.utils.startActivity
+import io.legado.app.utils.toastOnUi
 import io.legado.app.utils.viewbindingdelegate.viewBinding
 
 /**
  * 发现列表
  */
 class ExploreShowActivity : VMBaseActivity<ActivityExploreShowBinding, ExploreShowViewModel>(),
-    ExploreShowAdapter.CallBack {
+    ExploreShowAdapter.CallBack, GroupSelectDialog.CallBack {
+
+    companion object {
+        private const val REQUEST_CODE_ADD_ALL_TO_SHELF = 1001
+    }
+
     override val binding by viewBinding(ActivityExploreShowBinding::inflate)
     override val viewModel by viewModels<ExploreShowViewModel>()
 
@@ -33,6 +41,16 @@ class ExploreShowActivity : VMBaseActivity<ActivityExploreShowBinding, ExploreSh
     private val loadMoreViewTop by lazy { LoadMoreView(this) }
     private var oldPage = -1
     private var isClearAll = false
+    //添加"全部加入书架"菜单
+    private val menuAddAllToShelf by lazy {
+        binding.titleBar.menu.add(getString(R.string.add_all_to_shelf)).apply {
+            setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
+            setOnMenuItemClickListener {
+                showDialogFragment(GroupSelectDialog(0, REQUEST_CODE_ADD_ALL_TO_SHELF))
+                true
+            }
+        }
+    }
 
     //右上角"第X页"菜单
     private val menuPage by lazy {
@@ -47,11 +65,11 @@ class ExploreShowActivity : VMBaseActivity<ActivityExploreShowBinding, ExploreSh
                     .setValue(page)
                     .show {
                         if (page != it) {
-                            if (oldPage == -1 && it != 1) { //初次添加头
+                            if (oldPage == -1 && it != 1) {
                                 adapter.addHeaderView {
                                     ViewLoadMoreBinding.bind(loadMoreViewTop)
                                 }
-                            } else if (it != 1) { //把头显示出来
+                            } else if (it != 1) {
                                 val layoutParams = loadMoreViewTop.layoutParams
                                 if (layoutParams?.height == 0) {
                                     layoutParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
@@ -61,8 +79,8 @@ class ExploreShowActivity : VMBaseActivity<ActivityExploreShowBinding, ExploreSh
                             oldPage = it
                             viewModel.skipPage(it)
                             isClearAll = true
-                            adapter.clearItems() //清空，然后会自动触发scrollToBottom
-                            if (!loadMoreView.hasMore) { //强制触发
+                            adapter.clearItems()
+                            if (!loadMoreView.hasMore) {
                                 scrollToBottom(true)
                             }
                         }
@@ -77,6 +95,7 @@ class ExploreShowActivity : VMBaseActivity<ActivityExploreShowBinding, ExploreSh
      */
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         binding.titleBar.title = intent.getStringExtra("exploreName")
+        menuAddAllToShelf
         initRecyclerView()
         viewModel.booksData.observe(this) { upData(it) }
         viewModel.addBooksData.observe(this) { upDataTop(it) }
@@ -92,6 +111,13 @@ class ExploreShowActivity : VMBaseActivity<ActivityExploreShowBinding, ExploreSh
         }
         viewModel.pageLiveData.observe(this) {
             menuPage.title = getString(R.string.menu_page, it)
+        }
+        viewModel.addAllToShelfResult.observe(this) { count ->
+            if (count == 0) {
+                toastOnUi(R.string.all_books_in_shelf)
+            } else {
+                toastOnUi(getString(R.string.add_books_success, count))
+            }
         }
     }
 
@@ -182,6 +208,13 @@ class ExploreShowActivity : VMBaseActivity<ActivityExploreShowBinding, ExploreSh
             putExtra("name", book.name)
             putExtra("author", book.author)
             putExtra("bookUrl", book.bookUrl)
+        }
+    }
+
+    override fun upGroup(requestCode: Int, groupId: Long) {
+        if (requestCode == REQUEST_CODE_ADD_ALL_TO_SHELF) {
+            toastOnUi(getString(R.string.adding_books, viewModel.booksCount))
+            viewModel.addAllToShelf(groupId)
         }
     }
 }

@@ -658,6 +658,8 @@
     <string name="debug_mode_summary">开启后显示调试工具入口</string>
     <string name="copy_crash_log_title">崩溃时复制日志</string>
     <string name="copy_crash_log_summary">应用崩溃时自动将日志复制到剪贴板</string>
+    <string name="md_link_inner_browser">用内置浏览器打开</string>
+    <string name="md_link_inner_browser_summary">md文件中的链接默认用内置浏览器打开</string>
     <string name="service_stop">Service stopped</string>
     <string name="service_start">Starting service\nChecking notification bar for details</string>
     <string name="default_path">Default path</string>
@@ -1364,6 +1366,10 @@
     <string name="setting_show_line_number">设置辅助按键展示的行数</string>
     <string name="menu_page">第 %d 页</string>
     <string name="change_page">选择页数</string>
+    <string name="add_all_to_shelf">全部加入书架</string>
+    <string name="adding_books">正在添加 %d 本书…</string>
+    <string name="add_books_success">成功添加 %d 本书</string>
+    <string name="all_books_in_shelf">列表书籍已全部在书架</string>
     <string name="auto_check_new_backup_t">自动检查新备份</string>
     <string name="auto_check_new_backup_s">打开软件时检查是否有新备份，有新备份时提示是否更新</string>
     <string name="r_preloadJs">预注入Js（preloadJs）</string>
