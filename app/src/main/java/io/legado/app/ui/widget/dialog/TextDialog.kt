@@ -32,7 +32,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-
+/**
+ * 文本弹窗，支持显示Markdown、HTML、普通文本
+ */
 class TextDialog() : BaseDialogFragment(R.layout.dialog_text_view) {
 
     enum class Mode {
