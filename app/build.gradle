@@ -90,12 +90,7 @@ android {
                 signingConfig signingConfigs.myConfig
             }
             applicationIdSuffix '.release'
-            if (getApplicationIdSuffix() == '.releaseS') {
-                manifestPlaceholders.put("app_name", "@string/app_name_s")
-            } else {
-                manifestPlaceholders.put("app_name", "@string/app_name")
-            }
-    
+
             minifyEnabled true
             shrinkResources = true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro', 'cronet-proguard-rules.pro'
@@ -116,18 +111,16 @@ android {
     //noinspection GrDeprecatedAPIUsage
     flavorDimensions = ['mode']
     productFlavors {
-        app {
-            dimension "mode"
-            manifestPlaceholders.put("APP_CHANNEL_VALUE", "app")
-        }
         appS {
             dimension "mode"
             applicationIdSuffix ".a"
             manifestPlaceholders.put("APP_CHANNEL_VALUE", "appS")
+            manifestPlaceholders.put("app_name", "@string/app_name_a")
         }
         appMax {
             dimension "mode"
             manifestPlaceholders.put("APP_CHANNEL_VALUE", "appMax")
+            manifestPlaceholders.put("app_name", "@string/app_name")
         }
     }
     

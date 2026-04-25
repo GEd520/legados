@@ -36,18 +36,6 @@ jobs:
           distribution: 'temurin'
           java-version: 17
 
-      - name: 修改应用名 (阅读·S)
-        if: env.product == 'appS'
-        run: |
-          sed -i 's/app_name\">阅读/app_name\">阅读·S/' app/src/main/res/values/strings.xml
-          sed -i 's/app_name">阅读/app_name">阅读·S/' app/src/main/res/values-zh/strings.xml
-
-      - name: 修改应用名 (阅读·Max)
-        if: env.product == 'appMax'
-        run: |
-          sed -i 's/app_name\">阅读/app_name\">阅读·Max/' app/src/main/res/values/strings.xml
-          sed -i 's/app_name">阅读/app_name">阅读·Max/' app/src/main/res/values-zh/strings.xml
-
       - name: 统一版本号
         run: |
           sed "/def version/c def version = \"${{ env.VERSION }}\"" app/build.gradle.kts -i
@@ -89,7 +77,7 @@ jobs:
           body: |
             ## 自动打包：两个版本共存
             
-            - 📱 阅读·S
+            - 📱 阅读A·Max
             - 📱 阅读·Max
             
             两个版本可以同时安装，互不冲突。
