@@ -38,6 +38,7 @@ class ExploreShowAdapter(context: Context, val callBack: CallBack) :
 
     }
 
+    //Adapter书籍项渲染
     private fun bind(binding: ItemSearchBinding, item: SearchBook) {
         binding.run {
             tvName.text = item.name

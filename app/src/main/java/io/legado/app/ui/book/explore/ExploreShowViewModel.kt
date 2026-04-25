@@ -39,6 +39,7 @@ class ExploreShowViewModel(application: Application) : BaseViewModel(application
     private var page = 1
     private var books = linkedSetOf<SearchBook>()
 
+    //实时监听数据库对比书名作者，判断书是否在书架上
     init {
         execute {
             appDb.bookDao.flowAll().mapLatest { books ->
@@ -61,7 +62,10 @@ class ExploreShowViewModel(application: Application) : BaseViewModel(application
             AppLog.put("加载书架数据失败", it)
         }
     }
-
+    
+    /**
+     * ViewModel初始化数据
+     */
     fun initData(intent: Intent) {
         execute {
             val sourceUrl = intent.getStringExtra("sourceUrl")
@@ -97,6 +101,10 @@ class ExploreShowViewModel(application: Application) : BaseViewModel(application
                 errorTopLiveData.postValue(it.stackTraceStr)
             }
     }
+
+    /**
+     * 跳转到指定页码
+     */
     fun skipPage(page: Int) {
         if (page > 0) {
             books.clear()
@@ -104,7 +112,9 @@ class ExploreShowViewModel(application: Application) : BaseViewModel(application
             pageLiveData.postValue(page)
         }
     }
-
+    /**
+     * 网络请求核心逻辑
+     */
     fun explore() {
         val source = bookSource
         val requestPage = page
@@ -126,6 +136,8 @@ class ExploreShowViewModel(application: Application) : BaseViewModel(application
 
     private fun parsePageFromUrl(url: String?): Int {
         val pageValue = url?.let {
+            // 从URL中提取页码，分页机制
+            // 例如：https://www.baidu.com/explore?page=2
             pageQueryRegex.find(it)?.groupValues?.getOrNull(2)?.toIntOrNull()
         }
         return pageValue?.takeIf { it > 0 } ?: 1

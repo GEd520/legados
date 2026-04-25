@@ -33,6 +33,8 @@ class ExploreShowActivity : VMBaseActivity<ActivityExploreShowBinding, ExploreSh
     private val loadMoreViewTop by lazy { LoadMoreView(this) }
     private var oldPage = -1
     private var isClearAll = false
+
+    //右上角"第X页"菜单
     private val menuPage by lazy {
         binding.titleBar.menu.add(getString(R.string.menu_page, 1)).apply {
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
@@ -70,6 +72,9 @@ class ExploreShowActivity : VMBaseActivity<ActivityExploreShowBinding, ExploreSh
         }
     }
 
+    /**
+     * Activity创建时调用，页面初始化
+     */
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         binding.titleBar.title = intent.getStringExtra("exploreName")
         initRecyclerView()
@@ -115,18 +120,24 @@ class ExploreShowActivity : VMBaseActivity<ActivityExploreShowBinding, ExploreSh
         })
     }
 
+    /**
+     * 滚动到底部加载更多
+     */
     private fun scrollToBottom(forceLoad: Boolean = false) {
         if ((loadMoreView.hasMore && !loadMoreView.isLoading && !loadMoreViewTop.isLoading) || forceLoad) {
-            loadMoreView.hasMore()
-            viewModel.explore()
+            loadMoreView.hasMore()// 显示加载中
+            viewModel.explore()// 请求下一页
         }
     }
 
+    /**
+     * 上滑加载上一页
+     */
     private fun scrollToTop(forceLoad: Boolean = false) {
         if ((oldPage > 1 && !loadMoreView.isLoading && !loadMoreViewTop.isLoading) || forceLoad) {
-            loadMoreViewTop.hasMore()
+            loadMoreViewTop.hasMore()// 显示顶部加载中
             oldPage--
-            viewModel.explore(oldPage)
+            viewModel.explore(oldPage)//加载上一页
         }
     }
 
