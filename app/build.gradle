@@ -66,10 +66,13 @@ android {
         versionName version
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         project.ext.set("archivesBaseName", name + "_" + version)
-    
+
+        // 👇 就是这行，修复渠道占位符报错
+        manifestPlaceholders = [APP_CHANNEL_VALUE: "local"]
+
         buildConfigField "String", "Cronet_Version", "\"$CronetVersion\""
         buildConfigField "String", "Cronet_Main_Version", "\"$CronetMainVersion\""
-    
+
         javaCompileOptions {
             annotationProcessorOptions {
                 arguments += [
@@ -103,31 +106,14 @@ android {
     
             applicationIdSuffix '.debug'
             versionNameSuffix 'debug'
-            minifyEnabled true
-            shrinkResources = true
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro', 'cronet-proguard-rules.pro'
+            // minifyEnabled true
+            // shrinkResources = true
+            // proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro', 'cronet-proguard-rules.pro'
         }
     }
-    //noinspection GrDeprecatedAPIUsage
-    flavorDimensions = ['mode']
-    productFlavors {
-        appS {
-            dimension "mode"
-            applicationIdSuffix ".a"
-            manifestPlaceholders.put("APP_CHANNEL_VALUE", "appS")
-            manifestPlaceholders.put("app_name", "@string/app_name_a")
-        }
-        appMax {
-            dimension "mode"
-            manifestPlaceholders.put("APP_CHANNEL_VALUE", "appMax")
-            manifestPlaceholders.put("app_name", "@string/app_name")
-        }
-    }
-    
     android.applicationVariants.configureEach { variant ->
         variant.outputs.configureEach {
-            def flavor = variant.productFlavors[0].name
-            outputFileName = "${name}_${flavor}_${defaultConfig.versionName}.apk"
+            outputFileName = "${name}_${defaultConfig.versionName}.apk"
         }
     }
 

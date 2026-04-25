@@ -93,8 +93,8 @@ class ReadRecordDialog(private val origin: String? = null) : BaseDialogFragment(
      */
     private fun filterRecords() {
         val filtered = SearchHighlightUtils.filterList(allRecords, searchQuery) { record, query ->
-            record.title.contains(query, ignoreCase = true) ||
-            record.record.contains(query, ignoreCase = true)
+            record.title?.contains(query, ignoreCase = true) == true ||
+            record.record?.contains(query, ignoreCase = true) == true
         }
         adapter.setItems(filtered)
     }
@@ -142,8 +142,8 @@ class ReadRecordDialog(private val origin: String? = null) : BaseDialogFragment(
             item: RssReadRecord,
             payloads: MutableList<Any>
         ) {
-            binding.textTitle.text = SearchHighlightUtils.getHighlightedText(item.title, searchQuery)
-            binding.textRecord.text = SearchHighlightUtils.getHighlightedText(item.record, searchQuery)
+            binding.textTitle.text = SearchHighlightUtils.getHighlightedText(item.title.orEmpty(), searchQuery)
+            binding.textRecord.text = SearchHighlightUtils.getHighlightedText(item.record.orEmpty(), searchQuery)
         }
 
         override fun registerListener(holder: ItemViewHolder, binding: ItemRssReadRecordBinding) {
