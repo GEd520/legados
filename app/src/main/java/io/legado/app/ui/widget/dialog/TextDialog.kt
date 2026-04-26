@@ -5,12 +5,15 @@ import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
 import android.view.textclassifier.TextClassifier
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import io.legado.app.R
 import io.legado.app.base.BaseDialogFragment
 import io.legado.app.databinding.DialogTextViewBinding
 import io.legado.app.help.CacheManager
+import io.legado.app.help.HelpDocManager
 import io.legado.app.help.IntentData
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.ui.code.CodeEditActivity
@@ -32,7 +35,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-
+/**
+ * 文本弹窗，支持显示Markdown、HTML、普通文本
+ */
 class TextDialog() : BaseDialogFragment(R.layout.dialog_text_view) {
 
     enum class Mode {
@@ -56,9 +61,28 @@ class TextDialog() : BaseDialogFragment(R.layout.dialog_text_view) {
         this.autoClose = autoClose
     }
 
+    constructor(
+        title: String,
+        content: String?,
+        mode: Mode = Mode.TEXT,
+        helpDocName: String? = null
+    ) : this() {
+        arguments = Bundle().apply {
+            putString("title", title)
+            putString("content", IntentData.put(content))
+            putString("mode", mode.name)
+            putString("helpDocName", helpDocName)
+        }
+        isHelpMode = helpDocName != null
+        currentHelpDoc = helpDocName
+    }
+
     private val binding by viewBinding(DialogTextViewBinding::bind)
     private var time = 0L
     private var autoClose: Boolean = false
+    private var isHelpMode: Boolean = false
+    private var currentHelpDoc: String? = null
+    private var markwon: Markwon? = null
 
     override fun onStart() {
         super.onStart()
@@ -79,23 +103,21 @@ class TextDialog() : BaseDialogFragment(R.layout.dialog_text_view) {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         binding.textView.setTextClassifier(TextClassifier.NO_OP)
                     }
-                    val markwon: Markwon
+                    markwon = Markwon.builder(requireContext())
+                        .usePlugin(object : io.noties.markwon.AbstractMarkwonPlugin() {
+                            override fun configureConfiguration(builder: MarkwonConfiguration.Builder) {
+                                builder.linkResolver(InnerBrowserLinkResolver)
+                            }
+                        })
+                        .usePlugin(GlideImagesPlugin.create(Glide.with(requireContext())))
+                        .usePlugin(HtmlPlugin.create())
+                        .usePlugin(TablePlugin.create(requireContext()))
+                        .build()
                     val markdown = withContext(IO) {
-                        markwon = Markwon.builder(requireContext())
-                            // 设置自定义链接解析器，使 Markdown 链接走内置浏览器
-                            .usePlugin(object : io.noties.markwon.AbstractMarkwonPlugin() {
-                                override fun configureConfiguration(builder: MarkwonConfiguration.Builder) {
-                                    builder.linkResolver(InnerBrowserLinkResolver)
-                                }
-                            })
-                            .usePlugin(GlideImagesPlugin.create(Glide.with(requireContext())))
-                            .usePlugin(HtmlPlugin.create())
-                            .usePlugin(TablePlugin.create(requireContext()))
-                            .build()
-                        markwon.toMarkdown(content)
+                        markwon!!.toMarkdown(content)
                     }
                     binding.textView.setMarkdown(
-                        markwon,
+                        markwon!!,
                         markdown,
                         imgOnLongClickListener = { source  ->
                             showDialogFragment(PhotoDialog(source))
@@ -149,6 +171,73 @@ class TextDialog() : BaseDialogFragment(R.layout.dialog_text_view) {
         } else {
             view.post {
                 dialog?.setCancelable(true)
+            }
+        }
+        
+        setupHelpSelector()
+    }
+    
+    private fun setupHelpSelector() {
+        if (!isHelpMode) {
+            binding.helpSelectorLayout.visibility = View.GONE
+            return
+        }
+        
+        binding.helpSelectorLayout.visibility = View.VISIBLE
+        
+        val adapter = ArrayAdapter(
+            requireContext(),
+            android.R.layout.simple_spinner_item,
+            HelpDocManager.allHelpDocs.map { it.displayName }
+        )
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        binding.helpSpinner.adapter = adapter
+        
+        currentHelpDoc?.let { docName ->
+            val index = HelpDocManager.getDocIndex(docName)
+            if (index >= 0) {
+                binding.helpSpinner.setSelection(index, false)
+            }
+        }
+        
+        binding.helpSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
+                val selectedDoc = HelpDocManager.allHelpDocs[position]
+                if (selectedDoc.fileName != currentHelpDoc) {
+                    loadHelpDoc(selectedDoc.fileName)
+                }
+            }
+            
+            override fun onNothingSelected(parent: AdapterView<*>) {}
+        }
+    }
+    
+    private fun loadHelpDoc(fileName: String) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val content = withContext(IO) {
+                HelpDocManager.loadDoc(requireContext().assets, fileName)
+            }
+            currentHelpDoc = fileName
+            updateContent(content)
+        }
+    }
+    
+    private fun updateContent(content: String) {
+        markwon?.let { mw ->
+            viewLifecycleOwner.lifecycleScope.launch {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    binding.textView.setTextClassifier(TextClassifier.NO_OP)
+                }
+                val markdown = withContext(IO) {
+                    mw.toMarkdown(content)
+                }
+                binding.textView.setMarkdown(
+                    mw,
+                    markdown,
+                    imgOnLongClickListener = { source ->
+                        showDialogFragment(PhotoDialog(source))
+                    }
+                )
             }
         }
     }

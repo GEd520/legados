@@ -1,4 +1,4 @@
-name: Release Build 三包打包
+name: Release Build 双包打包
 
 on:
   workflow_dispatch:
@@ -19,10 +19,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # 这里一次打 3 个包：app + appS + appMax
-        product: [ app, appS, appMax ]
+        product: [ appS, appMax ]   # 只打两个包
       fail-fast: false
-
+    outputs:
+      version: ${{ needs.prepare.outputs.version }}
     env:
       product: ${{ matrix.product }}
       VERSION: ${{ needs.prepare.outputs.version }}
@@ -36,26 +36,6 @@ jobs:
           distribution: 'temurin'
           java-version: 17
 
-      # ==============================================
-      # 重点：自动给 appS 改 软件名
-      # ==============================================
-      - name: 修改应用名 (仅对 appS 生效)
-        if: env.product == 'appS'
-        run: |
-          # 修改 APP 名称为 阅读·S
-          sed -i 's/app_name\">阅读/app_name\">阅读·S/' app/src/main/res/values/strings.xml
-          sed -i 's/app_name">阅读/app_name">阅读·S/' app/src/main/res/values-zh/strings.xml
-
-      # ==============================================
-      # 重点：自动给 appMax 改 软件名
-      # ==============================================
-      - name: 修改应用名 (仅对 appMax 生效)
-        if: env.product == 'appMax'
-        run: |
-          # 修改 APP 名称为 阅读·Max
-          sed -i 's/app_name\">阅读/app_name\">阅读·Max/' app/src/main/res/values/strings.xml
-          sed -i 's/app_name">阅读/app_name">阅读·Max/' app/src/main/res/values-zh/strings.xml
-
       - name: 统一版本号
         run: |
           sed "/def version/c def version = \"${{ env.VERSION }}\"" app/build.gradle.kts -i
@@ -68,23 +48,40 @@ jobs:
           chmod +x gradlew
           ./gradlew assemble${{ env.product }}Release --parallel
 
-      - name: 整理 APK
-        run: |
-          mkdir -p apk/
-          cp app/build/outputs/apk/${{ env.product }}/release/*.apk apk/
-
-      - name: 上传 APK
+      - name: 上传 APK（带产品标识）
         uses: actions/upload-artifact@v7
         with:
-          name: 阅读_${{ env.product }}_${{ env.VERSION }}
-          path: apk/*.apk
+          name: ${{ env.product }}_apk
+          path: app/build/outputs/apk/${{ env.product }}/release/*.apk
+          retention-days: 1
+
+  release:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: 下载所有 APK
+        uses: actions/download-artifact@v7
+        with:
+          pattern: '*_apk'
+          path: all_apks
+          merge-multiple: true
+
+      - name: 列出下载的文件（调试用）
+        run: ls -la all_apks/
 
       - name: 发布到 Release
         uses: softprops/action-gh-release@v2
         with:
-          name: 阅读三包版 ${{ env.VERSION }}
-          tag_name: ${{ env.VERSION }}
-          body: "自动打包：正常版 + ·S 版 + ·Max 版（三开共存）"
-          files: apk/*.apk
+          name: 阅读双包版 ${{ needs.prepare.outputs.version }}
+          tag_name: ${{ needs.prepare.outputs.version }}
+          body: |
+            ## 自动打包：两个版本共存
+            
+            - 📱 阅读A·Max
+            - 📱 阅读·Max
+            
+            两个版本可以同时安装，互不冲突。
+          files: all_apks/*.apk
+          fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

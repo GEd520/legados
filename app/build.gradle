@@ -66,10 +66,13 @@ android {
         versionName version
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         project.ext.set("archivesBaseName", name + "_" + version)
-    
+
+        // 👇 就是这行，修复渠道占位符报错
+        manifestPlaceholders = [APP_CHANNEL_VALUE: "local"]
+
         buildConfigField "String", "Cronet_Version", "\"$CronetVersion\""
         buildConfigField "String", "Cronet_Main_Version", "\"$CronetMainVersion\""
-    
+
         javaCompileOptions {
             annotationProcessorOptions {
                 arguments += [
@@ -90,12 +93,7 @@ android {
                 signingConfig signingConfigs.myConfig
             }
             applicationIdSuffix '.release'
-            if (getApplicationIdSuffix() == '.releaseS') {
-                manifestPlaceholders.put("app_name", "@string/app_name_s")
-            } else {
-                manifestPlaceholders.put("app_name", "@string/app_name")
-            }
-    
+
             minifyEnabled true
             shrinkResources = true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro', 'cronet-proguard-rules.pro'
@@ -108,33 +106,14 @@ android {
     
             applicationIdSuffix '.debug'
             versionNameSuffix 'debug'
-            minifyEnabled true
-            shrinkResources = true
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro', 'cronet-proguard-rules.pro'
+            // minifyEnabled true
+            // shrinkResources = true
+            // proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro', 'cronet-proguard-rules.pro'
         }
     }
-    //noinspection GrDeprecatedAPIUsage
-    flavorDimensions = ['mode']
-    productFlavors {
-        app {
-            dimension "mode"
-            manifestPlaceholders.put("APP_CHANNEL_VALUE", "app")
-        }
-        appS {
-            dimension "mode"
-            applicationIdSuffix ".a"
-            manifestPlaceholders.put("APP_CHANNEL_VALUE", "appS")
-        }
-        appMax {
-            dimension "mode"
-            manifestPlaceholders.put("APP_CHANNEL_VALUE", "appMax")
-        }
-    }
-    
     android.applicationVariants.configureEach { variant ->
         variant.outputs.configureEach {
-            def flavor = variant.productFlavors[0].name
-            outputFileName = "${name}_${flavor}_${defaultConfig.versionName}.apk"
+            outputFileName = "${name}_${defaultConfig.versionName}.apk"
         }
     }
 

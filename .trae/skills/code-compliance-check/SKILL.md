@@ -41,7 +41,17 @@ description: "Automatically validates code changes for compliance. **MUST invoke
 - 日志信息包含必要的上下文数据
 - 敏感信息不得记录到日志
 
-### 4. 代码质量检测
+### 4. Android 原生控件，简单可靠，与现有 UI 风格一致
+
+所有新增控件必须使用 Android 原生控件，避免使用第三方库控件。
+
+**检查项：**
+- 所有新增控件必须是 Android 原生控件
+- 控件的使用必须符合 Android 原生控件的规范
+- 控件的使用必须与现有 UI 风格一致
+
+
+### 5. 代码质量检测
 
 自动检测代码全部 Bug、语法问题、逻辑隐患，验证代码可在原项目正常运行。
 
@@ -53,7 +63,7 @@ description: "Automatically validates code changes for compliance. **MUST invoke
 - 类型安全检查
 - 边界条件处理
 
-### 5. 问题修复与交付
+### 6. 问题修复与交付
 
 自动修复所有问题，交付最终代码并附上自检报告。
 

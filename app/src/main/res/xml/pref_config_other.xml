@@ -84,6 +84,22 @@
             android:title="@string/debug_mode"
             app:iconSpaceReserved="false" />
 
+        <!-- 崩溃时复制日志：默认开启，崩溃后自动将日志复制到剪贴板 -->
+        <io.legado.app.lib.prefs.SwitchPreference
+            android:defaultValue="true"
+            android:key="copyCrashLog"
+            android:summary="@string/copy_crash_log_summary"
+            android:title="@string/copy_crash_log_title"
+            app:iconSpaceReserved="false" />
+
+        <!-- MD链接用内置浏览器打开：默认关闭 -->
+        <io.legado.app.lib.prefs.SwitchPreference
+            android:defaultValue="false"
+            android:key="mdLinkInnerBrowser"
+            android:summary="@string/md_link_inner_browser_summary"
+            android:title="@string/md_link_inner_browser"
+            app:iconSpaceReserved="false" />
+
     </io.legado.app.lib.prefs.PreferenceCategory>
 
     <io.legado.app.lib.prefs.PreferenceCategory

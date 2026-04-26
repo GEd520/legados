@@ -298,6 +298,14 @@ object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
     val debugMode: Boolean
         get() = appCtx.getPrefBoolean(PreferKey.debugMode, false)
 
+    // 崩溃时复制日志到剪贴板，默认开启
+    val copyCrashLog: Boolean
+        get() = appCtx.getPrefBoolean(PreferKey.copyCrashLog, true)
+
+    // MD链接用内置浏览器打开，默认关闭
+    val mdLinkInnerBrowser: Boolean
+        get() = appCtx.getPrefBoolean(PreferKey.mdLinkInnerBrowser, false)
+
     val autoRefreshBook: Boolean
         get() = appCtx.getPrefBoolean(PreferKey.autoRefresh)
 
