@@ -99,6 +99,11 @@ android {
             applicationId "io.legado.app.yuedu.a"
             manifestPlaceholders = [app_name: "@string/app_name_a"]
         }
+        appLegacy {
+            dimension "app"
+            applicationId "io.legado.app"
+            manifestPlaceholders = [app_name: "@string/app_name"]
+        }
         appMax {
             dimension "app"
             applicationId "io.legado.app.yuedu"
