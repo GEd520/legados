@@ -87,6 +87,19 @@ android {
         buildConfig = true
         viewBinding = true
     }
+    flavorDimensions "app"
+    productFlavors {
+        appS {
+            dimension "app"
+            applicationId "io.legado.app.yuedu.a"
+            manifestPlaceholders = [app_name: "@string/app_name_a"]
+        }
+        appMax {
+            dimension "app"
+            applicationId "io.legado.app.yuedu"
+            manifestPlaceholders = [app_name: "@string/app_name"]
+        }
+    }
     buildTypes {
         release {
             if (project.hasProperty("RELEASE_STORE_FILE")) {
@@ -103,7 +116,7 @@ android {
                 signingConfig signingConfigs.myConfig
             }
             manifestPlaceholders.put("app_name", "@string/app_name_debug")
-    
+
             applicationIdSuffix '.debug'
             versionNameSuffix 'debug'
             // minifyEnabled true

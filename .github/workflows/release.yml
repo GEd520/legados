@@ -38,7 +38,7 @@ jobs:
 
       - name: 统一版本号
         run: |
-          sed "/def version/c def version = \"${{ env.VERSION }}\"" app/build.gradle.kts -i
+          sed "/def version/c def version = \"${{ env.VERSION }}\"" app/build.gradle -i
 
       - name: 配置 Gradle
         uses: gradle/actions/setup-gradle@v5
