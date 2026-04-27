@@ -64,6 +64,27 @@
             android:title="@string/export_md"
             app:showAsAction="never" />
 
+        <item
+            android:id="@+id/menu_bookmark_search_chapter_name"
+            android:checkable="true"
+            android:checked="true"
+            android:title="@string/bookmark_search_chapter_name"
+            app:showAsAction="never" />
+
+        <item
+            android:id="@+id/menu_bookmark_search_book_text"
+            android:checkable="true"
+            android:checked="true"
+            android:title="@string/bookmark_search_book_text"
+            app:showAsAction="never" />
+
+        <item
+            android:id="@+id/menu_bookmark_search_content"
+            android:checkable="true"
+            android:checked="true"
+            android:title="@string/bookmark_search_content"
+            app:showAsAction="never" />
+
     </group>
 
     <item

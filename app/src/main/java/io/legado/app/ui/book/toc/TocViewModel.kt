@@ -26,6 +26,10 @@ class TocViewModel(application: Application) : BaseViewModel(application) {
     var bookMarkCallBack: BookmarkCallBack? = null
     var searchKey: String? = null
 
+    var searchChapterName: Boolean = true
+    var searchBookText: Boolean = true
+    var searchContent: Boolean = true
+
     fun initBook(bookUrl: String) {
         this.bookUrl = bookUrl
         execute {
