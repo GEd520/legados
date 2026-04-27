@@ -583,6 +583,16 @@
     <string name="edit_find">Edit Discovery</string>
     <string name="change_icon_summary">Switch the software icon displayed on the desktop</string>
     <string name="help">Help</string>
+    <string name="help_search">Help Document Search</string>
+    <string name="search_help_hint">Search by keyword...</string>
+    <string name="all_docs">All Documents</string>
+    <string name="search_help_title">Search Help Documents</string>
+    <string name="search_help_desc">Enter keywords to search across all help documents</string>
+    <string name="search_empty_title">No matching results found</string>
+    <string name="search_empty_desc">Try different keywords or expand your search scope</string>
+    <string name="search_result_count">%d matching results found</string>
+    <string name="line_number">Line %d</string>
+    <string name="search_help">Search Help</string>
     <string name="my">Me</string>
     <string name="reading">Read</string>
     <string name="battery_show">%d%%</string>

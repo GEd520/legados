@@ -89,4 +89,10 @@
         android:title="@string/help"
         app:showAsAction="never" />
 
+    <item
+        android:id="@+id/menu_search_help"
+        android:icon="@drawable/ic_search"
+        android:title="@string/search_help"
+        app:showAsAction="always" />
+
 </menu>
