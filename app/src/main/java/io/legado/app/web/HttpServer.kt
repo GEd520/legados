@@ -85,9 +85,21 @@ class HttpServer(port: Int) : NanoHTTPD(port) {
                         if (authResponse != null) return authResponse
                     }
 
+                    var postData: String? = null
                     val files = HashMap<String, String>()
-                    session.parseBody(files)
-                    val postData = files["postData"]
+                    if (uri == "/addLocalBook") {
+                        session.parseBody(files)
+                        postData = files["postData"]
+                    } else {
+                        // 手动处理POST请求体，使用UTF-8编码
+                        val contentLength = session.headers["content-length"]?.toIntOrNull() ?: 0
+                        if (contentLength > 0) {
+                            val inputStream = session.inputStream
+                            val buffer = ByteArray(contentLength)
+                            inputStream.read(buffer)
+                            postData = String(buffer, Charsets.UTF_8)
+                        }
+                    }
 
                     returnData = runBlocking {
                         when (uri) {
