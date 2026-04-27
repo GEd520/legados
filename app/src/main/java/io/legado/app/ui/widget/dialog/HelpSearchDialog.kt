@@ -279,7 +279,6 @@ class HelpSearchDialog : BaseDialogFragment(R.layout.dialog_help_search) {
         override fun registerListener(holder: ItemViewHolder, binding: ItemHelpSearchResultBinding) {
             binding.root.setOnClickListener {
                 getItemByLayoutPosition(holder.layoutPosition)?.let { item ->
-                    dismissAllowingStateLoss()
                     showDialogFragment(TextDialog(
                         item.docName,
                         allDocsContent[item.fileName],
