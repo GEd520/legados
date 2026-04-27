@@ -590,6 +590,7 @@
     <string name="search_empty_desc">换个关键词试试，或者扩大搜索范围</string>
     <string name="search_result_count">找到 %d 条匹配结果</string>
     <string name="line_number">第 %d 行</string>
+    <string name="search_doc_result_count">%d 条匹配</string>
     <string name="search_help">搜索帮助</string>
     <string name="my">我的</string>
     <string name="reading">阅读</string>

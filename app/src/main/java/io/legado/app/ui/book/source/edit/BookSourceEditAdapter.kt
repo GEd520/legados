@@ -13,9 +13,11 @@ import io.legado.app.help.config.AppConfig
 import io.legado.app.ui.widget.code.addJsPattern
 import io.legado.app.ui.widget.code.addJsonPattern
 import io.legado.app.ui.widget.code.addLegadoPattern
+import io.legado.app.ui.widget.recycler.scroller.FastScroller
 import io.legado.app.ui.widget.text.EditEntity
 
-class BookSourceEditAdapter : RecyclerView.Adapter<BookSourceEditAdapter.MyViewHolder>() {
+class BookSourceEditAdapter : RecyclerView.Adapter<BookSourceEditAdapter.MyViewHolder>(),
+    FastScroller.SectionIndexer {
 
     val editEntityMaxLine = AppConfig.sourceEditMaxLine
 
@@ -93,6 +95,14 @@ class BookSourceEditAdapter : RecyclerView.Adapter<BookSourceEditAdapter.MyViewH
             editText.addTextChangedListener(textWatcher)
             editText.setTag(R.id.tag2, textWatcher)
             editText.clearFocus()
+        }
+    }
+
+    override fun getSectionText(position: Int): String {
+        return if (position in editEntities.indices) {
+            editEntities[position].hint.toString()
+        } else {
+            ""
         }
     }
 

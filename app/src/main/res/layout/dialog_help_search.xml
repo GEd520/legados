@@ -14,60 +14,44 @@
         app:titleTextAppearance="@style/ToolbarTitle"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <LinearLayout
+    <FrameLayout
         android:id="@+id/search_bar_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
         android:paddingStart="12dp"
         android:paddingEnd="12dp"
         android:paddingTop="8dp"
         android:paddingBottom="8dp"
         app:layout_constraintTop_toBottomOf="@id/tool_bar">
 
-        <FrameLayout
-            android:layout_width="0dp"
+        <EditText
+            android:id="@+id/search_edit_text"
+            android:layout_width="match_parent"
             android:layout_height="40dp"
-            android:layout_weight="1">
+            android:paddingStart="12dp"
+            android:paddingEnd="32dp"
+            android:background="@drawable/bg_edit"
+            android:hint="@string/search_help_hint"
+            android:imeOptions="actionSearch"
+            android:inputType="text"
+            android:maxLines="1"
+            android:textSize="14sp"
+            android:textColor="@color/primaryText"
+            android:textColorHint="@color/secondaryText" />
 
-            <EditText
-                android:id="@+id/search_edit_text"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:paddingStart="12dp"
-                android:paddingEnd="32dp"
-                android:background="@drawable/bg_edit"
-                android:hint="@string/search_help_hint"
-                android:imeOptions="actionSearch"
-                android:inputType="text"
-                android:maxLines="1"
-                android:textSize="14sp"
-                android:textColor="@color/primaryText"
-                android:textColorHint="@color/secondaryText" />
+        <ImageView
+            android:id="@+id/clear_btn"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_gravity="end|center_vertical"
+            android:layout_marginEnd="4dp"
+            android:padding="6dp"
+            android:src="@drawable/ic_baseline_close"
+            android:visibility="gone"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/close" />
 
-            <ImageView
-                android:id="@+id/clear_btn"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:layout_gravity="end|center_vertical"
-                android:layout_marginEnd="4dp"
-                android:padding="6dp"
-                android:src="@drawable/ic_baseline_close"
-                android:visibility="gone"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/close" />
-
-        </FrameLayout>
-
-        <Spinner
-            android:id="@+id/scope_spinner"
-            android:layout_width="100dp"
-            android:layout_height="40dp"
-            android:layout_marginStart="8dp"
-            android:popupBackground="@color/background" />
-
-    </LinearLayout>
+    </FrameLayout>
 
     <ProgressBar
         android:id="@+id/loading_indicator"

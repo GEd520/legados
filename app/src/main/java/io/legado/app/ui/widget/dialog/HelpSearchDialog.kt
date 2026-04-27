@@ -6,20 +6,19 @@ import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.BackgroundColorSpan
 import android.view.KeyEvent
+import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
-import android.widget.AdapterView
-import android.widget.ArrayAdapter
-import android.widget.TextView.OnEditorActionListener
+import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import io.legado.app.R
 import io.legado.app.base.BaseDialogFragment
-import io.legado.app.base.adapter.ItemViewHolder
-import io.legado.app.base.adapter.RecyclerAdapter
 import io.legado.app.databinding.DialogHelpSearchBinding
+import io.legado.app.databinding.ItemHelpSearchHeaderBinding
 import io.legado.app.databinding.ItemHelpSearchResultBinding
 import io.legado.app.help.HelpDocManager
 import io.legado.app.lib.theme.primaryColor
@@ -42,12 +41,15 @@ class HelpSearchDialog : BaseDialogFragment(R.layout.dialog_help_search) {
     private val allDocsContent = mutableMapOf<String, String>()
     private var isDocsLoaded = false
     private var currentSearchTerm = ""
-    private var selectedDocFilter: String = "all"
 
-    private val adapter by lazy { Adapter() }
+    private val expandedGroups = mutableSetOf<String>()
+
+    private val adapter by lazy { SearchAdapter() }
 
     companion object {
         private const val DEBOUNCE_DELAY = 300L
+        private const val VIEW_TYPE_HEADER = 0
+        private const val VIEW_TYPE_RESULT = 1
     }
 
     override fun onStart() {
@@ -73,37 +75,13 @@ class HelpSearchDialog : BaseDialogFragment(R.layout.dialog_help_search) {
         binding.recyclerView.layoutManager = LinearLayoutManager(requireContext())
         binding.recyclerView.adapter = adapter
 
-        setupScopeSpinner()
         setupSearchInput()
 
         loadDocsAsync()
     }
 
-    private fun setupScopeSpinner() {
-        val spinnerAdapter = ArrayAdapter(
-            requireContext(),
-            android.R.layout.simple_spinner_item,
-            listOf(getString(R.string.all_docs)) + HelpDocManager.allHelpDocs.map { it.displayName }
-        )
-        spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        binding.scopeSpinner.adapter = spinnerAdapter
-
-        binding.scopeSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
-                selectedDocFilter = if (position == 0) "all" else {
-                    HelpDocManager.allHelpDocs[position - 1].fileName
-                }
-                if (currentSearchTerm.isNotEmpty()) {
-                    performSearch(currentSearchTerm)
-                }
-            }
-
-            override fun onNothingSelected(parent: AdapterView<*>) {}
-        }
-    }
-
     private fun setupSearchInput() {
-        binding.searchEditText.setOnEditorActionListener(OnEditorActionListener { _, actionId, event ->
+        binding.searchEditText.setOnEditorActionListener(TextView.OnEditorActionListener { _, actionId, event ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH ||
                 (event != null && event.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN)
             ) {
@@ -182,24 +160,19 @@ class HelpSearchDialog : BaseDialogFragment(R.layout.dialog_help_search) {
             val results = withContext(IO) {
                 searchAllDocs(query)
             }
-            updateResults(results, query)
+            updateResults(results)
         }
     }
 
-    private fun searchAllDocs(query: String): List<HelpSearchResultItem> {
-        val results = mutableListOf<HelpSearchResultItem>()
+    private fun searchAllDocs(query: String): List<DocSearchResult> {
+        val results = mutableListOf<DocSearchResult>()
         val queryLower = query.lowercase()
         val contextChars = 80
 
-        val docsToSearch = if (selectedDocFilter == "all") {
-            HelpDocManager.allHelpDocs
-        } else {
-            HelpDocManager.allHelpDocs.filter { it.fileName == selectedDocFilter }
-        }
-
-        for (doc in docsToSearch) {
+        for (doc in HelpDocManager.allHelpDocs) {
             val content = allDocsContent[doc.fileName] ?: continue
             val lines = content.lineSequence().toList()
+            val matchedLines = mutableListOf<SearchResultItem>()
 
             for ((lineIndex, line) in lines.withIndex()) {
                 if (line.lowercase().contains(queryLower)) {
@@ -213,110 +186,205 @@ class HelpSearchDialog : BaseDialogFragment(R.layout.dialog_help_search) {
                         if (end < line.length) append("...")
                     }
 
-                    results.add(HelpSearchResultItem(
-                        docName = doc.displayName,
-                        fileName = doc.fileName,
+                    matchedLines.add(SearchResultItem(
                         lineNumber = lineNum,
                         matchedText = contextText,
                         searchTerm = query
                     ))
                 }
             }
+
+            if (matchedLines.isNotEmpty()) {
+                results.add(DocSearchResult(
+                    docName = doc.displayName,
+                    fileName = doc.fileName,
+                    items = matchedLines
+                ))
+            }
         }
 
-        return results.take(100)
+        return results
     }
 
-    private fun updateResults(results: List<HelpSearchResultItem>, query: String) {
+    private fun updateResults(results: List<DocSearchResult>) {
         if (results.isEmpty()) {
             showEmptyState()
         } else {
-            showResultsState(results, query)
+            showResultsState(results)
         }
     }
 
     private fun showInitialState() {
         binding.recyclerView.visibility = View.GONE
         binding.emptyStateLayout.visibility = View.GONE
+        binding.resultCountText.visibility = View.GONE
         binding.initialStateLayout.visibility = View.VISIBLE
     }
 
     private fun showEmptyState() {
         binding.recyclerView.visibility = View.GONE
         binding.initialStateLayout.visibility = View.GONE
+        binding.resultCountText.visibility = View.GONE
         binding.emptyStateLayout.visibility = View.VISIBLE
     }
 
-    private fun showResultsState(results: List<HelpSearchResultItem>, query: String) {
+    private fun showResultsState(results: List<DocSearchResult>) {
         binding.initialStateLayout.visibility = View.GONE
         binding.emptyStateLayout.visibility = View.GONE
         binding.recyclerView.visibility = View.VISIBLE
         binding.resultCountText.visibility = View.VISIBLE
 
-        binding.resultCountText.text = getString(R.string.search_result_count, results.size)
+        val totalCount = results.sumOf { it.items.size }
+        binding.resultCountText.text = getString(R.string.search_result_count, totalCount)
 
-        adapter.setItems(results)
+        expandedGroups.clear()
+        results.forEach { expandedGroups.add(it.fileName) }
+
+        adapter.setData(results)
         binding.recyclerView.scrollToPosition(0)
     }
 
-    private inner class Adapter : RecyclerAdapter<HelpSearchResultItem, ItemHelpSearchResultBinding>(requireContext()) {
+    private fun highlightText(text: String, searchTerm: String): SpannableString {
+        val spannable = SpannableString(text)
+        val termLower = searchTerm.lowercase()
+        val textLower = text.lowercase()
+        var startIndex = 0
+        val highlightColor = ContextCompat.getColor(requireContext(), R.color.accent)
+        val bgColor = android.graphics.Color.argb(60, android.graphics.Color.red(highlightColor),
+            android.graphics.Color.green(highlightColor), android.graphics.Color.blue(highlightColor))
 
-        override fun getViewBinding(parent: ViewGroup): ItemHelpSearchResultBinding {
-            return ItemHelpSearchResultBinding.inflate(inflater, parent, false)
+        while (true) {
+            val index = textLower.indexOf(termLower, startIndex)
+            if (index == -1) break
+            spannable.setSpan(
+                BackgroundColorSpan(bgColor),
+                index,
+                index + searchTerm.length,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            startIndex = index + searchTerm.length
+        }
+        return spannable
+    }
+
+    private inner class SearchAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+
+        private val items = mutableListOf<SearchListItem>()
+        private var docResults: List<DocSearchResult> = emptyList()
+
+        fun setData(results: List<DocSearchResult>) {
+            docResults = results
+            rebuildItems()
+            notifyDataSetChanged()
         }
 
-        override fun convert(
-            holder: ItemViewHolder,
-            binding: ItemHelpSearchResultBinding,
-            item: HelpSearchResultItem,
-            payloads: MutableList<Any>
-        ) {
-            binding.docNameText.text = item.docName
-            binding.lineNumberText.text = getString(R.string.line_number, item.lineNumber)
-            binding.matchedTextText.text = highlightText(item.matchedText, item.searchTerm)
-        }
-
-        override fun registerListener(holder: ItemViewHolder, binding: ItemHelpSearchResultBinding) {
-            binding.root.setOnClickListener {
-                getItemByLayoutPosition(holder.layoutPosition)?.let { item ->
-                    showDialogFragment(TextDialog(
-                        item.docName,
-                        allDocsContent[item.fileName],
-                        TextDialog.Mode.MD,
-                        item.fileName
-                    ))
+        private fun rebuildItems() {
+            items.clear()
+            for (result in docResults) {
+                items.add(SearchListItem.Header(result))
+                if (expandedGroups.contains(result.fileName)) {
+                    result.items.forEach { item ->
+                        items.add(SearchListItem.Result(result, item))
+                    }
                 }
             }
         }
 
-        private fun highlightText(text: String, searchTerm: String): SpannableString {
-            val spannable = SpannableString(text)
-            val termLower = searchTerm.lowercase()
-            val textLower = text.lowercase()
-            var startIndex = 0
-            val highlightColor = ContextCompat.getColor(requireContext(), R.color.accent)
-            val bgColor = android.graphics.Color.argb(60, android.graphics.Color.red(highlightColor),
-                android.graphics.Color.green(highlightColor), android.graphics.Color.blue(highlightColor))
-
-            while (true) {
-                val index = textLower.indexOf(termLower, startIndex)
-                if (index == -1) break
-                spannable.setSpan(
-                    BackgroundColorSpan(bgColor),
-                    index,
-                    index + searchTerm.length,
-                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-                )
-                startIndex = index + searchTerm.length
+        override fun getItemViewType(position: Int): Int {
+            return when (items[position]) {
+                is SearchListItem.Header -> VIEW_TYPE_HEADER
+                is SearchListItem.Result -> VIEW_TYPE_RESULT
             }
-            return spannable
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+            return when (viewType) {
+                VIEW_TYPE_HEADER -> {
+                    val binding = ItemHelpSearchHeaderBinding.inflate(
+                        LayoutInflater.from(parent.context), parent, false
+                    )
+                    HeaderViewHolder(binding)
+                }
+                else -> {
+                    val binding = ItemHelpSearchResultBinding.inflate(
+                        LayoutInflater.from(parent.context), parent, false
+                    )
+                    ResultViewHolder(binding)
+                }
+            }
+        }
+
+        override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+            when (val item = items[position]) {
+                is SearchListItem.Header -> {
+                    (holder as HeaderViewHolder).bind(item.result)
+                }
+                is SearchListItem.Result -> {
+                    (holder as ResultViewHolder).bind(item.docResult, item.searchItem)
+                }
+            }
+        }
+
+        override fun getItemCount() = items.size
+
+        private inner class HeaderViewHolder(
+            private val binding: ItemHelpSearchHeaderBinding
+        ) : RecyclerView.ViewHolder(binding.root) {
+
+            fun bind(result: DocSearchResult) {
+                binding.docNameText.text = result.docName
+                binding.docCountText.text = getString(R.string.search_doc_result_count, result.items.size)
+
+                val isExpanded = expandedGroups.contains(result.fileName)
+                binding.expandIcon.rotation = if (isExpanded) 180f else 0f
+
+                binding.root.setOnClickListener {
+                    val fileName = result.fileName
+                    if (expandedGroups.contains(fileName)) {
+                        expandedGroups.remove(fileName)
+                    } else {
+                        expandedGroups.add(fileName)
+                    }
+                    rebuildItems()
+                    notifyDataSetChanged()
+                }
+            }
+        }
+
+        private inner class ResultViewHolder(
+            private val binding: ItemHelpSearchResultBinding
+        ) : RecyclerView.ViewHolder(binding.root) {
+
+            fun bind(docResult: DocSearchResult, searchItem: SearchResultItem) {
+                binding.docNameText.visibility = View.GONE
+                binding.lineNumberText.text = getString(R.string.line_number, searchItem.lineNumber)
+                binding.matchedTextText.text = highlightText(searchItem.matchedText, searchItem.searchTerm)
+
+                binding.root.setOnClickListener {
+                    showDialogFragment(TextDialog(
+                        docResult.docName,
+                        allDocsContent[docResult.fileName],
+                        TextDialog.Mode.MD,
+                        docResult.fileName
+                    ))
+                }
+            }
         }
     }
 }
 
-data class HelpSearchResultItem(
+private sealed class SearchListItem {
+    data class Header(val result: DocSearchResult) : SearchListItem()
+    data class Result(val docResult: DocSearchResult, val searchItem: SearchResultItem) : SearchListItem()
+}
+
+private data class DocSearchResult(
     val docName: String,
     val fileName: String,
+    val items: List<SearchResultItem>
+)
+
+private data class SearchResultItem(
     val lineNumber: Int,
     val matchedText: String,
     val searchTerm: String

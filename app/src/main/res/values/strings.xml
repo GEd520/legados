@@ -592,6 +592,7 @@
     <string name="search_empty_desc">Try different keywords or expand your search scope</string>
     <string name="search_result_count">%d matching results found</string>
     <string name="line_number">Line %d</string>
+    <string name="search_doc_result_count">%d matches</string>
     <string name="search_help">Search Help</string>
     <string name="my">Me</string>
     <string name="reading">Read</string>
