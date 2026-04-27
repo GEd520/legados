@@ -48,6 +48,7 @@ import io.legado.app.utils.getFile
 import io.legado.app.utils.getPrefBoolean
 import io.legado.app.utils.getPrefInt
 import io.legado.app.utils.getPrefString
+import io.legado.app.utils.putPrefString
 import io.legado.app.utils.getSharedPreferences
 import io.legado.app.utils.isContentScheme
 import io.legado.app.utils.isJsonArray
@@ -369,6 +370,9 @@ object Restore {
             edit.apply()
         }
 
+        // 修正主题背景图片路径
+        fixThemeBackgroundPaths()
+
         // 恢复视频播放配置
         appCtx.getSharedPreferences(path, "videoConfig")?.all?.let { map ->
             appCtx.getSharedPreferences(VIDEO_PREF_NAME, Context.MODE_PRIVATE).edit().apply {
@@ -517,6 +521,43 @@ object Restore {
             backupFile.copyTo(File(targetDir, bgName), overwrite = true)
             LogUtils.d(TAG, "恢复主题背景: $bgName -> ${bgFile.absolutePath}")
         }
+    }
+
+    private fun fixThemeBackgroundPaths() {
+        // 修正白天主题背景路径
+        appCtx.getPrefString(PreferKey.bgImage)?.let { bgPath ->
+            val fixedPath = fixThemeBgPath(bgPath, PreferKey.bgImage)
+            if (fixedPath != bgPath) {
+                appCtx.putPrefString(PreferKey.bgImage, fixedPath)
+                LogUtils.d(TAG, "修正白天主题背景路径: $bgPath -> $fixedPath")
+            }
+        }
+        
+        // 修正夜间主题背景路径
+        appCtx.getPrefString(PreferKey.bgImageN)?.let { bgPath ->
+            val fixedPath = fixThemeBgPath(bgPath, PreferKey.bgImageN)
+            if (fixedPath != bgPath) {
+                appCtx.putPrefString(PreferKey.bgImageN, fixedPath)
+                LogUtils.d(TAG, "修正夜间主题背景路径: $bgPath -> $fixedPath")
+            }
+        }
+    }
+    
+    private fun fixThemeBgPath(bgPath: String, prefKey: String): String {
+        if (bgPath.isBlank()) return bgPath
+        // 在线图片路径不需要修正
+        if (bgPath.startsWith("http")) return bgPath
+        // 已经是文件名，不需要修正
+        if (!bgPath.contains(File.separator)) return bgPath
+        
+        // 提取文件名，拼接新设备路径
+        val bgName = File(bgPath).name
+        val newFile = appCtx.externalFiles.getFile(prefKey, bgName)
+        if (newFile.exists()) {
+            return newFile.absolutePath
+        }
+        // 如果新路径不存在，返回文件名（ThemeConfig.getBgImage 会自动处理）
+        return bgName
     }
 
 }

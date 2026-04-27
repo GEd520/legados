@@ -120,6 +120,14 @@ object ThemeConfig {
                 return null
             }
             path = filePath
+        } else if (!path.contains(File.separator)) {
+            // 只有文件名，拼接完整路径
+            val filePath = FileUtils.getPath(context.externalFiles, preferenceKey, path)
+            if (FileUtils.exist(filePath)) {
+                path = filePath
+            } else {
+                return null
+            }
         }
         if (path.endsWith(".9.png")) {
             val bgDrawable = BitmapUtils.decodeNinePatchDrawable(path)
