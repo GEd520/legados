@@ -239,7 +239,7 @@ class TextDialog() : BaseDialogFragment(R.layout.dialog_text_view) {
         
         if (found && targetIndex >= 0) {
             val layout = textView.layout ?: return
-            val lineNum = layout.getLineForOffset(targetIndex.toFloat())
+            val lineNum = layout.getLineForOffset(targetIndex)
             val y = layout.getLineTop(lineNum)
             val targetScrollY = (y - textView.height / 3).coerceAtLeast(0)
             
@@ -247,16 +247,7 @@ class TextDialog() : BaseDialogFragment(R.layout.dialog_text_view) {
         }
         
         if (highlightTerm != null && found) {
-            val lineContent = lines.getOrNull(lineNumber - 1) ?: return
-            val lineStartIndex = text.indexOf(lineContent)
-            if (lineStartIndex >= 0) {
-                val termIndex = lineContent.indexOf(highlightTerm, ignoreCase = true)
-                if (termIndex >= 0) {
-                    val start = lineStartIndex + termIndex
-                    val end = start + highlightTerm.length
-                    textView.setSelection(start, end)
-                }
-            }
+            // TextView 不支持 setSelection，仅滚动到指定行
         }
     }
     
