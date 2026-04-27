@@ -234,6 +234,7 @@ class TextDialog() : BaseDialogFragment(R.layout.dialog_text_view) {
             override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
                 val selectedDoc = HelpDocManager.allHelpDocs[position]
                 if (selectedDoc.fileName != currentHelpDoc) {
+                    currentHelpDoc = selectedDoc.fileName
                     loadHelpDoc(selectedDoc.fileName)
                 }
             }
@@ -251,8 +252,9 @@ class TextDialog() : BaseDialogFragment(R.layout.dialog_text_view) {
             val content = withContext(IO) {
                 HelpDocManager.loadDoc(requireContext().assets, fileName)
             }
-            currentHelpDoc = fileName
-            // 更新显示内容
+            if (currentHelpDoc != fileName) {
+                return@launch
+            }
             updateContent(content)
         }
     }

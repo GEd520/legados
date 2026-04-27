@@ -95,6 +95,7 @@ class ExploreShowActivity : VMBaseActivity<ActivityExploreShowBinding, ExploreSh
      */
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         binding.titleBar.title = intent.getStringExtra("exploreName")
+        menuPage
         menuAddAllToShelf
         initRecyclerView()
         viewModel.booksData.observe(this) { upData(it) }
