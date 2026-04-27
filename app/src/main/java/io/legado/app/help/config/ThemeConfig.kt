@@ -91,7 +91,7 @@ object ThemeConfig {
     /**
      * 获取链接获取图片文件名
      */
-    private fun getUrlToFile(url: String): String {
+    fun getUrlToFile(url: String): String {
         val suffix = when {
             url.contains(".9.png", ignoreCase = true) -> ".9.png"
             url.contains(".png", ignoreCase = true) -> ".png"
@@ -120,6 +120,14 @@ object ThemeConfig {
                 return null
             }
             path = filePath
+        } else if (!path.contains(File.separator)) {
+            // 只有文件名，拼接完整路径
+            val filePath = FileUtils.getPath(context.externalFiles, preferenceKey, path)
+            if (FileUtils.exist(filePath)) {
+                path = filePath
+            } else {
+                return null
+            }
         }
         if (path.endsWith(".9.png")) {
             val bgDrawable = BitmapUtils.decodeNinePatchDrawable(path)
