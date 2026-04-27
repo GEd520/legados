@@ -365,7 +365,9 @@ class HelpSearchDialog : BaseDialogFragment(R.layout.dialog_help_search) {
                         docResult.docName,
                         allDocsContent[docResult.fileName],
                         TextDialog.Mode.MD,
-                        docResult.fileName
+                        docResult.fileName,
+                        scrollToLine = searchItem.lineNumber,
+                        highlightTerm = searchItem.searchTerm
                     ))
                 }
             }
