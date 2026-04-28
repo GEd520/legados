@@ -18,10 +18,6 @@ object HelpDocManager {
         HelpDoc("SourceMBookHelp", "书源说明"),
         HelpDoc("replaceRuleHelp", "替换规则说明"),
         HelpDoc("SourceMRssHelp", "RSS源说明"),
-        HelpDoc("appHelp", "APP帮助文档"),
-        HelpDoc("webDavBookHelp", "WebDav书籍使用教程"),
-        HelpDoc("webDavHelp", "WebDav备份教程"),
-        HelpDoc("readMenuHelp", "阅读菜单说明"),
         HelpDoc("ExtensionContentType", "扩展内容类型")
     )
     

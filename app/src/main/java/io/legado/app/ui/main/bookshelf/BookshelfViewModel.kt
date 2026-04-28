@@ -150,6 +150,33 @@ class BookshelfViewModel(application: Application) : BaseViewModel(application) 
         }
     }
 
+    fun exportBookshelfToJson(books: List<Book>?, success: (json: String) -> Unit) {
+        execute {
+            books?.let {
+                val builder = StringBuilder()
+                builder.append("[\n")
+                it.forEachIndexed { index, book ->
+                    val bookMap = hashMapOf<String, String?>()
+                    bookMap["name"] = book.name
+                    bookMap["author"] = book.author
+                    bookMap["intro"] = book.getDisplayIntro()
+                    val json = GSON.toJson(bookMap, bookMap::class.java)
+                    builder.append("  ").append(json)
+                    if (index < it.size - 1) {
+                        builder.append(",")
+                    }
+                    builder.append("\n")
+                }
+                builder.append("]")
+                builder.toString()
+            } ?: throw NoStackTraceException("书籍不能为空")
+        }.onSuccess {
+            success(it)
+        }.onError {
+            context.toastOnUi("导出书籍出错\n${it.localizedMessage}")
+        }
+    }
+
     fun importBookshelf(str: String, groupId: Long) {
         execute {
             val text = str.trim()

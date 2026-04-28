@@ -863,6 +863,7 @@
     <string name="create_bookmark_error">Failed to create bookmark</string>
     <string name="single_url">Single URL</string>
     <string name="export_bookshelf">Export the list of books</string>
+    <string name="export_bookshelf_to_clipboard">Export bookshelf as JSON to clipboard</string>
     <string name="import_bookshelf">Import the list of books</string>
     <string name="pre_download">Download in advance</string>
     <string name="pre_download_m">Pre-download %s pages</string>

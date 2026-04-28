@@ -23,6 +23,11 @@
         app:showAsAction="always" />
 
     <item
+        android:id="@+id/menu_edit_json"
+        android:title="@string/edit_content"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/menu_login"
         android:title="@string/login"
         app:showAsAction="never" />

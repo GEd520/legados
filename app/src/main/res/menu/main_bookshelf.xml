@@ -65,6 +65,12 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/menu_export_bookshelf_to_clipboard"
+        android:icon="@drawable/ic_export"
+        android:title="@string/export_bookshelf_to_clipboard"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/menu_import_bookshelf"
         android:icon="@drawable/ic_import"
         android:title="@string/import_bookshelf"

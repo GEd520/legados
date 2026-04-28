@@ -39,6 +39,7 @@ import io.legado.app.ui.widget.dialog.VariableDialog
 import io.legado.app.ui.widget.keyboard.KeyboardToolPop
 import io.legado.app.ui.widget.text.EditEntity
 import io.legado.app.utils.GSON
+import io.legado.app.utils.fromJsonObject
 import io.legado.app.utils.imeHeight
 import io.legado.app.utils.isContentScheme
 import io.legado.app.utils.isTrue
@@ -173,6 +174,8 @@ class RssSourceEditActivity :
     override fun onCompatOptionsItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
             R.id.menu_fullscreen_edit -> onFullEditClicked()
+
+            R.id.menu_edit_json -> showSourceJsonEdit()
 
             R.id.menu_save -> viewModel.save(getRssSource()) {
                 setResult(RESULT_OK)
@@ -561,6 +564,19 @@ class RssSourceEditActivity :
                 }
             }
         }
+    }
+
+    private fun showSourceJsonEdit() {
+        val source = getRssSource()
+        val json = GSON.toJson(source)
+        showDialogFragment(RssSourceJsonEditDialog(json) { newJson ->
+            try {
+                val newSource = GSON.fromJsonObject<RssSource>(newJson).getOrThrow()
+                upSourceView(newSource)
+            } catch (e: Exception) {
+                toastOnUi(R.string.json_format)
+            }
+        })
     }
 
     @RequiresApi(Build.VERSION_CODES.M)

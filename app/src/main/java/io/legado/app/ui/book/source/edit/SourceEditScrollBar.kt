@@ -24,7 +24,7 @@ class SourceEditScrollBar @JvmOverloads constructor(
 ) : View(context, attrs, defStyleAttr) {
 
     private val scrollBarWidth = dpToPx(8)
-    private val scrollBarMinHeight = dpToPx(40)
+    private val scrollBarMinHeight = dpToPx(8)
     private val scrollBarMarginEnd = dpToPx(8)
     private val touchAreaWidth = dpToPx(32)
 
@@ -154,7 +154,7 @@ class SourceEditScrollBar @JvmOverloads constructor(
         val targetPos = (proportion * (itemCount - 1)).toInt()
 
         recyclerView.stopScroll()
-        recyclerView.smoothScrollToPosition(targetPos)
+        layoutManager.scrollToPositionWithOffset(targetPos, 0)
     }
 
     private fun updateScrollBarPosition() {
@@ -185,7 +185,7 @@ class SourceEditScrollBar @JvmOverloads constructor(
 
         val scrollBarHeight = max(
             scrollBarMinHeight.toFloat(),
-            (verticalScrollExtent.toFloat() / verticalScrollRange) * height
+            (verticalScrollExtent.toFloat() / verticalScrollRange) * height / 5
         )
 
         val verticalScrollOffset = recyclerView.computeVerticalScrollOffset()

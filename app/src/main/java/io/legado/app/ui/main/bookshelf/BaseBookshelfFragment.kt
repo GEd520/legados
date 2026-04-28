@@ -118,6 +118,11 @@ abstract class BaseBookshelfFragment(layoutId: Int) : VMBaseFragment<BookshelfVi
                 }
             }
 
+            R.id.menu_export_bookshelf_to_clipboard -> viewModel.exportBookshelfToJson(books) { json ->
+                requireContext().sendToClip(json)
+                toastOnUi("已复制到剪贴板")
+            }
+
             R.id.menu_import_bookshelf -> importBookshelfAlert(groupId)
             R.id.menu_log -> showDialogFragment<AppLogDialog>()
         }

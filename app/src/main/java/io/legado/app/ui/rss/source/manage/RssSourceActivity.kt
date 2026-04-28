@@ -13,14 +13,20 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import io.legado.app.R
 import io.legado.app.base.VMBaseActivity
 import io.legado.app.constant.AppLog
+import io.legado.app.constant.PreferKey
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.RssSource
 import io.legado.app.databinding.ActivityRssSourceBinding
 import io.legado.app.databinding.DialogEditTextBinding
 import io.legado.app.help.DirectLinkUpload
+import io.legado.app.utils.getPrefBoolean
+import io.legado.app.utils.getPrefInt
+import io.legado.app.utils.putPrefBoolean
+import io.legado.app.utils.putPrefInt
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.lib.theme.primaryTextColor
+import splitties.init.appCtx
 import io.legado.app.ui.association.ImportRssSourceDialog
 import io.legado.app.ui.association.ImportUrlDialogHelper
 import io.legado.app.ui.browser.WebViewActivity
@@ -74,11 +80,17 @@ class RssSourceActivity : VMBaseActivity<ActivityRssSourceBinding, RssSourceView
     private var sourceFlowJob: Job? = null
     private var groups = arrayListOf<String>()
     private var groupMenu: SubMenu? = null
-    var sort = RssSourceSort.Default
-        private set
-    var sortAscending = true
-        private set
-    private var groupSourcesByDomain = false
+    var sort = RssSourceSort.entries[appCtx.getPrefInt(PreferKey.rssSourceSort, 0)]
+        private set(value) {
+            field = value
+            appCtx.putPrefInt(PreferKey.rssSourceSort, value.ordinal)
+        }
+    var sortAscending = appCtx.getPrefBoolean(PreferKey.rssSourceSortAscending, true)
+        private set(value) {
+            field = value
+            appCtx.putPrefBoolean(PreferKey.rssSourceSortAscending, value)
+        }
+    private var groupSourcesByDomain = appCtx.getPrefBoolean(PreferKey.rssSourceGroupByDomain, false)
     
     /**
      * 域名缓存，避免重复提取
@@ -130,6 +142,14 @@ class RssSourceActivity : VMBaseActivity<ActivityRssSourceBinding, RssSourceView
         val sortSubMenu = menu.findItem(R.id.action_sort).subMenu!!
         sortSubMenu.findItem(R.id.menu_sort_desc).isChecked = !sortAscending
         sortSubMenu.setGroupCheckable(R.id.menu_group_sort, true, true)
+        when (sort) {
+            RssSourceSort.Default -> sortSubMenu.findItem(R.id.menu_sort_manual).isChecked = true
+            RssSourceSort.Name -> sortSubMenu.findItem(R.id.menu_sort_name).isChecked = true
+            RssSourceSort.Url -> sortSubMenu.findItem(R.id.menu_sort_url).isChecked = true
+            RssSourceSort.Update -> sortSubMenu.findItem(R.id.menu_sort_time).isChecked = true
+            RssSourceSort.Enable -> sortSubMenu.findItem(R.id.menu_sort_enable).isChecked = true
+        }
+        sortSubMenu.findItem(R.id.menu_group_sources_by_domain).isChecked = groupSourcesByDomain
         upGroupMenu()
         return super.onPrepareOptionsMenu(menu)
     }
@@ -186,6 +206,7 @@ class RssSourceActivity : VMBaseActivity<ActivityRssSourceBinding, RssSourceView
             R.id.menu_group_sources_by_domain -> {
                 item.isChecked = !item.isChecked
                 groupSourcesByDomain = item.isChecked
+                appCtx.putPrefBoolean(PreferKey.rssSourceGroupByDomain, item.isChecked)
                 adapter.showSourceHost = item.isChecked
                 itemTouchCallback.isCanDrag = !item.isChecked && sort == RssSourceSort.Default
                 upSourceFlow(searchView.query?.toString())
