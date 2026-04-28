@@ -11,7 +11,7 @@ Legado / 开源阅读
 <br>
 <a href="https://gedoor.github.io" target="_blank">gedoor.github.io</a> / <a href="https://www.legado.top/" target="_blank">legado.top</a>
 <br>
-Legado is a free and open source novel reader for Android.
+Legado Max inherits from Legado Sigma and adds more functions on this basis.
 </div>
 
 [![](https://img.shields.io/badge/-Contents:-696969.svg)](#contents) [![](https://img.shields.io/badge/-Function-F5F5F5.svg)](#Function-) [![](https://img.shields.io/badge/-Download-F5F5F5.svg)](#Download-) [![](https://img.shields.io/badge/-Community-F5F5F5.svg)](#Community-) [![](https://img.shields.io/badge/-API-F5F5F5.svg)](#API-) [![](https://img.shields.io/badge/-Other-F5F5F5.svg)](#Other-) [![](https://img.shields.io/badge/-Grateful-F5F5F5.svg)](#Grateful-) [![](https://img.shields.io/badge/-Interface-F5F5F5.svg)](#Interface-)
@@ -55,10 +55,6 @@ You can customize the book source, set your own rules, and capture web page data
 
 #### Android
 
-* [Releases](https://github.com/gedoor/legado/releases/latest)
-* [Google play - $1.99](https://play.google.com/store/apps/details?id=io.legado.play.release)
-* [Coolapk](https://www.coolapk.com/apk/io.legado.app.release)
-* [\#Beta](https://kunfei.lanzoui.com/b0f810h4b)
 * [IzzyOnDroid F-Droid Repository](https://apt.izzysoft.de/fdroid/index/apk/io.legado.app.release)
 
 
@@ -139,11 +135,4 @@ https://gedoor.github.io/Disclaimer
     <img src="https://img.shields.io/badge/-Top-orange.svg" alt="#" align="right">
 </a>
 
-# Interface [![](https://img.shields.io/badge/-Interface-F5F5F5.svg)](#Interface-)
 
-<img src="https://github.com/gedoor/gedoor.github.io/blob/master/static/img/legado/%E9%98%85%E8%AF%BB%E7%AE%80%E4%BB%8B1.jpg" width="270"><img src="https://github.com/gedoor/gedoor.github.io/blob/master/static/img/legado/%E9%98%85%E8%AF%BB%E7%AE%80%E4%BB%8B2.jpg" width="270"><img src="https://github.com/gedoor/gedoor.github.io/blob/master/static/img/legado/%E9%98%85%E8%AF%BB%E7%AE%80%E4%BB%8B3.jpg" width="270">
-<img src="https://github.com/gedoor/gedoor.github.io/blob/master/static/img/legado/%E9%98%85%E8%AF%BB%E7%AE%80%E4%BB%8B4.jpg" width="270"><img src="https://github.com/gedoor/gedoor.github.io/blob/master/static/img/legado/%E9%98%85%E8%AF%BB%E7%AE%80%E4%BB%8B5.jpg" width="270"><img src="https://github.com/gedoor/gedoor.github.io/blob/master/static/img/legado/%E9%98%85%E8%AF%BB%E7%AE%80%E4%BB%8B6.jpg" width="270">
-
-<a href="#readme">
-    <img src="https://img.shields.io/badge/-Top-orange.svg" alt="#" align="right">
-</a>
