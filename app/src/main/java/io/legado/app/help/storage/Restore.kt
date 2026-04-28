@@ -17,7 +17,9 @@ import io.legado.app.data.entities.Bookmark
 import io.legado.app.data.entities.DictRule
 import io.legado.app.data.entities.HttpTTS
 import io.legado.app.data.entities.KeyboardAssist
-import io.legado.app.data.entities.ReadRecord
+import io.legado.app.data.entities.readRecord.ReadRecord
+import io.legado.app.data.entities.readRecord.ReadRecordDetail
+import io.legado.app.data.entities.readRecord.ReadRecordSession
 import io.legado.app.data.entities.ReplaceRule
 import io.legado.app.data.entities.RssSource
 import io.legado.app.data.entities.RssStar
@@ -247,17 +249,27 @@ object Restore {
         // 恢复阅读记录（智能合并）
         fileToListT<ReadRecord>(path, "readRecord.json")?.let {
             it.forEach { readRecord ->
-                // 判断是不是本机记录
                 if (readRecord.deviceId != androidId) {
                     appDb.readRecordDao.insert(readRecord)
                 } else {
-                    // 本机记录：只更新更新的记录
                     val time = appDb.readRecordDao
-                        .getReadTime(readRecord.deviceId, readRecord.bookName)
+                        .getReadTime(readRecord.deviceId, readRecord.bookName, readRecord.bookAuthor)
                     if (time == null || time < readRecord.readTime) {
                         appDb.readRecordDao.insert(readRecord)
                     }
                 }
+            }
+        }
+        
+        fileToListT<ReadRecordDetail>(path, "readRecordDetail.json")?.let {
+            it.forEach { detail ->
+                appDb.readRecordDao.insertDetail(detail)
+            }
+        }
+        
+        fileToListT<ReadRecordSession>(path, "readRecordSession.json")?.let {
+            it.forEach { session ->
+                appDb.readRecordDao.insertSession(session)
             }
         }
 

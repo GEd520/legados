@@ -96,6 +96,9 @@ interface BookDao {
     @Query("SELECT * FROM books WHERE name = :name and author = :author")
     fun getBook(name: String, author: String): Book?
 
+    @Query("SELECT * FROM books WHERE name = :name and author = :author")
+    fun findByNameAndAuthor(name: String, author: String): Flow<Book?>
+
     @Query("""select distinct bs.* from books, book_sources bs 
         where origin == bookSourceUrl and origin not like '${BookType.localTag}%' 
         and origin not like '${BookType.webDavTag}%'""")
