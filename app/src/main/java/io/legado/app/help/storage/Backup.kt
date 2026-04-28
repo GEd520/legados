@@ -47,7 +47,6 @@ import java.util.Locale
 import java.util.concurrent.TimeUnit
 import androidx.core.content.edit
 import io.legado.app.model.VideoPlay.VIDEO_PREF_NAME
-import kotlinx.coroutines.currentCoroutineContext
 
 /**
  * 备份管理类
@@ -94,6 +93,7 @@ object Backup {
     val zipFilePath = "${appCtx.externalFiles.absolutePath}${File.separator}tmp_backup.zip"
 
     private const val TAG = "Backup"
+    private const val READ_BG_DIR = "bg"
 
     /** 互斥锁，防止并发备份操作 */
     private val mutex = Mutex()
@@ -139,7 +139,7 @@ object Backup {
             val file = if (bg.contains(File.separator)) {
                 File(bg)
             } else {
-                appCtx.externalFiles.getFile("bg", bg)
+                appCtx.externalFiles.getFile(READ_BG_DIR, bg)
             }
             LogUtils.d(TAG, "阅读背景文件路径: ${file.absolutePath}, 存在: ${file.exists()}, 是文件: ${file.isFile}")
             file.takeIf { it.exists() && it.isFile }
@@ -183,7 +183,47 @@ object Backup {
         return files.distinctBy { it.absolutePath }
     }
 
+    private fun getReadBackgroundImageFiles(): List<File> {
+        return ReadBookConfig.getAllPicBgStr().mapNotNull { bg ->
+            val file = if (bg.contains(File.separator)) {
+                File(bg)
+            } else {
+                appCtx.externalFiles.getFile(READ_BG_DIR, bg)
+            }
+            file.takeIf { it.exists() && it.isFile }
+        }.distinctBy { it.absolutePath }
+    }
+
+    private fun resolveThemeBackgroundFile(prefKey: String): File? {
+        val path = appCtx.getPrefString(prefKey) ?: return null
+        val file = when {
+            path.startsWith("http") -> {
+                val name = ThemeConfig.getUrlToFile(path)
+                appCtx.externalFiles.getFile(prefKey, name)
+            }
+            path.contains(File.separator) -> File(path)
+            else -> appCtx.externalFiles.getFile(prefKey, path)
+        }
+        return file.takeIf { it.exists() && it.isFile }
+    }
+
+    fun stageBackgroundImageFiles(rootPath: String) {
+        getReadBackgroundImageFiles().forEach { bgFile ->
+            bgFile.copyTo(File(rootPath, bgFile.name), overwrite = true)
+        }
+        listOf(PreferKey.bgImage, PreferKey.bgImageN).forEach { prefKey ->
+            resolveThemeBackgroundFile(prefKey)?.let { bgFile ->
+                val targetDir = File(rootPath, prefKey).createFolderIfNotExist()
+                bgFile.copyTo(File(targetDir, bgFile.name), overwrite = true)
+            }
+        }
+    }
+
     private fun getBackupPaths(): ArrayList<String> {
+        return File(backupPath)
+            .listFiles()
+            ?.mapTo(arrayListOf()) { it.absolutePath }
+            ?: arrayListOf()
         val paths = arrayListOf(*backupFileNames)
         for (i in 0 until paths.size) {
             paths[i] = backupPath + File.separator + paths[i]
@@ -394,6 +434,10 @@ object Backup {
         currentCoroutineContext().ensureActive()
 
         // 打包成ZIP文件
+        stageBackgroundImageFiles(backupPath)
+
+        currentCoroutineContext().ensureActive()
+
         val zipFileName = getNowZipFileName()
         val paths = getBackupPaths()
         FileUtils.delete(zipFilePath)

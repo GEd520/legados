@@ -469,7 +469,10 @@ object Restore {
             bgDir.mkdirs()
         }
         bgNames.forEach { bgName ->
-            File(path, bgName).takeIf { it.exists() && it.isFile }?.copyTo(
+            val backupFile = File(path, "bg${File.separator}$bgName")
+                .takeIf { it.exists() && it.isFile }
+                ?: File(path, bgName).takeIf { it.exists() && it.isFile }
+            backupFile?.copyTo(
                 File(bgDir, bgName),
                 overwrite = true
             )
@@ -524,8 +527,10 @@ object Restore {
         
         // 从备份目录复制文件
         val bgName = File(bgPath).name
-        val backupFile = File(backupPath, bgName)
-        if (backupFile.exists() && backupFile.isFile) {
+        val backupFile = File(backupPath, "$prefKey${File.separator}$bgName")
+            .takeIf { it.exists() && it.isFile }
+            ?: File(backupPath, bgName).takeIf { it.exists() && it.isFile }
+        if (backupFile != null) {
             val targetDir = appCtx.externalFiles.getFile(prefKey)
             if (!targetDir.exists()) {
                 targetDir.mkdirs()
