@@ -12,8 +12,9 @@ import android.view.animation.LinearInterpolator
 import androidx.annotation.ColorInt
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import io.legado.app.lib.theme.accentColor
+import io.legado.app.R
 import io.legado.app.utils.ColorUtils
+import io.legado.app.utils.getCompatColor
 import kotlin.math.max
 import kotlin.math.min
 
@@ -29,10 +30,14 @@ class SourceEditScrollBar @JvmOverloads constructor(
     private val touchAreaWidth = dpToPx(24)
 
     @ColorInt
-    private val scrollBarColor: Int = ColorUtils.adjustAlpha(context.accentColor, 0.6f)
+    private val scrollBarColor: Int = ColorUtils.adjustAlpha(
+        context.getCompatColor(R.color.darker_gray), 0.5f
+    )
 
     @ColorInt
-    private val scrollBarColorPressed: Int = context.accentColor
+    private val scrollBarColorPressed: Int = ColorUtils.adjustAlpha(
+        context.getCompatColor(R.color.darker_gray), 0.8f
+    )
 
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = scrollBarColor
@@ -154,7 +159,8 @@ class SourceEditScrollBar @JvmOverloads constructor(
         val proportion = (y / height).coerceIn(0f, 1f)
         val targetPos = (proportion * (itemCount - 1)).toInt()
 
-        layoutManager.scrollToPositionWithOffset(targetPos, 0)
+        recyclerView.stopScroll()
+        recyclerView.smoothScrollToPosition(targetPos)
     }
 
     private fun updateScrollBarPosition() {
@@ -218,8 +224,8 @@ class SourceEditScrollBar @JvmOverloads constructor(
     private fun hideScrollBar() {
         fadeAnimator?.cancel()
         fadeAnimator = ValueAnimator.ofFloat(currentAlpha, 0f).apply {
-            duration = 300
-            startDelay = 500
+            duration = 500
+            startDelay = 1000
             interpolator = LinearInterpolator()
             addUpdateListener { animator ->
                 currentAlpha = animator.animatedValue as Float
