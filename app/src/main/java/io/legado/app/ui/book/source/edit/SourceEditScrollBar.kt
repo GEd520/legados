@@ -14,8 +14,6 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import io.legado.app.lib.theme.accentColor
 import io.legado.app.utils.ColorUtils
-import kotlin.math.max
-import kotlin.math.min
 
 class SourceEditScrollBar @JvmOverloads constructor(
     context: Context,
@@ -24,7 +22,7 @@ class SourceEditScrollBar @JvmOverloads constructor(
 ) : View(context, attrs, defStyleAttr) {
 
     private val scrollBarWidth = dpToPx(8)
-    private val scrollBarMinHeight = dpToPx(8)
+    private val scrollBarMinHeight = dpToPx(40)
     private val scrollBarMarginEnd = dpToPx(8)
     private val touchAreaWidth = dpToPx(32)
 
@@ -48,9 +46,7 @@ class SourceEditScrollBar @JvmOverloads constructor(
 
     private val scrollListener = object : RecyclerView.OnScrollListener() {
         override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-            if (!isDragging) {
-                updateScrollBarPosition()
-            }
+            updateScrollBarPosition()
         }
 
         override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
@@ -77,6 +73,7 @@ class SourceEditScrollBar @JvmOverloads constructor(
     }
 
     fun detachRecyclerView() {
+        fadeAnimator?.cancel()
         recyclerView?.removeOnScrollListener(scrollListener)
         recyclerView = null
     }
@@ -118,14 +115,12 @@ class SourceEditScrollBar @JvmOverloads constructor(
                 isDragging = true
                 fadeAnimator?.cancel()
                 parent?.requestDisallowInterceptTouchEvent(true)
-                updateScrollBarPositionFromTouch(touchY)
                 scrollToPosition(touchY)
                 invalidate()
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
                 if (isDragging) {
-                    updateScrollBarPositionFromTouch(touchY)
                     scrollToPosition(touchY)
                     return true
                 }
@@ -158,20 +153,6 @@ class SourceEditScrollBar @JvmOverloads constructor(
         layoutManager.scrollToPositionWithOffset(targetPos, 0)
     }
 
-    private fun updateScrollBarPositionFromTouch(y: Float) {
-        var scrollBarHeight = scrollBarRect.height()
-        if (scrollBarHeight <= 0) {
-            scrollBarHeight = scrollBarMinHeight
-            scrollBarRect.bottom = scrollBarRect.top + scrollBarHeight
-        }
-
-        val scrollBarTop = (y - scrollBarHeight / 2).coerceIn(0f, height - scrollBarHeight)
-        scrollBarRect.top = scrollBarTop
-        scrollBarRect.bottom = scrollBarTop + scrollBarHeight
-
-        invalidate()
-    }
-
     private fun updateScrollBarPosition() {
         val recyclerView = recyclerView ?: return
         val layoutManager = recyclerView.layoutManager as? LinearLayoutManager ?: return
@@ -198,10 +179,7 @@ class SourceEditScrollBar @JvmOverloads constructor(
             currentAlpha = 1f
         }
 
-        val scrollBarHeight = max(
-            scrollBarMinHeight.toFloat(),
-            (verticalScrollExtent.toFloat() / verticalScrollRange) * height / 5
-        )
+        val scrollBarHeight = scrollBarMinHeight.toFloat()
 
         val verticalScrollOffset = recyclerView.computeVerticalScrollOffset()
         val maxScroll = verticalScrollRange - verticalScrollExtent
