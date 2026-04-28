@@ -12,6 +12,7 @@ import androidx.lifecycle.lifecycleScope
 import io.legado.app.R
 import io.legado.app.base.VMBaseFragment
 import io.legado.app.constant.AppLog
+import io.legado.app.constant.PreferKey
 import io.legado.app.data.AppDatabase
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.RssSource
@@ -27,20 +28,26 @@ import io.legado.app.ui.rss.favorites.RssFavoritesActivity
 import io.legado.app.ui.rss.read.ReadRssActivity
 import io.legado.app.ui.rss.source.edit.RssSourceEditActivity
 import io.legado.app.ui.rss.source.manage.RssSourceActivity
+import io.legado.app.ui.rss.source.manage.RssSourceSort
 import io.legado.app.ui.rss.subscription.RuleSubActivity
 import io.legado.app.utils.applyTint
+import io.legado.app.utils.cnCompare
 import io.legado.app.utils.flowWithLifecycleAndDatabaseChange
+import io.legado.app.utils.getPrefBoolean
+import io.legado.app.utils.getPrefInt
 import io.legado.app.utils.openUrl
 import io.legado.app.utils.setEdgeEffectColor
 import io.legado.app.utils.showDialogFragment
 import io.legado.app.utils.startActivity
 import io.legado.app.utils.transaction
 import io.legado.app.utils.viewbindingdelegate.viewBinding
+import splitties.init.appCtx
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import io.legado.app.ui.login.SourceLoginActivity
 
@@ -70,6 +77,18 @@ class RssFragment() : VMBaseFragment<RssViewModel>(R.layout.fragment_rss), MainF
     private var rssFlowJob: Job? = null
     private val groups = linkedSetOf<String>()
     private var groupsMenu: SubMenu? = null
+
+    /**
+     * 订阅源排序方式，从 SharedPreferences 读取，与订阅源管理页面同步
+     */
+    private val sort: RssSourceSort
+        get() = RssSourceSort.entries[appCtx.getPrefInt(PreferKey.rssSourceSort, 0)]
+
+    /**
+     * 排序方向，从 SharedPreferences 读取
+     */
+    private val sortAscending: Boolean
+        get() = appCtx.getPrefBoolean(PreferKey.rssSourceSortAscending, true)
 
     override fun onFragmentCreated(view: View, savedInstanceState: Bundle?) {
         setSupportToolbar(binding.titleBar.toolbar)
@@ -167,6 +186,37 @@ class RssFragment() : VMBaseFragment<RssViewModel>(R.layout.fragment_rss), MainF
                 }
 
                 else -> appDb.rssSourceDao.flowEnabled(searchKey)
+            }.map { data ->
+                // 应用排序逻辑，与订阅源管理页面保持一致
+                when (sort) {
+                    RssSourceSort.Name -> {
+                        if (sortAscending) data.sortedWith { o1, o2 ->
+                            o1.sourceName.cnCompare(o2.sourceName)
+                        } else data.sortedWith { o1, o2 ->
+                            o2.sourceName.cnCompare(o1.sourceName)
+                        }
+                    }
+                    RssSourceSort.Url -> {
+                        if (sortAscending) data.sortedBy { it.sourceUrl }
+                        else data.sortedByDescending { it.sourceUrl }
+                    }
+                    RssSourceSort.Update -> {
+                        if (sortAscending) data.sortedBy { it.lastUpdateTime }
+                        else data.sortedByDescending { it.lastUpdateTime }
+                    }
+                    RssSourceSort.Enable -> {
+                        if (sortAscending) data.sortedWith { o1, o2 ->
+                            var sortNum = -o1.enabled.compareTo(o2.enabled)
+                            if (sortNum == 0) sortNum = o1.sourceName.cnCompare(o2.sourceName)
+                            sortNum
+                        } else data.sortedWith { o1, o2 ->
+                            var sortNum = o1.enabled.compareTo(o2.enabled)
+                            if (sortNum == 0) sortNum = o1.sourceName.cnCompare(o2.sourceName)
+                            sortNum
+                        }
+                    }
+                    else -> data // 手动排序时，数据库已按 customOrder 排序
+                }
             }.flowWithLifecycleAndDatabaseChange(
                 viewLifecycleOwner.lifecycle,
                 Lifecycle.State.RESUMED,

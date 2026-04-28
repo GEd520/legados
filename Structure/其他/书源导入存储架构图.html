@@ -1,0 +1,1328 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>书源导入与存储架构流程图 - legado_Plus</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+SC:wght@400;500;700;900&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0a0e17;
+            --bg-secondary: #111827;
+            --bg-card: #1a2332;
+            --bg-card-hover: #1f2b3d;
+            --border-primary: #2d3a4a;
+            --border-accent: #3b82f6;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-blue: #3b82f6;
+            --accent-cyan: #06b6d4;
+            --accent-purple: #8b5cf6;
+            --accent-green: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-pink: #ec4899;
+            --glow-blue: rgba(59, 130, 246, 0.3);
+            --glow-cyan: rgba(6, 182, 212, 0.3);
+            --glow-purple: rgba(139, 92, 246, 0.3);
+        }
+
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'Noto Sans SC', sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .background-grid {
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .background-glow {
+            position: fixed;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            filter: blur(150px);
+            opacity: 0.15;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .glow-1 {
+            top: -200px;
+            left: -200px;
+            background: var(--accent-blue);
+        }
+
+        .glow-2 {
+            bottom: -200px;
+            right: -200px;
+            background: var(--accent-purple);
+        }
+
+        .glow-3 {
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--accent-cyan);
+            opacity: 0.08;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            position: relative;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, var(--accent-blue), var(--accent-cyan), transparent);
+        }
+
+        .header-title {
+            font-size: 28px;
+            font-weight: 900;
+            background: linear-gradient(135deg, #60a5fa, #34d399, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: 2px;
+            margin-top: 15px;
+        }
+
+        .header-subtitle {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-top: 8px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .architecture {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        /* Layer styles */
+        .layer {
+            position: relative;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 16px;
+            border: 1px solid var(--border-primary);
+            background: var(--bg-secondary);
+        }
+
+        .layer::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 16px;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.03), transparent);
+            pointer-events: none;
+        }
+
+        .layer-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-primary);
+        }
+
+        .layer-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .layer-badge.blue {
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: var(--accent-blue);
+        }
+
+        .layer-badge.cyan {
+            background: rgba(6, 182, 212, 0.15);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            color: var(--accent-cyan);
+        }
+
+        .layer-badge.purple {
+            background: rgba(139, 92, 246, 0.15);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            color: var(--accent-purple);
+        }
+
+        .layer-badge.green {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: var(--accent-green);
+        }
+
+        .layer-badge.amber {
+            background: rgba(245, 158, 11, 0.15);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            color: var(--accent-amber);
+        }
+
+        .layer-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .layer-desc {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-left: auto;
+        }
+
+        /* Flow container */
+        .flow-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+            flex-wrap: wrap;
+            padding: 10px 0;
+        }
+
+        /* Node styles */
+        .node {
+            position: relative;
+            padding: 16px 20px;
+            border-radius: 12px;
+            min-width: 200px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .node:hover {
+            transform: translateY(-4px);
+        }
+
+        .node-input {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(6, 182, 212, 0.1));
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .node-input:hover {
+            box-shadow: 0 8px 30px var(--glow-blue);
+        }
+
+        .node-process {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(59, 130, 246, 0.1));
+            border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+
+        .node-process:hover {
+            box-shadow: 0 8px 30px var(--glow-purple);
+        }
+
+        .node-entity {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(6, 182, 212, 0.1));
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .node-entity:hover {
+            box-shadow: 0 8px 30px rgba(16, 185, 129, 0.3);
+        }
+
+        .node-dao {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(236, 72, 153, 0.1));
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .node-dao:hover {
+            box-shadow: 0 8px 30px rgba(245, 158, 11, 0.3);
+        }
+
+        .node-storage {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(245, 158, 11, 0.1));
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .node-storage:hover {
+            box-shadow: 0 8px 30px rgba(239, 68, 68, 0.3);
+        }
+
+        .node-name {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .node-desc {
+            font-size: 11px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .node-icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        /* Arrow styles */
+        .arrow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 12px;
+            color: var(--accent-blue);
+            font-size: 24px;
+            min-width: 50px;
+            position: relative;
+        }
+
+        .arrow-label {
+            position: absolute;
+            top: -20px;
+            font-size: 10px;
+            color: var(--text-muted);
+            white-space: nowrap;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .arrow-down {
+            display: flex;
+            justify-content: center;
+            padding: 10px 0;
+        }
+
+        .arrow-down-inner {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: var(--accent-cyan);
+            font-size: 20px;
+        }
+
+        .arrow-down-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+            margin-bottom: 4px;
+            background: var(--bg-card);
+            padding: 3px 10px;
+            border-radius: 10px;
+            border: 1px solid var(--border-primary);
+        }
+
+        /* Grid layout for nodes */
+        .node-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+        }
+
+        .node-grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .node-grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        .node-grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+
+        /* Code block */
+        .code-block {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: 10px;
+            padding: 14px 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            line-height: 1.7;
+            overflow-x: auto;
+            margin-top: 12px;
+        }
+
+        .code-keyword { color: var(--accent-purple); }
+        .code-string { color: var(--accent-green); }
+        .code-type { color: var(--accent-cyan); }
+        .code-func { color: var(--accent-blue); }
+        .code-comment { color: var(--text-muted); font-style: italic; }
+        .code-annotation { color: var(--accent-amber); }
+
+        /* Detail card */
+        .detail-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            border-radius: 10px;
+            padding: 16px;
+        }
+
+        .detail-card-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--accent-blue);
+            margin-bottom: 10px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .detail-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .detail-list li {
+            padding: 6px 0;
+            font-size: 12px;
+            color: var(--text-secondary);
+            border-bottom: 1px solid rgba(45, 58, 74, 0.5);
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .detail-list li:last-child {
+            border-bottom: none;
+        }
+
+        .detail-list li::before {
+            content: '>';
+            color: var(--accent-cyan);
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+        }
+
+        /* Flow step */
+        .flow-step {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px 16px;
+            background: var(--bg-card);
+            border-radius: 10px;
+            border: 1px solid var(--border-primary);
+            margin-bottom: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .flow-step:hover {
+            border-color: var(--accent-blue);
+            background: var(--bg-card-hover);
+        }
+
+        .step-number {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+            color: white;
+            font-size: 14px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .step-content {
+            flex: 1;
+        }
+
+        .step-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 2px;
+        }
+
+        .step-desc {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .step-code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--accent-cyan);
+            background: rgba(6, 182, 212, 0.1);
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-top: 4px;
+            display: inline-block;
+        }
+
+        /* Conditional branch */
+        .branch-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin: 12px 0;
+        }
+
+        .branch {
+            background: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            border-radius: 10px;
+            padding: 14px;
+            position: relative;
+        }
+
+        .branch-label {
+            position: absolute;
+            top: -10px;
+            left: 12px;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .branch-label.green {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--accent-green);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .branch-label.amber {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--accent-amber);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .branch-label.red {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--accent-red);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .branch-label.blue {
+            background: rgba(59, 130, 246, 0.2);
+            color: var(--accent-blue);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        /* Table */
+        .table-container {
+            overflow-x: auto;
+            margin-top: 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border-primary);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        th {
+            background: rgba(59, 130, 246, 0.1);
+            padding: 10px 14px;
+            text-align: left;
+            font-weight: 700;
+            color: var(--accent-blue);
+            border-bottom: 1px solid var(--border-primary);
+        }
+
+        td {
+            padding: 8px 14px;
+            border-bottom: 1px solid rgba(45, 58, 74, 0.4);
+            color: var(--text-secondary);
+        }
+
+        tr:hover td {
+            background: rgba(59, 130, 246, 0.03);
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .tag-pk { background: rgba(239, 68, 68, 0.2); color: var(--accent-red); }
+        .tag-fk { background: rgba(245, 158, 11, 0.2); color: var(--accent-amber); }
+        .tag-idx { background: rgba(139, 92, 246, 0.2); color: var(--accent-purple); }
+        .tag-converter { background: rgba(6, 182, 212, 0.2); color: var(--accent-cyan); }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .node-grid-4 { grid-template-columns: repeat(2, 1fr); }
+            .node-grid-3 { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 768px) {
+            .node-grid-2, .node-grid-3, .node-grid-4 {
+                grid-template-columns: 1fr;
+            }
+            .branch-container {
+                grid-template-columns: 1fr;
+            }
+            .flow-container {
+                flex-direction: column;
+            }
+            .arrow {
+                transform: rotate(90deg);
+                padding: 12px 0;
+            }
+        }
+
+        /* Animation */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate {
+            animation: fadeInUp 0.6s ease forwards;
+            opacity: 0;
+        }
+
+        .delay-1 { animation-delay: 0.1s; }
+        .delay-2 { animation-delay: 0.2s; }
+        .delay-3 { animation-delay: 0.3s; }
+        .delay-4 { animation-delay: 0.4s; }
+        .delay-5 { animation-delay: 0.5s; }
+        .delay-6 { animation-delay: 0.6s; }
+        .delay-7 { animation-delay: 0.7s; }
+        .delay-8 { animation-delay: 0.8s; }
+
+        /* Connector line */
+        .connector {
+            width: 2px;
+            height: 30px;
+            background: linear-gradient(to bottom, var(--accent-blue), var(--accent-cyan));
+            margin: 0 auto;
+        }
+
+        .connector-label {
+            text-align: center;
+            font-size: 10px;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+            padding: 4px 0;
+        }
+
+        /* Entity detail */
+        .entity-detail {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 900px) {
+            .entity-detail {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .highlight {
+            color: var(--accent-cyan);
+            font-weight: 600;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 30px 0 20px;
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+
+        .footer .mono {
+            color: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+    <div class="background-grid"></div>
+    <div class="background-glow glow-1"></div>
+    <div class="background-glow glow-2"></div>
+    <div class="background-glow glow-3"></div>
+
+    <div class="container">
+        <!-- Header -->
+        <header class="header animate">
+            <div class="header-title">书源导入与存储架构流程图</div>
+            <div class="header-subtitle">Book Source Import & Storage Architecture — legado_Plus</div>
+        </header>
+
+        <!-- Main Architecture Flow -->
+        <div class="architecture">
+
+            <!-- LAYER 1: User Input -->
+            <div class="layer animate delay-1">
+                <div class="layer-header">
+                    <div class="layer-badge blue">LAYER 1</div>
+                    <div class="layer-title">输入层 — 用户输入书源数据</div>
+                    <div class="layer-desc">4 种输入格式</div>
+                </div>
+                <div class="flow-container">
+                    <div class="node node-input">
+                        <div class="node-icon">📋</div>
+                        <div class="node-name">JSON 对象</div>
+                        <div class="node-desc">单个书源 JSON<br/><span class="mono" style="color:var(--accent-cyan)">{"bookSourceUrl":"..."}</span></div>
+                    </div>
+                    <div class="arrow">
+                        <span class="arrow-label">isJsonObject()</span>
+                        →
+                    </div>
+                    <div class="node node-input">
+                        <div class="node-icon">📚</div>
+                        <div class="node-name">JSON 数组</div>
+                        <div class="node-desc">批量书源 JSON 数组<br/><span class="mono" style="color:var(--accent-cyan)">[{...}, {...}]</span></div>
+                    </div>
+                    <div class="arrow">
+                        <span class="arrow-label">isJsonArray()</span>
+                        →
+                    </div>
+                    <div class="node node-input">
+                        <div class="node-icon">🔗</div>
+                        <div class="node-name">远程 URL</div>
+                        <div class="node-desc">在线书源订阅地址<br/><span class="mono" style="color:var(--accent-cyan)">https://...</span></div>
+                    </div>
+                    <div class="arrow">
+                        <span class="arrow-label">isAbsUrl()</span>
+                        →
+                    </div>
+                    <div class="node node-input">
+                        <div class="node-icon">📁</div>
+                        <div class="node-name">本地 Uri</div>
+                        <div class="node-desc">本地文件 URI 路径<br/><span class="mono" style="color:var(--accent-cyan)">content://...</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Arrow down to Layer 2 -->
+            <div class="arrow-down animate delay-2">
+                <div class="arrow-down-inner">
+                    <div class="arrow-down-label">importSource(text: String)</div>
+                    ▼
+                </div>
+            </div>
+
+            <!-- LAYER 2: ViewModel Processing -->
+            <div class="layer animate delay-2">
+                <div class="layer-header">
+                    <div class="layer-badge cyan">LAYER 2</div>
+                    <div class="layer-title">ViewModel 层 — 导入逻辑处理</div>
+                    <div class="layer-desc">ImportBookSourceViewModel.kt</div>
+                </div>
+
+                <!-- Flow steps -->
+                <div class="flow-step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <div class="step-title">格式识别与路由</div>
+                        <div class="step-desc">通过扩展函数判断输入类型：isJsonObject / isJsonArray / isAbsUrl / isUri</div>
+                    </div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <div class="step-title">数据获取</div>
+                        <div class="step-desc">URL类型发起HTTP请求 (okHttpClient.newCallResponseBody)，Uri类型读取InputStream，JSON直接解析</div>
+                        <div class="step-code">okHttpClient.newCallResponseBody { url(url) }.decompressed().byteStream()</div>
+                    </div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <div class="step-title">GSON 解析</div>
+                        <div class="step-desc">将JSON字符串/InputStream反序列化为 BookSource 对象列表</div>
+                        <div class="step-code">GSON.fromJsonObject&lt;BookSource&gt;(mText) / GSON.fromJsonArray&lt;BookSource&gt;(inputStream)</div>
+                    </div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <div class="step-title">数据验证</div>
+                        <div class="step-desc">校验 bookSourceUrl 是否为空，无效则抛出 NoStackTraceException</div>
+                        <div class="step-code">if (it.bookSourceUrl.isEmpty()) throw NoStackTraceException("不是书源")</div>
+                    </div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="step-number">5</div>
+                    <div class="step-content">
+                        <div class="step-title">缓存到内存</div>
+                        <div class="step-desc">解析成功的 BookSource 对象存入 allSources 列表，等待用户选择</div>
+                        <div class="step-code">allSources.add(it) / allSources.addAll(items)</div>
+                    </div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="step-number">6</div>
+                    <div class="step-content">
+                        <div class="step-title">对比数据库</div>
+                        <div class="step-desc">遍历 allSources，查询数据库判断是否已存在，标记新增/更新状态</div>
+                        <div class="step-code">appDb.bookSourceDao.getBookSourcePart(it.bookSourceUrl)</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Arrow down to Layer 3 -->
+            <div class="arrow-down animate delay-3">
+                <div class="arrow-down-inner">
+                    <div class="arrow-down-label">importSelect() → 用户确认后</div>
+                    ▼
+                </div>
+            </div>
+
+            <!-- LAYER 3: SourceHelp Validation -->
+            <div class="layer animate delay-3">
+                <div class="layer-header">
+                    <div class="layer-badge purple">LAYER 3</div>
+                    <div class="layer-title">辅助层 — 安全校验与数据准备</div>
+                    <div class="layer-desc">SourceHelp.kt + AppConfig</div>
+                </div>
+
+                <div class="branch-container">
+                    <div class="branch">
+                        <div class="branch-label blue">用户选择处理</div>
+                        <ul class="detail-list">
+                            <li>遍历 selectStatus 获取选中书源</li>
+                            <li>应用保留配置: importKeepName/Group/Enable</li>
+                            <li>处理分组: isAddGroup 追加或替换</li>
+                            <li>更新 customOrder 排序</li>
+                        </ul>
+                    </div>
+                    <div class="branch">
+                        <div class="branch-label green">安全检查</div>
+                        <ul class="detail-list">
+                            <li>is18Plus() 检查网址是否含成人内容</li>
+                            <li>18+ 网址弹出Toast并跳过</li>
+                            <li>仅合法书源传入 DAO insert</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="code-block">
+<span class="code-keyword">fun</span> <span class="code-func">insertBookSource</span>(<span class="code-keyword">vararg</span> bookSources: <span class="code-type">BookSource</span>) {
+    <span class="code-keyword">val</span> bookSourcesGroup = bookSources.<span class="code-func">groupBy</span> { <span class="code-func">is18Plus</span>(it.bookSourceUrl) }
+    bookSourcesGroup[<span class="code-keyword">true</span>]?.<span class="code-func">forEach</span> {
+        appCtx.<span class="code-func">toastOnUi</span>(<span class="code-string">"${it.bookSourceName}是18+网址,禁止导入."</span>)
+    }
+    bookSourcesGroup[<span class="code-keyword">false</span>]?.<span class="code-func">let</span> {
+        appDb.bookSourceDao.<span class="code-func">insert</span>(*it.<span class="code-func">toTypedArray</span>())
+    }
+    Coroutine.<span class="code-func">async</span> { <span class="code-func">adjustSortNumber</span>() }
+}
+                </div>
+            </div>
+
+            <!-- Arrow down to Layer 4 -->
+            <div class="arrow-down animate delay-4">
+                <div class="arrow-down-inner">
+                    <div class="arrow-down-label">appDb.bookSourceDao.insert(*BookSource)</div>
+                    ▼
+                </div>
+            </div>
+
+            <!-- LAYER 4: Entity + TypeConverters -->
+            <div class="layer animate delay-4">
+                <div class="layer-header">
+                    <div class="layer-badge green">LAYER 4</div>
+                    <div class="layer-title">实体层 — BookSource Entity & TypeConverters</div>
+                    <div class="layer-desc">BookSource.kt</div>
+                </div>
+
+                <div class="entity-detail">
+                    <!-- Entity annotation info -->
+                    <div class="detail-card">
+                        <div class="detail-card-title">@Entity 注解配置</div>
+                        <ul class="detail-list">
+                            <li><span class="mono">@Entity(tableName = "book_sources")</span></li>
+                            <li><span class="mono">@TypeConverters(BookSource.Converters::class)</span></li>
+                            <li><span class="mono">indices = [Index(value = ["bookSourceUrl"])]</span></li>
+                            <li><span class="mono">@Parcelize</span> — 支持Parcelable传输</li>
+                        </ul>
+                    </div>
+
+                    <!-- TypeConverters -->
+                    <div class="detail-card">
+                        <div class="detail-card-title">TypeConverters (GSON序列化)</div>
+                        <ul class="detail-list">
+                            <li><span class="tag tag-converter">Converter</span> ExploreRule ↔ JSON String</li>
+                            <li><span class="tag tag-converter">Converter</span> SearchRule ↔ JSON String</li>
+                            <li><span class="tag tag-converter">Converter</span> BookInfoRule ↔ JSON String</li>
+                            <li><span class="tag tag-converter">Converter</span> TocRule ↔ JSON String</li>
+                            <li><span class="tag tag-converter">Converter</span> ContentRule ↔ JSON String</li>
+                            <li><span class="tag tag-converter">Converter</span> ReviewRule → "null" (未实现)</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- BookSource fields table -->
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>字段名</th>
+                                <th>类型</th>
+                                <th>说明</th>
+                                <th>注解</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="mono">bookSourceUrl</td>
+                                <td>String</td>
+                                <td>主键，书源地址</td>
+                                <td><span class="tag tag-pk">PrimaryKey</span></td>
+                            </tr>
+                            <tr>
+                                <td class="mono">bookSourceName</td>
+                                <td>String</td>
+                                <td>书源名称</td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td class="mono">bookSourceGroup</td>
+                                <td>String?</td>
+                                <td>分组(逗号分隔)</td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td class="mono">bookSourceType</td>
+                                <td>Int</td>
+                                <td>类型:0文本/1音频/2图片/3文件/4视频</td>
+                                <td><span class="tag">@BookSourceType.Type</span></td>
+                            </tr>
+                            <tr>
+                                <td class="mono">customOrder</td>
+                                <td>Int</td>
+                                <td>手动排序编号</td>
+                                <td><span class="tag">@ColumnInfo(defaultValue="0")</span></td>
+                            </tr>
+                            <tr>
+                                <td class="mono">enabled</td>
+                                <td>Boolean</td>
+                                <td>是否启用</td>
+                                <td><span class="tag">@ColumnInfo(defaultValue="1")</span></td>
+                            </tr>
+                            <tr>
+                                <td class="mono">enabledExplore</td>
+                                <td>Boolean</td>
+                                <td>启用发现</td>
+                                <td><span class="tag">@ColumnInfo(defaultValue="1")</span></td>
+                            </tr>
+                            <tr>
+                                <td class="mono">lastUpdateTime</td>
+                                <td>Long</td>
+                                <td>最后更新时间</td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td class="mono">ruleSearch</td>
+                                <td>SearchRule?</td>
+                                <td>搜索规则</td>
+                                <td><span class="tag tag-converter">TypeConverter</span></td>
+                            </tr>
+                            <tr>
+                                <td class="mono">ruleExplore</td>
+                                <td>ExploreRule?</td>
+                                <td>发现规则</td>
+                                <td><span class="tag tag-converter">TypeConverter</span></td>
+                            </tr>
+                            <tr>
+                                <td class="mono">ruleBookInfo</td>
+                                <td>BookInfoRule?</td>
+                                <td>书籍信息规则</td>
+                                <td><span class="tag tag-converter">TypeConverter</span></td>
+                            </tr>
+                            <tr>
+                                <td class="mono">ruleToc</td>
+                                <td>TocRule?</td>
+                                <td>目录规则</td>
+                                <td><span class="tag tag-converter">TypeConverter</span></td>
+                            </tr>
+                            <tr>
+                                <td class="mono">ruleContent</td>
+                                <td>ContentRule?</td>
+                                <td>正文规则</td>
+                                <td><span class="tag tag-converter">TypeConverter</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Arrow down to Layer 5 -->
+            <div class="arrow-down animate delay-5">
+                <div class="arrow-down-inner">
+                    <div class="arrow-down-label">@Insert(onConflict = REPLACE)</div>
+                    ▼
+                </div>
+            </div>
+
+            <!-- LAYER 5: DAO Layer -->
+            <div class="layer animate delay-5">
+                <div class="layer-header">
+                    <div class="layer-badge amber">LAYER 5</div>
+                    <div class="layer-title">DAO 层 — BookSourceDao 数据访问接口</div>
+                    <div class="layer-desc">BookSourceDao.kt</div>
+                </div>
+
+                <div class="branch-container">
+                    <div class="branch">
+                        <div class="branch-label green">写入操作</div>
+                        <ul class="detail-list">
+                            <li><span class="mono">@Insert(OnConflictStrategy.REPLACE)</span></li>
+                            <li><span class="mono">fun insert(vararg bookSource: BookSource)</span></li>
+                            <li>冲突时自动 REPLACE (根据主键)</li>
+                        </ul>
+                    </div>
+                    <div class="branch">
+                        <div class="branch-label amber">更新操作</div>
+                        <ul class="detail-list">
+                            <li><span class="mono">@Update</span> — 更新已有记录</li>
+                            <li><span class="mono">@Delete</span> — 删除记录</li>
+                            <li><span class="mono">@Query("delete from book_sources where...")</span></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="branch-container" style="margin-top:12px">
+                    <div class="branch">
+                        <div class="branch-label blue">查询操作 (Flow响应式)</div>
+                        <ul class="detail-list">
+                            <li><span class="mono">flowAll()</span> — 流式查询全部</li>
+                            <li><span class="mono">flowSearch(key)</span> — 关键词搜索</li>
+                            <li><span class="mono">flowEnabled()</span> — 仅启用的</li>
+                            <li><span class="mono">flowExplore()</span> — 发现源列表</li>
+                            <li><span class="mono">flowGroups()</span> — 分组列表</li>
+                        </ul>
+                    </div>
+                    <div class="branch">
+                        <div class="branch-label green">便捷操作</div>
+                        <ul class="detail-list">
+                            <li><span class="mono">getBookSourcePart(key)</span> — 获取轻量视图</li>
+                            <li><span class="mono">has(key)</span> — 是否存在</li>
+                            <li><span class="mono">enable(url, enable)</span> — 启用/禁用</li>
+                            <li><span class="mono">upOrder()</span> — 更新排序</li>
+                            <li><span class="mono">upGroup()</span> — 更新分组</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="code-block">
+<span class="code-annotation">@Dao</span>
+<span class="code-keyword">interface</span> <span class="code-type">BookSourceDao</span> {
+
+    <span class="code-comment">// 插入: 主键冲突时替换</span>
+    <span class="code-annotation">@Insert</span>(onConflict = <span class="code-type">OnConflictStrategy</span>.<span class="code-type">REPLACE</span>)
+    <span class="code-keyword">fun</span> <span class="code-func">insert</span>(<span class="code-keyword">vararg</span> bookSource: <span class="code-type">BookSource</span>)
+
+    <span class="code-comment">// 查询: 通过主键获取轻量视图</span>
+    <span class="code-annotation">@Query</span>(<span class="code-string">"select * from book_sources_part where bookSourceUrl = :key"</span>)
+    <span class="code-keyword">fun</span> <span class="code-func">getBookSourcePart</span>(key: <span class="code-type">String</span>): <span class="code-type">BookSourcePart</span>?
+
+    <span class="code-comment">// 判断是否存在</span>
+    <span class="code-annotation">@Query</span>(<span class="code-string">"SELECT EXISTS(select 1 from book_sources where bookSourceUrl = :key)"</span>)
+    <span class="code-keyword">fun</span> <span class="code-func">has</span>(key: <span class="code-type">String</span>): <span class="code-type">Boolean</span>
+}
+                </div>
+            </div>
+
+            <!-- Arrow down to Layer 6 -->
+            <div class="arrow-down animate delay-6">
+                <div class="arrow-down-inner">
+                    <div class="arrow-down-label">Room → SQLite 映射</div>
+                    ▼
+                </div>
+            </div>
+
+            <!-- LAYER 6: Room Database -->
+            <div class="layer animate delay-6">
+                <div class="layer-header">
+                    <div class="layer-badge blue">LAYER 6</div>
+                    <div class="layer-title">数据库层 — AppDatabase (Room)</div>
+                    <div class="layer-desc">AppDatabase.kt — legado_plus.db (version 91)</div>
+                </div>
+
+                <div class="entity-detail">
+                    <div class="detail-card">
+                        <div class="detail-card-title">数据库配置</div>
+                        <ul class="detail-list">
+                            <li>DATABASE_NAME = <span class="mono">"legado_plus.db"</span></li>
+                            <li>Version: <span class="mono">91</span></li>
+                            <li>Entities: 21 张表</li>
+                            <li>Views: <span class="mono">BookSourcePart</span> (轻量视图)</li>
+                            <li>AutoMigration: 43→91 (48次自动迁移)</li>
+                            <li><span class="mono">fallbackToDestructiveMigration()</span></li>
+                            <li>DB Callback: onCreate/onOpen 初始化</li>
+                        </ul>
+                    </div>
+
+                    <div class="detail-card">
+                        <div class="detail-card-title">SQLite 表结构 (book_sources)</div>
+                        <ul class="detail-list">
+                            <li><span class="tag tag-pk">PK</span> bookSourceUrl TEXT NOT NULL</li>
+                            <li>bookSourceName TEXT NOT NULL</li>
+                            <li>bookSourceGroup TEXT</li>
+                            <li>bookSourceType INTEGER NOT NULL</li>
+                            <li>customOrder INTEGER NOT NULL DEFAULT 0</li>
+                            <li>enabled INTEGER NOT NULL DEFAULT 1</li>
+                            <li>enabledExplore INTEGER NOT NULL DEFAULT 1</li>
+                            <li>lastUpdateTime INTEGER</li>
+                            <li>respondTime INTEGER</li>
+                            <li>ruleSearch TEXT (JSON)</li>
+                            <li>ruleExplore TEXT (JSON)</li>
+                            <li>ruleBookInfo TEXT (JSON)</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="code-block">
+<span class="code-annotation">@Database</span>(
+    version = <span class="code-type">91</span>,
+    exportSchema = <span class="code-keyword">true</span>,
+    entities = [<span class="code-type">Book</span>::<span class="code-keyword">class</span>, <span class="code-type">BookGroup</span>::<span class="code-keyword">class</span>, <span class="code-type">BookSource</span>::<span class="code-keyword">class</span>, ...],
+    views = [<span class="code-type">BookSourcePart</span>::<span class="code-keyword">class</span>],
+    autoMigrations = [
+        <span class="code-type">AutoMigration</span>(from = <span class="code-type">43</span>, to = <span class="code-type">44</span>),
+        <span class="code-comment">// ... 48次自动迁移 (43→91)</span>
+        <span class="code-type">AutoMigration</span>(from = <span class="code-type">90</span>, to = <span class="code-type">91</span>)
+    ]
+)
+<span class="code-keyword">abstract class</span> <span class="code-type">AppDatabase</span> : <span class="code-type">RoomDatabase</span>() {
+    <span class="code-keyword">abstract val</span> bookSourceDao: <span class="code-type">BookSourceDao</span>
+    <span class="code-comment">// ... 20 个 DAO</span>
+}
+
+<span class="code-comment">// 初始化</span>
+<span class="code-keyword">val</span> appDb <span class="code-keyword">by lazy</span> {
+    <span class="code-type">Room</span>.<span class="code-func">databaseBuilder</span>(appCtx, <span class="code-type">AppDatabase</span>::<span class="code-keyword">class</span>.java, <span class="code-string">"legado_plus.db"</span>)
+        .<span class="code-func">fallbackToDestructiveMigration</span>()
+        .<span class="code-func">addMigrations</span>(*<span class="code-type">DatabaseMigrations</span>.migrations)
+        .<span class="code-func">addCallback</span>(<span class="code-type">AppDatabase</span>.dbCallback)
+        .<span class="code-func">build</span>()
+}
+                </div>
+            </div>
+
+            <!-- Arrow down to Layer 7 -->
+            <div class="arrow-down animate delay-7">
+                <div class="arrow-down-inner">
+                    <div class="arrow-down-label">SQLite JDBC → 文件系统</div>
+                    ▼
+                </div>
+            </div>
+
+            <!-- LAYER 7: SQLite Storage -->
+            <div class="layer animate delay-7">
+                <div class="layer-header">
+                    <div class="layer-badge green">LAYER 7</div>
+                    <div class="layer-title">存储层 — SQLite 数据库文件</div>
+                    <div class="layer-desc">持久化到设备文件系统</div>
+                </div>
+
+                <div class="flow-container">
+                    <div class="node node-storage">
+                        <div class="node-icon">🗄️</div>
+                        <div class="node-name">SQLite 引擎</div>
+                        <div class="node-desc">Room 底层 ORM 映射到 SQLite<br/>INSERT OR REPLACE INTO book_sources</div>
+                    </div>
+                    <div class="arrow">→</div>
+                    <div class="node node-storage">
+                        <div class="node-icon">📄</div>
+                        <div class="node-name">数据库文件</div>
+                        <div class="node-desc"><span class="mono" style="color:var(--accent-cyan)">/data/data/io.legado.app/databases/</span><br/>legado_plus.db</div>
+                    </div>
+                    <div class="arrow">→</div>
+                    <div class="node node-storage">
+                        <div class="node-icon">📊</div>
+                        <div class="node-name">book_sources 表</div>
+                        <div class="node-desc">完整的书源配置数据持久化存储</div>
+                    </div>
+                </div>
+
+                <div class="branch-container" style="margin-top:16px">
+                    <div class="branch">
+                        <div class="branch-label green">View: book_sources_part</div>
+                        <div style="font-size:11px; color:var(--text-secondary); line-height:1.6; margin-top:8px">
+                            轻量视图，仅包含展示字段，用于列表查询优化，避免加载大JSON规则字段：
+                        </div>
+                        <div class="code-block" style="margin-top:8px; font-size:11px">
+<span class="code-keyword">CREATE VIEW</span> book_sources_part <span class="code-keyword">AS</span>
+<span class="code-keyword">select</span> bookSourceUrl, bookSourceName,
+    bookSourceGroup, customOrder, enabled,
+    enabledExplore, hasLoginUrl, lastUpdateTime,
+    respondTime, weight, hasExploreUrl,
+    eventListener, bookSourceType
+<span class="code-keyword">from</span> book_sources
+                        </div>
+                    </div>
+                    <div class="branch">
+                        <div class="branch-label blue">冲突处理策略</div>
+                        <div style="font-size:11px; color:var(--text-secondary); line-height:1.6; margin-top:8px">
+                            当插入的 <span class="mono">bookSourceUrl</span> 已存在时：
+                        </div>
+                        <ul class="detail-list" style="margin-top:8px">
+                            <li>OnConflictStrategy.REPLACE</li>
+                            <li>DELETE 旧记录 + INSERT 新记录</li>
+                            <li>保证主键唯一性</li>
+                            <li>新数据完全覆盖旧数据</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Complete Flow Summary -->
+        <div class="layer animate delay-8" style="margin-top:30px">
+            <div class="layer-header">
+                <div class="layer-badge blue">完整流程</div>
+                <div class="layer-title">端到端数据流总览</div>
+            </div>
+
+            <div style="overflow-x:auto">
+                <div class="flow-container" style="min-width: 1200px; padding: 15px 0;">
+                    <div class="node node-input" style="min-width:160px; padding:12px 14px;">
+                        <div class="node-name" style="font-size:12px">📋 JSON输入</div>
+                        <div class="node-desc" style="font-size:10px">对象/数组/URL/Uri</div>
+                    </div>
+                    <div class="arrow" style="min-width:40px; font-size:18px">→</div>
+                    <div class="node node-input" style="min-width:160px; padding:12px 14px;">
+                        <div class="node-name" style="font-size:12px">🔍 格式识别</div>
+                        <div class="node-desc" style="font-size:10px">isJsonObject/Array/Url/Uri</div>
+                    </div>
+                    <div class="arrow" style="min-width:40px; font-size:18px">→</div>
+                    <div class="node node-process" style="min-width:160px; padding:12px 14px;">
+                        <div class="node-name" style="font-size:12px">🌐 数据获取</div>
+                        <div class="node-desc" style="font-size:10px">HTTP请求/文件读取</div>
+                    </div>
+                    <div class="arrow" style="min-width:40px; font-size:18px">→</div>
+                    <div class="node node-process" style="min-width:160px; padding:12px 14px;">
+                        <div class="node-name" style="font-size:12px">🔧 GSON解析</div>
+                        <div class="node-desc" style="font-size:10px">fromJsonObject/Array</div>
+                    </div>
+                    <div class="arrow" style="min-width:40px; font-size:18px">→</div>
+                    <div class="node node-entity" style="min-width:160px; padding:12px 14px;">
+                        <div class="node-name" style="font-size:12px">📦 BookSource</div>
+                        <div class="node-desc" style="font-size:10px">实体对象列表</div>
+                    </div>
+                    <div class="arrow" style="min-width:40px; font-size:18px">→</div>
+                    <div class="node node-process" style="min-width:160px; padding:12px 14px;">
+                        <div class="node-name" style="font-size:12px">🛡️ 安全检查</div>
+                        <div class="node-desc" style="font-size:10px">18+过滤 + 用户选择</div>
+                    </div>
+                    <div class="arrow" style="min-width:40px; font-size:18px">→</div>
+                    <div class="node node-dao" style="min-width:160px; padding:12px 14px;">
+                        <div class="node-name" style="font-size:12px">🗂️ BookSourceDao</div>
+                        <div class="node-desc" style="font-size:10px">@Insert(REPLACE)</div>
+                    </div>
+                    <div class="arrow" style="min-width:40px; font-size:18px">→</div>
+                    <div class="node node-dao" style="min-width:160px; padding:12px 14px;">
+                        <div class="node-name" style="font-size:12px">🔄 TypeConverters</div>
+                        <div class="node-desc" style="font-size:10px">规则对象↔JSON</div>
+                    </div>
+                    <div class="arrow" style="min-width:40px; font-size:18px">→</div>
+                    <div class="node node-storage" style="min-width:160px; padding:12px 14px;">
+                        <div class="node-name" style="font-size:12px">🗄️ Room → SQLite</div>
+                        <div class="node-desc" style="font-size:10px">legado_plus.db</div>
+                    </div>
+                    <div class="arrow" style="min-width:40px; font-size:18px">→</div>
+                    <div class="node node-storage" style="min-width:160px; padding:12px 14px;">
+                        <div class="node-name" style="font-size:12px">💾 book_sources表</div>
+                        <div class="node-desc" style="font-size:10px">持久化存储完成</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div>legado_Plus 书源导入架构 | <span class="mono">ImportBookSourceViewModel → GSON → BookSource → TypeConverters → BookSourceDao → AppDatabase → SQLite</span></div>
+        </footer>
+    </div>
+
+    <script>
+        // Intersection Observer for scroll animations
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, { threshold: 0.1 });
+
+        document.querySelectorAll('.layer, .flow-step, .branch').forEach(el => {
+            observer.observe(el);
+        });
+
+        // Node hover interactions
+        document.querySelectorAll('.node').forEach(node => {
+            node.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-4px) scale(1.02)';
+            });
+            node.addEventListener('mouseleave', function() {
+                this.style.transform = '';
+            });
+        });
+    </script>
+</body>
+</html>

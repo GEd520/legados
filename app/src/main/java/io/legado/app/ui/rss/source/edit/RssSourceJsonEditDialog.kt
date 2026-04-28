@@ -1,7 +1,5 @@
-package io.legado.app.ui.book.read
+package io.legado.app.ui.rss.source.edit
 
-import android.app.Application
-import android.content.DialogInterface
 import android.os.Bundle
 import android.text.Spannable
 import android.text.SpannableString
@@ -11,44 +9,29 @@ import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import androidx.core.view.isVisible
 import androidx.core.widget.addTextChangedListener
-import androidx.fragment.app.viewModels
-import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.lifecycleScope
+import com.google.gson.Gson
+import com.google.gson.JsonParser
 import io.legado.app.R
 import io.legado.app.base.BaseDialogFragment
-import io.legado.app.base.BaseViewModel
-import io.legado.app.data.appDb
-import io.legado.app.data.entities.BookChapter
 import io.legado.app.databinding.DialogContentEditBinding
-import io.legado.app.databinding.DialogEditTextBinding
-import io.legado.app.help.book.BookHelp
-import io.legado.app.help.book.ContentProcessor
-import io.legado.app.help.book.isLocal
-import io.legado.app.help.coroutine.Coroutine
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.theme.primaryColor
-import io.legado.app.model.ReadBook
-import io.legado.app.model.webBook.WebBook
 import io.legado.app.utils.applyTint
-import io.legado.app.utils.sendToClip
 import io.legado.app.utils.setLayout
 import io.legado.app.utils.viewbindingdelegate.viewBinding
-import kotlinx.coroutines.Dispatchers.IO
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
-/**
- * 内容编辑
- */
-class ContentEditDialog : BaseDialogFragment(R.layout.dialog_content_edit) {
+class RssSourceJsonEditDialog(
+    private val sourceJson: String,
+    private val onSave: (String) -> Unit
+) : BaseDialogFragment(R.layout.dialog_content_edit) {
 
     val binding by viewBinding(DialogContentEditBinding::bind)
-    val viewModel by viewModels<ContentEditViewModel>()
 
     private var searchKeyword: String = ""
     private var currentIndex: Int = -1
     private var matchPositions: MutableList<Int> = mutableListOf()
     private var originalContent: SpannableString? = null
+    private var formattedJson: String = ""
 
     override fun onStart() {
         super.onStart()
@@ -57,34 +40,21 @@ class ContentEditDialog : BaseDialogFragment(R.layout.dialog_content_edit) {
 
     override fun onFragmentCreated(view: View, savedInstanceState: Bundle?) {
         binding.toolBar.setBackgroundColor(primaryColor)
-        binding.toolBar.title = ReadBook.curTextChapter?.title
+        binding.toolBar.title = getString(R.string.edit_content)
         initMenu()
-        binding.toolBar.setOnClickListener {
-            lifecycleScope.launch {
-                val book = ReadBook.book ?: return@launch
-                val chapter = withContext(IO) {
-                    appDb.bookChapterDao.getChapter(book.bookUrl, ReadBook.durChapterIndex)
-                } ?: return@launch
-                editTitle(chapter)
-            }
+        initSearchPanel()
+        loadJson()
+    }
+
+    private fun loadJson() {
+        formattedJson = try {
+            val jsonElement = JsonParser.parseString(sourceJson)
+            Gson().toJson(jsonElement)
+        } catch (e: Exception) {
+            sourceJson
         }
-        viewModel.loadStateLiveData.observe(viewLifecycleOwner) {
-            if (it) {
-                binding.rlLoading.visible()
-            } else {
-                binding.rlLoading.gone()
-            }
-        }
-        viewModel.initContent {
-            binding.contentView.setText(it)
-            binding.contentView.post {
-                binding.contentView.apply {
-                    val lineIndex = layout.getLineForOffset(ReadBook.durChapterPos)
-                    val lineHeight = layout.getLineTop(lineIndex)
-                    scrollTo(0, lineHeight)
-                }
-            }
-        }
+        binding.contentView.setText(formattedJson)
+        originalContent = SpannableString(formattedJson)
     }
 
     private fun initMenu() {
@@ -94,20 +64,35 @@ class ContentEditDialog : BaseDialogFragment(R.layout.dialog_content_edit) {
             when (it.itemId) {
                 R.id.menu_search -> toggleSearchPanel()
                 R.id.menu_save -> {
-                    save()
-                    dismiss()
+                    val content = binding.contentView.text?.toString()
+                        ?: return@setOnMenuItemClickListener true
+                    try {
+                        JsonParser.parseString(content)
+                        onSave(content)
+                        dismiss()
+                    } catch (e: Exception) {
+                        alert(R.string.error) {
+                            setMessage("${getString(R.string.json_format)}\n${e.message}")
+                            positiveButton(R.string.confirm)
+                        }
+                    }
                 }
-                R.id.menu_reset -> viewModel.initContent(true) { content ->
-                    binding.contentView.setText(content)
-                    originalContent = null
-                    ReadBook.loadContent(ReadBook.durChapterIndex, resetPageOffset = false)
+                R.id.menu_reset -> {
+                    loadJson()
                 }
-                R.id.menu_copy_all -> requireContext()
-                    .sendToClip("${binding.toolBar.title}\n${binding.contentView.text}")
+                R.id.menu_copy_all -> {
+                    android.content.ClipboardManager::class.java.let { _ ->
+                        val text = binding.contentView.text?.toString() ?: ""
+                        val clipboard = requireContext()
+                            .getSystemService(android.content.Context.CLIPBOARD_SERVICE)
+                            as android.content.ClipboardManager
+                        val clip = android.content.ClipData.newPlainText("json", text)
+                        clipboard.setPrimaryClip(clip)
+                    }
+                }
             }
             return@setOnMenuItemClickListener true
         }
-        initSearchPanel()
     }
 
     private fun toggleSearchPanel() {
@@ -234,76 +219,4 @@ class ContentEditDialog : BaseDialogFragment(R.layout.dialog_content_edit) {
             binding.tvSearchResult.text = "${currentIndex + 1}/${matchPositions.size}"
         }
     }
-
-    private fun editTitle(chapter: BookChapter) {
-        alert {
-            setTitle(R.string.edit)
-            val alertBinding = DialogEditTextBinding.inflate(layoutInflater)
-            alertBinding.editView.setText(chapter.title)
-            setCustomView(alertBinding.root)
-            okButton {
-                chapter.title = alertBinding.editView.text.toString()
-                lifecycleScope.launch {
-                    withContext(IO) {
-                        chapter.update()
-                    }
-                    binding.toolBar.title = chapter.getDisplayTitle()
-                    ReadBook.loadContent(ReadBook.durChapterIndex, resetPageOffset = false)
-                }
-            }
-        }
-    }
-
-    override fun onCancel(dialog: DialogInterface) {
-        super.onCancel(dialog)
-        save()
-    }
-
-    private fun save() {
-        val content = binding.contentView.text?.toString() ?: return
-        Coroutine.async {
-            val book = ReadBook.book ?: return@async
-            val chapter = appDb.bookChapterDao
-                .getChapter(book.bookUrl, ReadBook.durChapterIndex)
-                ?: return@async
-            BookHelp.saveText(book, chapter, content)
-            ReadBook.loadContent(ReadBook.durChapterIndex, resetPageOffset = false)
-        }
-    }
-
-    class ContentEditViewModel(application: Application) : BaseViewModel(application) {
-        val loadStateLiveData = MutableLiveData<Boolean>()
-        var content: String? = null
-
-        fun initContent(reset: Boolean = false, success: (String) -> Unit) {
-            execute {
-                val book = ReadBook.book ?: return@execute null
-                val chapter = appDb.bookChapterDao
-                    .getChapter(book.bookUrl, ReadBook.durChapterIndex)
-                    ?: return@execute null
-                if (reset) {
-                    content = null
-                    BookHelp.delContent(book, chapter)
-                    if (!book.isLocal) ReadBook.bookSource?.let { bookSource ->
-                        WebBook.getContentAwait(bookSource, book, chapter)
-                    }
-                }
-                return@execute content ?: let {
-                    val contentProcessor = ContentProcessor.get(book.name, book.origin)
-                    val content = BookHelp.getContent(book, chapter) ?: return@let null
-                    contentProcessor.getContent(book, chapter, content, includeTitle = false)
-                        .toString()
-                }
-            }.onStart {
-                loadStateLiveData.postValue(true)
-            }.onSuccess {
-                content = it
-                success.invoke(it ?: "")
-            }.onFinally {
-                loadStateLiveData.postValue(false)
-            }
-        }
-
-    }
-
 }

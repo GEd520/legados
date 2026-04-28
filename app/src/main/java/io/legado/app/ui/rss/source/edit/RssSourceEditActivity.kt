@@ -33,10 +33,13 @@ import io.legado.app.ui.login.SourceLoginActivity
 import io.legado.app.ui.qrcode.QrCodeResult
 import io.legado.app.ui.rss.source.debug.RssSourceDebugActivity
 import io.legado.app.ui.widget.dialog.UrlOptionDialog
+import io.legado.app.ui.widget.dialog.CookieViewerDialog
+import io.legado.app.ui.widget.dialog.HelpSearchDialog
 import io.legado.app.ui.widget.dialog.VariableDialog
 import io.legado.app.ui.widget.keyboard.KeyboardToolPop
 import io.legado.app.ui.widget.text.EditEntity
 import io.legado.app.utils.GSON
+import io.legado.app.utils.fromJsonObject
 import io.legado.app.utils.imeHeight
 import io.legado.app.utils.isContentScheme
 import io.legado.app.utils.isTrue
@@ -172,6 +175,8 @@ class RssSourceEditActivity :
         when (item.itemId) {
             R.id.menu_fullscreen_edit -> onFullEditClicked()
 
+            R.id.menu_edit_json -> showSourceJsonEdit()
+
             R.id.menu_save -> viewModel.save(getRssSource()) {
                 setResult(RESULT_OK)
                 finish()
@@ -205,6 +210,8 @@ class RssSourceEditActivity :
 
             R.id.menu_log -> showDialogFragment<AppLogDialog>()
             R.id.menu_help -> showHelp("rssRuleHelp")
+            R.id.menu_search_help -> showDialogFragment<HelpSearchDialog>()
+            R.id.menu_view_cookie -> showDialogFragment(CookieViewerDialog(getRssSource().sourceUrl))
         }
         return super.onCompatOptionsItemSelected(item)
     }
@@ -557,6 +564,19 @@ class RssSourceEditActivity :
                 }
             }
         }
+    }
+
+    private fun showSourceJsonEdit() {
+        val source = getRssSource()
+        val json = GSON.toJson(source)
+        showDialogFragment(RssSourceJsonEditDialog(json) { newJson ->
+            try {
+                val newSource = GSON.fromJsonObject<RssSource>(newJson).getOrThrow()
+                upSourceView(newSource)
+            } catch (e: Exception) {
+                toastOnUi(R.string.json_format)
+            }
+        })
     }
 
     @RequiresApi(Build.VERSION_CODES.M)

@@ -52,7 +52,12 @@ class HandleFileContract :
         } else {
             intent.data
         }
-        return Result(uri, requestCode, intent?.getStringExtra("value"))
+        return Result(
+            uri,
+            requestCode,
+            intent?.getStringExtra("value"),
+            intent?.getStringExtra("clipboard_json")
+        )
     }
 
     companion object {
@@ -77,7 +82,8 @@ class HandleFileContract :
     data class Result(
         val uri: Uri?,
         val requestCode: Int,
-        val value: String?
+        val value: String?,
+        val clipboardJson: String? = null
     )
 
     data class FileData(

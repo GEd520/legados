@@ -96,5 +96,4 @@ class BookSourceEditAdapter : RecyclerView.Adapter<BookSourceEditAdapter.MyViewH
         }
     }
 
-
 }

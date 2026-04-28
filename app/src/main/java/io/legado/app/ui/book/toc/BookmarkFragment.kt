@@ -59,7 +59,18 @@ class BookmarkFragment : VMBaseFragment<TocViewModel>(R.layout.fragment_bookmark
         lifecycleScope.launch {
             when {
                 searchKey.isNullOrBlank() -> appDb.bookmarkDao.flowByBook(book.name, book.author)
-                else -> appDb.bookmarkDao.flowSearch(book.name, book.author, searchKey)
+                else -> {
+                    val hasChapter = viewModel.searchChapterName
+                    val hasBookText = viewModel.searchBookText
+                    val hasContent = viewModel.searchContent
+                    when {
+                        hasChapter && hasBookText && hasContent -> appDb.bookmarkDao.flowSearch(book.name, book.author, searchKey)
+                        hasChapter -> appDb.bookmarkDao.flowSearchChapter(book.name, book.author, searchKey)
+                        hasBookText -> appDb.bookmarkDao.flowSearchBookText(book.name, book.author, searchKey)
+                        hasContent -> appDb.bookmarkDao.flowSearchContent(book.name, book.author, searchKey)
+                        else -> appDb.bookmarkDao.flowByBook(book.name, book.author)
+                    }
+                }
             }.catch {
                 AppLog.put("目录界面获取书签数据失败\n${it.localizedMessage}", it)
             }.flowOn(IO).collect {

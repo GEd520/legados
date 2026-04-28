@@ -583,6 +583,17 @@
     <string name="edit_find">Edit Discovery</string>
     <string name="change_icon_summary">Switch the software icon displayed on the desktop</string>
     <string name="help">Help</string>
+    <string name="help_search">Help Document Search</string>
+    <string name="search_help_hint">Search by keyword...</string>
+    <string name="all_docs">All Documents</string>
+    <string name="search_help_title">Search Help Documents</string>
+    <string name="search_help_desc">Enter keywords to search across all help documents</string>
+    <string name="search_empty_title">No matching results found</string>
+    <string name="search_empty_desc">Try different keywords or expand your search scope</string>
+    <string name="search_result_count">%d matching results found</string>
+    <string name="line_number">Line %d</string>
+    <string name="search_doc_result_count">%d matches</string>
+    <string name="search_help">Search Help</string>
     <string name="my">Me</string>
     <string name="reading">Read</string>
     <string name="battery_show">%d%%</string>
@@ -852,6 +863,7 @@
     <string name="create_bookmark_error">Failed to create bookmark</string>
     <string name="single_url">Single URL</string>
     <string name="export_bookshelf">Export the list of books</string>
+    <string name="export_bookshelf_to_clipboard">Export bookshelf as JSON to clipboard</string>
     <string name="import_bookshelf">Import the list of books</string>
     <string name="pre_download">Download in advance</string>
     <string name="pre_download_m">Pre-download %s pages</string>
@@ -1029,6 +1041,9 @@
     <string name="sys_tts_config_summary">Open the system tts settings interface</string>
     <string name="cannot_timed_non_playback">When the non-playback state is not legal</string>
     <string name="all_bookmark">All bookmarks</string>
+    <string name="bookmark_search_chapter_name">Chapter name</string>
+    <string name="bookmark_search_book_text">Original text</string>
+    <string name="bookmark_search_content">Note/Summary</string>
     <string name="change_source_batch">Batch source switching</string>
     <string name="book_type_different">Different types of books</string>
     <string name="soure_change_source">Whether to confirm the source change</string>

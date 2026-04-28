@@ -110,6 +110,12 @@ class TocActivity : VMBaseActivity<ActivityChapterListBinding, TocViewModel>(),
             menu.setGroupVisible(R.id.menu_group_bookmark, true)
             menu.setGroupVisible(R.id.menu_group_toc, false)
             menu.setGroupVisible(R.id.menu_group_text, false)
+            menu.findItem(R.id.menu_bookmark_search_chapter_name)?.isChecked =
+                viewModel.searchChapterName
+            menu.findItem(R.id.menu_bookmark_search_book_text)?.isChecked =
+                viewModel.searchBookText
+            menu.findItem(R.id.menu_bookmark_search_content)?.isChecked =
+                viewModel.searchContent
         } else {
             menu.setGroupVisible(R.id.menu_group_bookmark, false)
             menu.setGroupVisible(R.id.menu_group_toc, true)
@@ -163,6 +169,24 @@ class TocActivity : VMBaseActivity<ActivityChapterListBinding, TocViewModel>(),
 
             R.id.menu_export_md -> exportDir.launch {
                 requestCode = 2
+            }
+
+            R.id.menu_bookmark_search_chapter_name -> {
+                item.isChecked = !item.isChecked
+                viewModel.searchChapterName = item.isChecked
+                viewModel.startBookmarkSearch(searchView?.query?.toString())
+            }
+
+            R.id.menu_bookmark_search_book_text -> {
+                item.isChecked = !item.isChecked
+                viewModel.searchBookText = item.isChecked
+                viewModel.startBookmarkSearch(searchView?.query?.toString())
+            }
+
+            R.id.menu_bookmark_search_content -> {
+                item.isChecked = !item.isChecked
+                viewModel.searchContent = item.isChecked
+                viewModel.startBookmarkSearch(searchView?.query?.toString())
             }
 
             R.id.menu_log -> showDialogFragment<AppLogDialog>()

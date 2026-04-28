@@ -41,10 +41,12 @@ import io.legado.app.ui.qrcode.QrCodeResult
 import io.legado.app.ui.widget.dialog.UrlOptionDialog
 import io.legado.app.ui.widget.dialog.VariableDialog
 import io.legado.app.ui.widget.dialog.CookieViewerDialog
+import io.legado.app.ui.widget.dialog.HelpSearchDialog
 import io.legado.app.ui.widget.keyboard.KeyboardToolPop
 import io.legado.app.ui.widget.recycler.NoChildScrollLinearLayoutManager
 import io.legado.app.ui.widget.text.EditEntity
 import io.legado.app.utils.GSON
+import io.legado.app.utils.fromJsonObject
 import io.legado.app.utils.imeHeight
 import io.legado.app.utils.isContentScheme
 import io.legado.app.utils.launch
@@ -164,6 +166,8 @@ class BookSourceEditActivity :
         when (item.itemId) {
             R.id.menu_fullscreen_edit -> onFullEditClicked()
 
+            R.id.menu_edit_json -> showSourceJsonEdit()
+
             R.id.menu_save -> viewModel.save(getSource()) {
                 setResult(RESULT_OK, Intent().putExtra("origin", it.bookSourceUrl))
                 finish()
@@ -191,6 +195,7 @@ class BookSourceEditActivity :
 
             R.id.menu_log -> showDialogFragment<AppLogDialog>()
             R.id.menu_help -> showHelp("ruleHelp")
+            R.id.menu_search_help -> showDialogFragment<HelpSearchDialog>()
             R.id.menu_login -> viewModel.save(getSource()) { source ->
                 startActivity<SourceLoginActivity> {
                     putExtra("type", "bookSource")
@@ -231,6 +236,7 @@ class BookSourceEditActivity :
             binding.recyclerView.layoutManager = NoChildScrollLinearLayoutManager(this) //启用后会阻止RecyclerView跟随光标滚动,行数少时,用的TextView跟随
         }
         binding.recyclerView.adapter = adapter
+        binding.scrollBar.attachRecyclerView(binding.recyclerView)
         binding.recyclerView.viewTreeObserver.addOnGlobalFocusChangeListener { _, newFocus ->
             if (newFocus is EditText) {
                 newFocus.postDelayed({ sendText("") }, ReadConstants.EDIT_FOCUS_DELAY_MS)
@@ -278,6 +284,7 @@ class BookSourceEditActivity :
     override fun onDestroy() {
         super.onDestroy()
         softKeyboardTool.dismiss()
+        binding.scrollBar.detachRecyclerView()
     }
 
     private fun setEditEntities(tabPosition: Int?) {
@@ -747,6 +754,19 @@ class BookSourceEditActivity :
                 )
             }
         }
+    }
+
+    private fun showSourceJsonEdit() {
+        val source = getSource()
+        val json = GSON.toJson(source)
+        showDialogFragment(SourceJsonEditDialog(json) { newJson ->
+            try {
+                val newSource = GSON.fromJsonObject<BookSource>(newJson).getOrThrow()
+                upSourceView(newSource)
+            } catch (e: Exception) {
+                toastOnUi(R.string.json_format)
+            }
+        })
     }
 
     override fun setVariable(key: String, variable: String?) {

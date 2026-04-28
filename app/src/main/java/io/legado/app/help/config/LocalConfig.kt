@@ -17,7 +17,7 @@ import splitties.init.appCtx
  */
 @Suppress("ConstPropertyName")
 object LocalConfig : SharedPreferences
-by appCtx.getSharedPreferences("local", Context.MODE_PRIVATE) {
+by appCtx.getSharedPreferences("local_plus", Context.MODE_PRIVATE) {
 
     // SharedPreferences 中存储版本号的 key
     private const val versionCodeKey = "appVersionCode"

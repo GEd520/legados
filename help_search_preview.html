@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>帮助文档搜索</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --bg-hover: #30363d;
+            --border: #30363d;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --text-tertiary: #6e7681;
+            --accent: #58a6ff;
+            --accent-secondary: #1f6feb;
+            --accent-glow: rgba(88, 166, 255, 0.15);
+            --success: #3fb950;
+            --warning: #d29922;
+            --danger: #f85149;
+            --shadow: 0 16px 48px rgba(0,0,0,0.4);
+            --radius: 12px;
+            --radius-sm: 8px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            overflow: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 80% 50% at 50% -20%, rgba(88, 166, 255, 0.12), transparent),
+                radial-gradient(ellipse 60% 40% at 80% 100%, rgba(63, 185, 80, 0.08), transparent);
+            pointer-events: none;
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 24px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.25s ease;
+        }
+
+        .overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .dialog {
+            width: 100%;
+            max-width: 600px;
+            height: 80vh;
+            max-height: 700px;
+            background: var(--bg-secondary);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            animation: dialogIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+        }
+
+        @keyframes dialogIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95) translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        .dialog-header {
+            padding: 20px 24px 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .dialog-title {
+            font-size: 18px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .dialog-title svg {
+            color: var(--accent);
+        }
+
+        .close-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+        }
+
+        .close-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .search-section {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            flex-shrink: 0;
+        }
+
+        .search-box {
+            position: relative;
+        }
+
+        .search-box svg {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-tertiary);
+            pointer-events: none;
+        }
+
+        .search-input {
+            width: 100%;
+            height: 48px;
+            padding: 0 44px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-size: 15px;
+            font-family: inherit;
+            transition: all 0.15s ease;
+        }
+
+        .search-input::placeholder {
+            color: var(--text-tertiary);
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .clear-btn {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            border: none;
+            background: var(--bg-hover);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: all 0.15s ease;
+        }
+
+        .clear-btn.visible {
+            opacity: 1;
+        }
+
+        .clear-btn:hover {
+            background: var(--danger);
+            color: white;
+        }
+
+        .scope-selector {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .scope-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            flex-shrink: 0;
+        }
+
+        .scope-dropdown {
+            position: relative;
+            flex: 1;
+        }
+
+        .scope-select {
+            width: 100%;
+            height: 38px;
+            padding: 0 36px 0 14px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-size: 14px;
+            font-family: inherit;
+            cursor: pointer;
+            appearance: none;
+            transition: all 0.15s ease;
+        }
+
+        .scope-select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .scope-dropdown::after {
+            content: '';
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            border: 5px solid transparent;
+            border-top-color: var(--text-secondary);
+            pointer-events: none;
+        }
+
+        .results-section {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 24px 24px;
+        }
+
+        .results-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+
+        .results-count {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .results-count strong {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .results-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .result-item {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 14px 16px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            animation: resultIn 0.3s ease both;
+        }
+
+        .result-item:nth-child(1) { animation-delay: 0.05s; }
+        .result-item:nth-child(2) { animation-delay: 0.1s; }
+        .result-item:nth-child(3) { animation-delay: 0.15s; }
+        .result-item:nth-child(4) { animation-delay: 0.2s; }
+        .result-item:nth-child(5) { animation-delay: 0.25s; }
+
+        @keyframes resultIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .result-item:hover {
+            border-color: var(--accent-secondary);
+            background: var(--bg-hover);
+            transform: translateX(4px);
+        }
+
+        .result-item:active {
+            transform: scale(0.98) translateX(4px);
+        }
+
+        .result-doc {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .result-doc-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            background: var(--accent-glow);
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .result-doc-name {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--accent);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .result-location {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            margin-left: auto;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .result-content {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            word-break: break-all;
+        }
+
+        .result-content mark {
+            background: rgba(255, 207, 75, 0.25);
+            color: var(--warning);
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-weight: 500;
+        }
+
+        .click-hint {
+            font-size: 11px;
+            color: var(--text-tertiary);
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+        }
+
+        .result-item:hover .click-hint {
+            opacity: 1;
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            padding: 48px 24px;
+            text-align: center;
+        }
+
+        .empty-state svg {
+            color: var(--text-tertiary);
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-state-title {
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .empty-state-desc {
+            font-size: 14px;
+            color: var(--text-tertiary);
+        }
+
+        .initial-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            padding: 48px 24px;
+            text-align: center;
+        }
+
+        .initial-state svg {
+            color: var(--text-tertiary);
+            margin-bottom: 20px;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        .initial-state-title {
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .initial-state-desc {
+            font-size: 14px;
+            color: var(--text-tertiary);
+            max-width: 280px;
+        }
+
+        .history-section {
+            margin-top: 20px;
+        }
+
+        .history-label {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+        }
+
+        .history-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .history-tag {
+            padding: 6px 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .history-tag:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: var(--accent-glow);
+        }
+
+        /* TextDialog 样式 */
+        .text-dialog {
+            background: var(--bg-secondary);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+            width: 100%;
+            max-width: 700px;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transform: scale(0.9);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .overlay.active .text-dialog {
+            transform: scale(1);
+        }
+
+        .text-dialog-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .text-dialog-header .doc-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            background: var(--accent-glow);
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .text-dialog-title {
+            flex: 1;
+        }
+
+        .text-dialog-title .title-main {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .text-dialog-title .title-sub {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .text-dialog-toolbar {
+            display: flex;
+            gap: 8px;
+        }
+
+        .toolbar-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            border: none;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+        }
+
+        .toolbar-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .text-dialog-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+
+        .text-dialog-content .line {
+            padding: 2px 8px;
+            margin: 0 -8px;
+            border-radius: 4px;
+            transition: background 0.15s ease;
+        }
+
+        .text-dialog-content .line.highlight {
+            background: rgba(255, 207, 75, 0.2);
+        }
+
+        .text-dialog-content .line .line-num {
+            color: var(--text-tertiary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            width: 40px;
+            display: inline-block;
+            text-align: right;
+            margin-right: 16px;
+            user-select: none;
+        }
+
+        .text-dialog-content .line .line-content mark {
+            background: rgba(255, 207, 75, 0.3);
+            color: var(--warning);
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-weight: 500;
+        }
+
+        .text-dialog-footer {
+            padding: 12px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .match-info {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .match-info strong {
+            color: var(--accent);
+        }
+
+        .nav-btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.15s ease;
+        }
+
+        .nav-btn:hover {
+            background: var(--bg-hover);
+            border-color: var(--accent);
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--bg-hover);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--border);
+        }
+    </style>
+</head>
+<body>
+    <div class="overlay" id="searchOverlay">
+        <div class="dialog">
+            <div class="dialog-header">
+                <div class="dialog-title">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.3-4.3"></path>
+                    </svg>
+                    帮助文档搜索
+                </div>
+                <button class="close-btn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M18 6 6 18"></path>
+                        <path d="m6 6 12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="search-section">
+                <div class="search-box">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.3-4.3"></path>
+                    </svg>
+                    <input type="text" class="search-input" placeholder="输入关键词搜索..." id="searchInput">
+                    <button class="clear-btn" id="clearBtn">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 6 6 18"></path>
+                            <path d="m6 6 12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="scope-selector">
+                    <span class="scope-label">搜索范围</span>
+                    <div class="scope-dropdown">
+                        <select class="scope-select" id="scopeSelect">
+                            <option value="all">所有文档</option>
+                            <option value="ruleHelp">书源制作教程</option>
+                            <option value="jsHelp">js变量和函数</option>
+                            <option value="regexHelp">正则表达式教程</option>
+                            <option value="xpathHelp">xpath语法教程</option>
+                            <option value="rssRuleHelp">订阅源教程</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="results-section" id="resultsSection">
+                <!-- 初始状态 -->
+                <div class="initial-state" id="initialState">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                    </svg>
+                    <div class="initial-state-title">搜索帮助文档</div>
+                    <div class="initial-state-desc">输入关键词在所有帮助文档中搜索，快速找到所需的规则说明</div>
+
+                    <div class="history-section">
+                        <div class="history-label">最近搜索</div>
+                        <div class="history-tags">
+                            <span class="history-tag">javaSearch</span>
+                            <span class="history-tag">正则表达式</span>
+                            <span class="history-tag">XPath</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 搜索结果 -->
+                <div id="resultsContent" style="display: none;">
+                    <div class="results-header">
+                        <span class="results-count">找到 <strong id="resultCount">5</strong> 条匹配结果</span>
+                    </div>
+                    <div class="results-list" id="resultsList">
+                        <div class="result-item" data-doc="ruleHelp.md" data-line="15">
+                            <div class="result-doc">
+                                <div class="result-doc-icon">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                    </svg>
+                                </div>
+                                <span class="result-doc-name">ruleHelp.md</span>
+                                <span class="result-location">第 15 行</span>
+                            </div>
+                            <div class="result-content">javaSearch 是用于执行<mark>JavaScript</mark>搜索的函数，支持自定义搜索逻辑和结果处理。</div>
+                            <div class="click-hint">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+                                    <polyline points="10 17 15 12 10 7"></polyline>
+                                    <line x1="15" y1="12" x2="3" y2="12"></line>
+                                </svg>
+                                点击跳转到文档
+                            </div>
+                        </div>
+                        <div class="result-item" data-doc="jsHelp.md" data-line="28">
+                            <div class="result-doc">
+                                <div class="result-doc-icon">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                    </svg>
+                                </div>
+                                <span class="result-doc-name">jsHelp.md</span>
+                                <span class="result-location">第 28 行</span>
+                            </div>
+                            <div class="result-content">function <mark>javaSearch</mark>(url, params) { // 执行JavaScript搜索的核心函数 }</div>
+                            <div class="click-hint">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+                                    <polyline points="10 17 15 12 10 7"></polyline>
+                                    <line x1="15" y1="12" x2="3" y2="12"></line>
+                                </svg>
+                                点击跳转到文档
+                            </div>
+                        </div>
+                        <div class="result-item" data-doc="jsHelp.md" data-line="156">
+                            <div class="result-doc">
+                                <div class="result-doc-icon">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                    </svg>
+                                </div>
+                                <span class="result-doc-name">jsHelp.md</span>
+                                <span class="result-location">第 156 行</span>
+                            </div>
+                            <div class="result-content">// 调用 <mark>javaSearch</mark> 时的参数说明和返回值处理方式</div>
+                            <div class="click-hint">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+                                    <polyline points="10 17 15 12 10 7"></polyline>
+                                    <line x1="15" y1="12" x2="3" y2="12"></line>
+                                </svg>
+                                点击跳转到文档
+                            </div>
+                        </div>
+                        <div class="result-item" data-doc="regexHelp.md" data-line="42">
+                            <div class="result-doc">
+                                <div class="result-doc-icon">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                    </svg>
+                                </div>
+                                <span class="result-doc-name">regexHelp.md</span>
+                                <span class="result-location">第 42 行</span>
+                            </div>
+                            <div class="result-content">正则表达式中可以使用 <mark>JavaScript</mark> 相关的语法和函数进行模式匹配。</div>
+                            <div class="click-hint">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+                                    <polyline points="10 17 15 12 10 7"></polyline>
+                                    <line x1="15" y1="12" x2="3" y2="12"></line>
+                                </svg>
+                                点击跳转到文档
+                            </div>
+                        </div>
+                        <div class="result-item" data-doc="xpathHelp.md" data-line="88">
+                            <div class="result-doc">
+                                <div class="result-doc-icon">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                    </svg>
+                                </div>
+                                <span class="result-doc-name">xpathHelp.md</span>
+                                <span class="result-location">第 88 行</span>
+                            </div>
+                            <div class="result-content"><mark>JavaScript</mark> 与 XPath 结合使用可以更灵活地提取网页内容。</div>
+                            <div class="click-hint">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+                                    <polyline points="10 17 15 12 10 7"></polyline>
+                                    <line x1="15" y1="12" x2="3" y2="12"></line>
+                                </svg>
+                                点击跳转到文档
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 无结果状态 -->
+                <div class="empty-state" id="emptyState" style="display: none;">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.3-4.3"></path>
+                        <path d="M8 8l6 6"></path>
+                        <path d="M14 8l-6 6"></path>
+                    </svg>
+                    <div class="empty-state-title">未找到匹配结果</div>
+                    <div class="empty-state-desc">换个关键词试试，或者扩大搜索范围</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TextDialog 模拟 -->
+    <div class="overlay" id="textOverlay">
+        <div class="text-dialog">
+            <div class="text-dialog-header">
+                <div class="doc-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                    </svg>
+                </div>
+                <div class="text-dialog-title">
+                    <div class="title-main" id="textDialogDocName">jsHelp.md</div>
+                    <div class="title-sub" id="textDialogMatchInfo">第 28 行，匹配 "javaSearch"</div>
+                </div>
+                <div class="text-dialog-toolbar">
+                    <button class="toolbar-btn" title="切换文档">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 1l4 4-4 4"></path>
+                            <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                            <path d="M7 23l-4-4 4-4"></path>
+                            <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+                        </svg>
+                    </button>
+                    <button class="toolbar-btn" title="关闭" id="closeTextDialog">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 6 6 18"></path>
+                            <path d="m6 6 12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="text-dialog-content" id="textDialogContent">
+                <!-- 模拟文档内容，实际实现中会渲染真实 Markdown -->
+            </div>
+            <div class="text-dialog-footer">
+                <div class="match-info">
+                    匹配 <strong id="matchIndex">1</strong> / <strong id="matchTotal">3</strong> 处
+                </div>
+                <div>
+                    <button class="nav-btn" id="prevMatch">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                        上一个
+                    </button>
+                    <button class="nav-btn" id="nextMatch" style="margin-left: 8px;">
+                        下一个
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const searchOverlay = document.getElementById('searchOverlay');
+        const textOverlay = document.getElementById('textOverlay');
+        const searchInput = document.getElementById('searchInput');
+        const clearBtn = document.getElementById('clearBtn');
+        const scopeSelect = document.getElementById('scopeSelect');
+        const initialState = document.getElementById('initialState');
+        const resultsContent = document.getElementById('resultsContent');
+        const emptyState = document.getElementById('emptyState');
+        const resultCount = document.getElementById('resultCount');
+        const historyTags = document.querySelectorAll('.history-tag');
+        const resultItems = document.querySelectorAll('.result-item');
+        const closeTextDialog = document.getElementById('closeTextDialog');
+        const textDialogContent = document.getElementById('textDialogContent');
+        const textDialogDocName = document.getElementById('textDialogDocName');
+        const textDialogMatchInfo = document.getElementById('textDialogMatchInfo');
+        const prevMatch = document.getElementById('prevMatch');
+        const nextMatch = document.getElementById('nextMatch');
+        const matchIndex = document.getElementById('matchIndex');
+
+        // 模拟文档内容
+        const mockContent = {
+            'jsHelp.md': [
+                { num: 26, content: '// JavaScript 搜索函数库' },
+                { num: 27, content: '' },
+                { num: 28, content: 'function <mark>javaSearch</mark>(url, params) {' },
+                { num: 29, content: '    // 执行JavaScript搜索的核心函数' },
+                { num: 30, content: '    let result = [];' },
+                { num: 31, content: '    // ... 搜索逻辑' },
+                { num: 32, content: '    return result;' },
+                { num: 33, content: '}' },
+                // ... 省略更多行
+                { num: 154, content: '/**' },
+                { num: 155, content: ' * 调用 <mark>javaSearch</mark> 的示例' },
+                { num: 156, content: ' * @param {string} url - 搜索地址' },
+                { num: 157, content: ' * @param {object} params - 搜索参数' },
+                { num: 158, content: ' */' },
+            ],
+            'ruleHelp.md': [
+                { num: 13, content: '## JavaScript 搜索' },
+                { num: 14, content: '' },
+                { num: 15, content: '<mark>javaSearch</mark> 是用于执行JavaScript搜索的函数，支持自定义搜索逻辑和结果处理。' },
+                { num: 16, content: '' },
+                { num: 17, content: '使用方式：' },
+                { num: 18, content: '```javascript' },
+                { num: 19, content: 'result = javaSearch(searchUrl, { keyword: "test" });' },
+                { num: 20, content: '```' },
+            ]
+        };
+
+        // 初始化显示搜索对话框
+        searchOverlay.classList.add('active');
+
+        searchInput.addEventListener('input', (e) => {
+            const value = e.target.value.trim();
+            clearBtn.classList.toggle('visible', value.length > 0);
+
+            if (value.length > 0) {
+                initialState.style.display = 'none';
+                if (value === 'empty') {
+                    resultsContent.style.display = 'none';
+                    emptyState.style.display = 'flex';
+                } else {
+                    emptyState.style.display = 'none';
+                    resultsContent.style.display = 'block';
+                    resultCount.textContent = 5;
+                }
+            } else {
+                resultsContent.style.display = 'none';
+                emptyState.style.display = 'none';
+                initialState.style.display = 'flex';
+            }
+        });
+
+        clearBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            clearBtn.classList.remove('visible');
+            initialState.style.display = 'flex';
+            resultsContent.style.display = 'none';
+            emptyState.style.display = 'none';
+            searchInput.focus();
+        });
+
+        historyTags.forEach(tag => {
+            tag.addEventListener('click', () => {
+                searchInput.value = tag.textContent;
+                clearBtn.classList.add('visible');
+                initialState.style.display = 'none';
+                resultsContent.style.display = 'block';
+                resultCount.textContent = 5;
+            });
+        });
+
+        // 点击结果项 - 打开 TextDialog
+        resultItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const docName = item.dataset.doc;
+                const lineNum = parseInt(item.dataset.line);
+                const searchTerm = searchInput.value || 'javaSearch';
+
+                // 模拟计算匹配位置
+                const matchLineIdx = docName === 'jsHelp.md' ? (lineNum === 28 ? 0 : lineNum === 156 ? 1 : 0) : 0;
+                const totalMatches = docName === 'jsHelp.md' ? 2 : 1;
+
+                textDialogDocName.textContent = docName;
+                textDialogMatchInfo.textContent = `第 ${lineNum} 行，匹配 "${searchTerm}"`;
+                matchIndex.textContent = matchLineIdx + 1;
+                document.getElementById('matchTotal').textContent = totalMatches;
+
+                // 渲染文档内容
+                const content = mockContent[docName] || mockContent['jsHelp.md'];
+                let html = '';
+                content.forEach(line => {
+                    const isHighlight = line.num === lineNum;
+                    html += `<div class="line ${isHighlight ? 'highlight' : ''}">`;
+                    html += `<span class="line-num">${line.num}</span>`;
+                    html += `<span class="line-content">${line.content}</span>`;
+                    html += '</div>';
+                });
+                textDialogContent.innerHTML = html;
+
+                // 如果是高亮行，滚动到可见位置
+                if (lineNum) {
+                    setTimeout(() => {
+                        const highlightLine = textDialogContent.querySelector('.highlight');
+                        if (highlightLine) {
+                            highlightLine.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                    }, 100);
+                }
+
+                // 关闭搜索对话框，打开文档对话框
+                searchOverlay.classList.remove('active');
+                textOverlay.classList.add('active');
+            });
+        });
+
+        // 关闭 TextDialog
+        closeTextDialog.addEventListener('click', () => {
+            textOverlay.classList.remove('active');
+        });
+
+        // 点击 overlay 背景关闭（可选）
+        textOverlay.addEventListener('click', (e) => {
+            if (e.target === textOverlay) {
+                textOverlay.classList.remove('active');
+            }
+        });
+
+        // 上一个/下一个匹配
+        let currentMatch = 0;
+        const totalMatches = 3;
+
+        prevMatch.addEventListener('click', () => {
+            currentMatch = Math.max(0, currentMatch - 1);
+            matchIndex.textContent = currentMatch + 1;
+            // 模拟滚动到上一个匹配
+            textDialogContent.querySelectorAll('.highlight').forEach(el => el.classList.remove('highlight'));
+        });
+
+        nextMatch.addEventListener('click', () => {
+            currentMatch = Math.min(totalMatches - 1, currentMatch + 1);
+            matchIndex.textContent = currentMatch + 1;
+            // 模拟滚动到下一个匹配
+            textDialogContent.querySelectorAll('.highlight').forEach(el => el.classList.remove('highlight'));
+        });
+    </script>
+</body>
+</html>

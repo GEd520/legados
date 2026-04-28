@@ -44,6 +44,11 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/menu_edit_json"
+        android:title="@string/edit_content"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/menu_auto_complete"
         android:checkable="true"
         android:title="@string/auto_complete"
@@ -88,5 +93,11 @@
         android:id="@+id/menu_help"
         android:title="@string/help"
         app:showAsAction="never" />
+
+    <item
+        android:id="@+id/menu_search_help"
+        android:icon="@drawable/ic_search"
+        android:title="@string/search_help"
+        app:showAsAction="always" />
 
 </menu>

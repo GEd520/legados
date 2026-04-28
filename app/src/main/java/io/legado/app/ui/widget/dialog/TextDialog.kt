@@ -69,13 +69,17 @@ class TextDialog() : BaseDialogFragment(R.layout.dialog_text_view) {
         title: String,
         content: String?,
         mode: Mode = Mode.TEXT,
-        helpDocName: String? = null
+        helpDocName: String? = null,
+        scrollToLine: Int = 0,
+        highlightTerm: String? = null
     ) : this() {
         arguments = Bundle().apply {
             putString("title", title)
             putString("content", IntentData.put(content))
             putString("mode", mode.name)
             putString("helpDocName", helpDocName)
+            putInt("scrollToLine", scrollToLine)
+            putString("highlightTerm", highlightTerm)
         }
         isHelpMode = helpDocName != null
         currentHelpDoc = helpDocName
@@ -114,6 +118,8 @@ class TextDialog() : BaseDialogFragment(R.layout.dialog_text_view) {
             val content = IntentData.get(it.getString("content")) ?: ""
             currentContent = content
             val mode = it.getString("mode")
+            val scrollToLine = it.getInt("scrollToLine", 0)
+            val highlightTerm = it.getString("highlightTerm")
             when (mode) {
                 Mode.MD.name -> viewLifecycleOwner.lifecycleScope.launch {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -139,6 +145,11 @@ class TextDialog() : BaseDialogFragment(R.layout.dialog_text_view) {
                             showDialogFragment(PhotoDialog(source))
                         }
                     )
+                    if (scrollToLine > 0) {
+                        binding.textView.post {
+                            scrollToLineInText(binding.textView, scrollToLine, highlightTerm)
+                        }
+                    }
                 }
 
                 Mode.HTML.name -> binding.textView.setHtml(content)
@@ -149,6 +160,11 @@ class TextDialog() : BaseDialogFragment(R.layout.dialog_text_view) {
                         binding.textView.text = truncatedContent
                     } else {
                         binding.textView.text = content
+                    }
+                    if (scrollToLine > 0) {
+                        binding.textView.post {
+                            scrollToLineInText(binding.textView, scrollToLine, highlightTerm)
+                        }
                     }
                 }
             }
@@ -198,6 +214,41 @@ class TextDialog() : BaseDialogFragment(R.layout.dialog_text_view) {
         
         // 初始化帮助文档选择器
         setupHelpSelector()
+    }
+    
+    /**
+     * 滚动到指定行并高亮关键词
+     */
+    private fun scrollToLineInText(textView: android.widget.TextView, lineNumber: Int, highlightTerm: String?) {
+        val text = textView.text.toString()
+        val lines = text.split("\n")
+        
+        var currentLine = 1
+        var targetIndex = 0
+        var found = false
+        
+        for (line in lines) {
+            if (currentLine == lineNumber) {
+                targetIndex = text.indexOf(line)
+                found = true
+                break
+            }
+            currentLine++
+            targetIndex += line.length + 1
+        }
+        
+        if (found && targetIndex >= 0) {
+            val layout = textView.layout ?: return
+            val lineNum = layout.getLineForOffset(targetIndex)
+            val y = layout.getLineTop(lineNum)
+            val targetScrollY = (y - textView.height / 3).coerceAtLeast(0)
+            
+            textView.scrollTo(0, targetScrollY)
+        }
+        
+        if (highlightTerm != null && found) {
+            // TextView 不支持 setSelection，仅滚动到指定行
+        }
     }
     
     /**

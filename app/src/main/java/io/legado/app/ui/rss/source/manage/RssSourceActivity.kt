@@ -13,14 +13,20 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import io.legado.app.R
 import io.legado.app.base.VMBaseActivity
 import io.legado.app.constant.AppLog
+import io.legado.app.constant.PreferKey
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.RssSource
 import io.legado.app.databinding.ActivityRssSourceBinding
 import io.legado.app.databinding.DialogEditTextBinding
 import io.legado.app.help.DirectLinkUpload
+import io.legado.app.utils.getPrefBoolean
+import io.legado.app.utils.getPrefInt
+import io.legado.app.utils.putPrefBoolean
+import io.legado.app.utils.putPrefInt
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.lib.theme.primaryTextColor
+import splitties.init.appCtx
 import io.legado.app.ui.association.ImportRssSourceDialog
 import io.legado.app.ui.association.ImportUrlDialogHelper
 import io.legado.app.ui.browser.WebViewActivity
@@ -34,6 +40,7 @@ import io.legado.app.ui.widget.recycler.VerticalDivider
 import io.legado.app.utils.ACache
 import io.legado.app.utils.NetworkUtils
 import io.legado.app.utils.applyTint
+import io.legado.app.utils.cnCompare
 import io.legado.app.utils.dpToPx
 import io.legado.app.utils.isAbsUrl
 import io.legado.app.utils.launch
@@ -73,11 +80,32 @@ class RssSourceActivity : VMBaseActivity<ActivityRssSourceBinding, RssSourceView
     private var sourceFlowJob: Job? = null
     private var groups = arrayListOf<String>()
     private var groupMenu: SubMenu? = null
-    
+
     /**
-     * 是否按域名分组显示订阅源
+     * 订阅源排序方式，使用 SharedPreferences 持久化保存
+     * 读取时从配置中获取，默认值为手动排序
+     * 写入时同步保存到配置中
      */
-    private var groupSourcesByDomain = false
+    var sort = RssSourceSort.entries[appCtx.getPrefInt(PreferKey.rssSourceSort, 0)]
+        private set(value) {
+            field = value
+            appCtx.putPrefInt(PreferKey.rssSourceSort, value.ordinal)
+        }
+
+    /**
+     * 排序方向，使用 SharedPreferences 持久化保存
+     * true=升序，false=降序
+     */
+    var sortAscending = appCtx.getPrefBoolean(PreferKey.rssSourceSortAscending, true)
+        private set(value) {
+            field = value
+            appCtx.putPrefBoolean(PreferKey.rssSourceSortAscending, value)
+        }
+
+    /**
+     * 是否按域名分组，使用 SharedPreferences 持久化保存
+     */
+    private var groupSourcesByDomain = appCtx.getPrefBoolean(PreferKey.rssSourceGroupByDomain, false)
     
     /**
      * 域名缓存，避免重复提取
@@ -124,8 +152,27 @@ class RssSourceActivity : VMBaseActivity<ActivityRssSourceBinding, RssSourceView
         return super.onCompatCreateOptionsMenu(menu)
     }
 
+    /**
+     * 准备选项菜单，恢复菜单选中状态
+     * 从持久化配置中读取排序设置，同步到菜单项
+     * 注意：menu_group_sources_by_domain 在主菜单中，不在 action_sort 子菜单中
+     */
     override fun onPrepareOptionsMenu(menu: Menu): Boolean {
         groupMenu = menu.findItem(R.id.menu_group)?.subMenu
+        val sortSubMenu = menu.findItem(R.id.action_sort).subMenu!!
+        // 恢复排序方向（升序/降序）菜单状态
+        sortSubMenu.findItem(R.id.menu_sort_desc).isChecked = !sortAscending
+        sortSubMenu.setGroupCheckable(R.id.menu_group_sort, true, true)
+        // 恢复排序方式菜单选中状态
+        when (sort) {
+            RssSourceSort.Default -> sortSubMenu.findItem(R.id.menu_sort_manual)?.isChecked = true
+            RssSourceSort.Name -> sortSubMenu.findItem(R.id.menu_sort_name)?.isChecked = true
+            RssSourceSort.Url -> sortSubMenu.findItem(R.id.menu_sort_url)?.isChecked = true
+            RssSourceSort.Update -> sortSubMenu.findItem(R.id.menu_sort_time)?.isChecked = true
+            RssSourceSort.Enable -> sortSubMenu.findItem(R.id.menu_sort_enable)?.isChecked = true
+        }
+        // 按域名分组菜单在主菜单中，需要直接从 menu 查找
+        menu.findItem(R.id.menu_group_sources_by_domain)?.isChecked = groupSourcesByDomain
         upGroupMenu()
         return super.onPrepareOptionsMenu(menu)
     }
@@ -142,19 +189,52 @@ class RssSourceActivity : VMBaseActivity<ActivityRssSourceBinding, RssSourceView
             R.id.menu_import_qr -> qrCodeResult.launch()
             R.id.menu_group_manage -> showDialogFragment<GroupManageDialog>()
             R.id.menu_import_default -> viewModel.importDefault()
-            
-            /**
-             * 按域名分组菜单项
-             * 开启后订阅源按域名分组排序，关闭后恢复默认排序
-             */
+
+            R.id.menu_sort_desc -> {
+                sortAscending = !sortAscending
+                item.isChecked = !sortAscending
+                upSourceFlow(searchView.query?.toString())
+            }
+
+            R.id.menu_sort_manual -> {
+                item.isChecked = true
+                sort = RssSourceSort.Default
+                upSourceFlow(searchView.query?.toString())
+            }
+
+            R.id.menu_sort_name -> {
+                item.isChecked = true
+                sort = RssSourceSort.Name
+                upSourceFlow(searchView.query?.toString())
+            }
+
+            R.id.menu_sort_url -> {
+                item.isChecked = true
+                sort = RssSourceSort.Url
+                upSourceFlow(searchView.query?.toString())
+            }
+
+            R.id.menu_sort_time -> {
+                item.isChecked = true
+                sort = RssSourceSort.Update
+                upSourceFlow(searchView.query?.toString())
+            }
+
+            R.id.menu_sort_enable -> {
+                item.isChecked = true
+                sort = RssSourceSort.Enable
+                upSourceFlow(searchView.query?.toString())
+            }
+
             R.id.menu_group_sources_by_domain -> {
                 item.isChecked = !item.isChecked
                 groupSourcesByDomain = item.isChecked
+                appCtx.putPrefBoolean(PreferKey.rssSourceGroupByDomain, item.isChecked)
                 adapter.showSourceHost = item.isChecked
-                // 按域名分组时禁用手动拖拽排序
-                itemTouchCallback.isCanDrag = !item.isChecked
+                itemTouchCallback.isCanDrag = !item.isChecked && sort == RssSourceSort.Default
                 upSourceFlow(searchView.query?.toString())
             }
+
             R.id.menu_enabled_group -> {
                 searchView.setQuery(getString(R.string.enabled), true)
             }
@@ -209,14 +289,10 @@ class RssSourceActivity : VMBaseActivity<ActivityRssSourceBinding, RssSourceView
         binding.recyclerView.setEdgeEffectColor(primaryColor)
         binding.recyclerView.addItemDecoration(VerticalDivider(this))
         binding.recyclerView.adapter = adapter
-        // When this page is opened, it is in selection mode
         val dragSelectTouchHelper: DragSelectTouchHelper =
             DragSelectTouchHelper(adapter.dragSelectCallback).setSlideArea(16, 50)
         dragSelectTouchHelper.attachToRecyclerView(binding.recyclerView)
         dragSelectTouchHelper.activeSlideSelect()
-        // Note: need judge selection first, so add ItemTouchHelper after it.
-        val itemTouchCallback = ItemTouchCallback(adapter)
-        itemTouchCallback.isCanDrag = true
         ItemTouchHelper(itemTouchCallback).attachToRecyclerView(binding.recyclerView)
     }
 
@@ -326,10 +402,6 @@ class RssSourceActivity : VMBaseActivity<ActivityRssSourceBinding, RssSourceView
         }
     }
 
-    /**
-     * 根据搜索条件更新订阅源列表
-     * 当开启按域名分组时，会按域名进行排序
-     */
     private fun upSourceFlow(searchKey: String? = null) {
         sourceFlowJob?.cancel()
         sourceFlowJob = lifecycleScope.launch {
@@ -364,19 +436,54 @@ class RssSourceActivity : VMBaseActivity<ActivityRssSourceBinding, RssSourceView
                 }
             }.map { data ->
                 hostMap.clear()
-                // 按域名分组排序逻辑
                 if (groupSourcesByDomain) {
                     data.sortedWith(
                         compareBy<RssSource> { getSourceHost(it.sourceUrl) == "#" }
                             .thenBy { getSourceHost(it.sourceUrl) }
                             .thenByDescending { it.lastUpdateTime })
+                } else if (sortAscending) {
+                    when (sort) {
+                        RssSourceSort.Name -> data.sortedWith { o1, o2 ->
+                            o1.sourceName.cnCompare(o2.sourceName)
+                        }
+
+                        RssSourceSort.Url -> data.sortedBy { it.sourceUrl }
+                        RssSourceSort.Update -> data.sortedByDescending { it.lastUpdateTime }
+                        RssSourceSort.Enable -> data.sortedWith { o1, o2 ->
+                            var sortNum = -o1.enabled.compareTo(o2.enabled)
+                            if (sortNum == 0) {
+                                sortNum = o1.sourceName.cnCompare(o2.sourceName)
+                            }
+                            sortNum
+                        }
+
+                        else -> data
+                    }
                 } else {
-                    data
+                    when (sort) {
+                        RssSourceSort.Name -> data.sortedWith { o1, o2 ->
+                            o2.sourceName.cnCompare(o1.sourceName)
+                        }
+
+                        RssSourceSort.Url -> data.sortedByDescending { it.sourceUrl }
+                        RssSourceSort.Update -> data.sortedBy { it.lastUpdateTime }
+                        RssSourceSort.Enable -> data.sortedWith { o1, o2 ->
+                            var sortNum = o1.enabled.compareTo(o2.enabled)
+                            if (sortNum == 0) {
+                                sortNum = o1.sourceName.cnCompare(o2.sourceName)
+                            }
+                            sortNum
+                        }
+
+                        else -> data.reversed()
+                    }
                 }
             }.catch {
                 AppLog.put("订阅源管理界面更新数据出错", it)
             }.flowOn(IO).conflate().collect {
                 adapter.setItems(it, adapter.diffItemCallback)
+                itemTouchCallback.isCanDrag =
+                    sort == RssSourceSort.Default && !groupSourcesByDomain
                 delay(100)
             }
         }
@@ -399,10 +506,6 @@ class RssSourceActivity : VMBaseActivity<ActivityRssSourceBinding, RssSourceView
         )
     }
 
-    /**
-     * 提取URL的域名部分用于分组
-     * 使用hostMap缓存已提取的域名，避免重复解析
-     */
     override fun getSourceHost(origin: String): String {
         return hostMap.getOrPut(origin) {
             NetworkUtils.getSubDomainOrNull(origin) ?: "#"
@@ -469,11 +572,19 @@ class RssSourceActivity : VMBaseActivity<ActivityRssSourceBinding, RssSourceView
     }
 
     override fun toTop(source: RssSource) {
-        viewModel.topSource(source)
+        if (sortAscending) {
+            viewModel.topSource(source)
+        } else {
+            viewModel.bottomSource(source)
+        }
     }
 
     override fun toBottom(source: RssSource) {
-        viewModel.bottomSource(source)
+        if (sortAscending) {
+            viewModel.bottomSource(source)
+        } else {
+            viewModel.topSource(source)
+        }
     }
 
     override fun upOrder() {
