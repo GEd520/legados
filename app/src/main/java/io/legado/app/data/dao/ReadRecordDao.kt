@@ -87,8 +87,8 @@ interface ReadRecordDao {
     @Query("DELETE FROM readRecordDetail WHERE deviceId = :deviceId AND bookName = :bookName AND bookAuthor = :bookAuthor")
     suspend fun deleteDetailsByBook(deviceId: String, bookName: String, bookAuthor: String)
 
-    @Query("SELECT * FROM readRecordSession WHERE deviceId = :deviceId ORDER BY startTime DESC")
-    fun getAllSessions(deviceId: String): Flow<List<ReadRecordSession>>
+    @Query("SELECT * FROM readRecordSession ORDER BY startTime DESC")
+    fun getAllSessions(): Flow<List<ReadRecordSession>>
 
     @Query("SELECT * FROM readRecordSession")
     suspend fun getAllSessionsList(): List<ReadRecordSession>
@@ -111,6 +111,21 @@ interface ReadRecordDao {
     @Query("DELETE FROM readRecordSession WHERE deviceId = :deviceId AND bookName = :bookName AND bookAuthor = :bookAuthor AND date(startTime / 1000, 'unixepoch') = :date")
     suspend fun deleteSessionsByBookAndDate(deviceId: String, bookName: String, bookAuthor: String, date: String)
 
+    @Query("SELECT * FROM readRecord WHERE bookAuthor = ''")
+    suspend fun getRecordsWithEmptyAuthor(): List<ReadRecord>
+
+    @Query("UPDATE readRecord SET bookAuthor = :author WHERE deviceId = :deviceId AND bookName = :bookName AND bookAuthor = ''")
+    suspend fun updateAuthorByBookName(deviceId: String, bookName: String, author: String)
+
+    @Query("SELECT bookName, bookAuthor, SUM(readTime) as totalReadTime FROM readRecordDetail GROUP BY bookName, bookAuthor")
+    suspend fun getBookReadTimes(): List<BookReadTime>
+
     @Delete
     suspend fun deleteReadRecord(record: ReadRecord)
 }
+
+data class BookReadTime(
+    val bookName: String,
+    val bookAuthor: String,
+    val totalReadTime: Long
+)

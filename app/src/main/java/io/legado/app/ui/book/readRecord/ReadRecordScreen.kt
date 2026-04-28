@@ -163,6 +163,7 @@ fun ReadRecordScreen(
                                 DisplayMode.AGGREGATE -> "汇总视图"
                                 DisplayMode.TIMELINE -> "时间线视图"
                                 DisplayMode.LATEST -> "最后阅读"
+                                DisplayMode.READ_TIME -> "阅读时长"
                             },
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -186,7 +187,8 @@ fun ReadRecordScreen(
                             when (displayMode) {
                                 DisplayMode.AGGREGATE -> DisplayMode.TIMELINE
                                 DisplayMode.TIMELINE -> DisplayMode.LATEST
-                                DisplayMode.LATEST -> DisplayMode.AGGREGATE
+                                DisplayMode.LATEST -> DisplayMode.READ_TIME
+                                DisplayMode.READ_TIME -> DisplayMode.AGGREGATE
                             }
                         )
                     }) {
@@ -195,6 +197,7 @@ fun ReadRecordScreen(
                                 DisplayMode.AGGREGATE -> Icons.Default.Timeline
                                 DisplayMode.TIMELINE -> Icons.Default.List
                                 DisplayMode.LATEST -> Icons.Default.AutoAwesome
+                                DisplayMode.READ_TIME -> Icons.Default.Schedule
                             },
                             contentDescription = "切换视图"
                         )
@@ -240,7 +243,8 @@ fun ReadRecordScreen(
             } else if (
                 (displayMode == DisplayMode.AGGREGATE && state.groupedRecords.isEmpty()) ||
                 (displayMode == DisplayMode.TIMELINE && state.timelineRecords.isEmpty()) ||
-                (displayMode == DisplayMode.LATEST && state.latestRecords.isEmpty())
+                (displayMode == DisplayMode.LATEST && state.latestRecords.isEmpty()) ||
+                (displayMode == DisplayMode.READ_TIME && state.readTimeRecords.isEmpty())
             ) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -414,6 +418,16 @@ private fun LazyListScope.RecordListContent(
                     onClick = { onBookClick(record.bookName, record.bookAuthor) },
                     onDelete = { onConfirmDelete { viewModel.deleteReadRecord(record) } },
                     onMerge = { onMergeClick(record) }
+                )
+            }
+        }
+        DisplayMode.READ_TIME -> {
+            items(items = state.readTimeRecords, key = { "readtime_${it.bookName}_${it.bookAuthor}" }) { record ->
+                ReadTimeRecordItem(
+                    record = record,
+                    viewModel = viewModel,
+                    onClick = { onBookClick(record.bookName, record.bookAuthor) },
+                    onDelete = { onConfirmDelete { viewModel.deleteReadRecord(record) } }
                 )
             }
         }
@@ -773,6 +787,85 @@ private fun LatestRecordItem(
                         }
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReadTimeRecordItem(
+    record: ReadRecord,
+    viewModel: ReadRecordViewModel,
+    onClick: () -> Unit,
+    onDelete: () -> Unit
+) {
+    var chapterTitle by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(record.bookName, record.bookAuthor) {
+        chapterTitle = viewModel.getBookDurChapterTitle(record.bookName, record.bookAuthor)
+    }
+
+    val deleteAction = rememberSwipeDeleteAction(onDelete)
+
+    SwipeActionContainer(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        startActions = listOf(deleteAction)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick),
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                BookCoverImage(
+                    bookName = record.bookName,
+                    bookAuthor = record.bookAuthor,
+                    viewModel = viewModel,
+                    modifier = Modifier.width(44.dp).height(60.dp)
+                )
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = record.bookName,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = record.bookAuthor.ifBlank { "未知作者" },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    chapterTitle?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                Text(
+                    text = formatReadDuration(record.readTime),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
             }
         }
     }

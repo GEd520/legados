@@ -19,4 +19,9 @@ class BookRepository {
         val book = appDb.bookDao.getBook(bookName, bookAuthor) ?: return null
         return book.durChapterTitle
     }
+
+    suspend fun getAuthorByBookName(bookName: String): String? {
+        val book = appDb.bookDao.getBookByName(bookName) ?: return null
+        return book.author.ifBlank { null }
+    }
 }

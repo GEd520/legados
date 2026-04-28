@@ -96,6 +96,9 @@ interface BookDao {
     @Query("SELECT * FROM books WHERE name = :name and author = :author")
     fun getBook(name: String, author: String): Book?
 
+    @Query("SELECT * FROM books WHERE name = :name LIMIT 1")
+    fun getBookByName(name: String): Book?
+
     @Query("SELECT * FROM books WHERE name = :name and author = :author")
     fun findByNameAndAuthor(name: String, author: String): Flow<Book?>
 

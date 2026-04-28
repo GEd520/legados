@@ -61,8 +61,7 @@ import java.util.Locale
 
 val appDb by lazy {
     Room.databaseBuilder(appCtx, AppDatabase::class.java, AppDatabase.DATABASE_NAME)
-        .fallbackToDestructiveMigration()
-        .fallbackToDestructiveMigrationOnDowngrade()
+        .fallbackToDestructiveMigrationFrom(false, 1, 2, 3, 4, 5, 6, 7, 8, 9)  
         .addMigrations(*DatabaseMigrations.migrations)
         .allowMainThreadQueries()
         .addCallback(AppDatabase.dbCallback)
@@ -157,7 +156,7 @@ abstract class AppDatabase : RoomDatabase() {
 
     companion object {
 
-        const val DATABASE_NAME = "legado_plus.db"
+        const val DATABASE_NAME = "legado.db"
 
         const val BOOK_TABLE_NAME = "books"
         const val BOOK_SOURCE_TABLE_NAME = "book_sources"

@@ -419,9 +419,11 @@ object DatabaseMigrations {
     class Migration_84_85 : AutoMigrationSpec
 
     @Suppress("ClassName")
-    @DeleteColumn(
-        tableName = "readRecord",
-        columnName = "firstRead"
+    @DeleteColumn.Entries(
+        DeleteColumn(
+            tableName = "readRecord",
+            columnName = "firstRead"
+        )
     )
     class Migration_90_91 : AutoMigrationSpec {
         override fun onPostMigrate(db: SupportSQLiteDatabase) {
@@ -436,10 +438,12 @@ object DatabaseMigrations {
                 )
             """.trimIndent())
             db.execSQL("""
-                INSERT INTO readRecord_new (deviceId, bookName, bookAuthor, readTime, lastRead)
-                SELECT deviceId, bookName, '', readTime, 0 FROM readRecord
+                INSERT OR IGNORE INTO readRecord_new (deviceId, bookName, bookAuthor, readTime, lastRead)
+                SELECT deviceId, bookName, '', SUM(readTime), MAX(COALESCE(lastRead, 0)) 
+                FROM readRecord 
+                GROUP BY deviceId, bookName
             """.trimIndent())
-            db.execSQL("DROP TABLE readRecord")
+            db.execSQL("DROP TABLE IF EXISTS readRecord")
             db.execSQL("ALTER TABLE readRecord_new RENAME TO readRecord")
             db.execSQL("""
                 CREATE TABLE IF NOT EXISTS readRecordDetail (

@@ -31,6 +31,7 @@ data class ReadRecordUiState(
     val groupedRecords: Map<String, List<ReadRecordDetail>> = emptyMap(),
     val timelineRecords: Map<String, List<ReadRecordSession>> = emptyMap(),
     val latestRecords: List<ReadRecord> = emptyList(),
+    val readTimeRecords: List<ReadRecord> = emptyList(),
     val selectedDate: LocalDate? = null,
     val searchKey: String? = null,
     val dailyReadCounts: Map<LocalDate, Int> = emptyMap(),
@@ -40,7 +41,8 @@ data class ReadRecordUiState(
 enum class DisplayMode {
     AGGREGATE,
     TIMELINE,
-    LATEST
+    LATEST,
+    READ_TIME
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -53,6 +55,14 @@ class ReadRecordViewModel : ViewModel() {
     val displayMode = _displayMode.asStateFlow()
     private val _searchKey = MutableStateFlow("")
     private val _selectedDate = MutableStateFlow<LocalDate?>(null)
+
+    init {
+        viewModelScope.launch {
+            repository.fixEmptyAuthors { bookName ->
+                bookRepository.getAuthorByBookName(bookName)
+            }
+        }
+    }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private val loadedDataFlow = _searchKey
@@ -111,6 +121,19 @@ class ReadRecordViewModel : ViewModel() {
             }
             .toSortedMap(compareByDescending { it })
 
+        val detailReadTimes = data.details
+            .groupBy { it.bookName to it.bookAuthor }
+            .mapValues { (_, details) -> details.sumOf { it.readTime } }
+
+        val readTimeRecords = data.latestRecords.map { record ->
+            val detailTime = detailReadTimes[record.bookName to record.bookAuthor] ?: 0L
+            if (record.readTime == 0L && detailTime > 0) {
+                record.copy(readTime = detailTime)
+            } else {
+                record
+            }
+        }.sortedByDescending { it.readTime }
+
         ReadRecordUiState(
             isLoading = false,
             totalReadTime = data.totalReadTime,
@@ -119,6 +142,7 @@ class ReadRecordViewModel : ViewModel() {
             groupedRecords = filteredDetails.groupBy { it.date },
             timelineRecords = timelineMap,
             latestRecords = data.latestRecords,
+            readTimeRecords = readTimeRecords,
             selectedDate = selectedDate,
             searchKey = searchKey,
             dailyReadCounts = dailyCounts,

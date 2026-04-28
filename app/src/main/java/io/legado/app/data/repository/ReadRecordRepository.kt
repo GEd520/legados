@@ -40,7 +40,7 @@ class ReadRecordRepository(
     }
 
     fun getAllSessions(): Flow<List<ReadRecordSession>> {
-        return dao.getAllSessions(getCurrentDeviceId())
+        return dao.getAllSessions()
     }
 
     fun getBookSessions(bookName: String, bookAuthor: String): Flow<List<ReadRecordSession>> {
@@ -289,5 +289,26 @@ class ReadRecordRepository(
 
         dao.deleteReadRecord(source)
         updateReadRecordTotal(targetRecord.deviceId, targetRecord.bookName, targetRecord.bookAuthor)
+    }
+
+    suspend fun fixEmptyAuthors(getAuthorByBookName: suspend (String) -> String?) {
+        val recordsWithEmptyAuthor = dao.getRecordsWithEmptyAuthor()
+        recordsWithEmptyAuthor.forEach { record ->
+            val author = getAuthorByBookName(record.bookName)
+            if (!author.isNullOrBlank()) {
+                val existingRecord = dao.getReadRecord(record.deviceId, record.bookName, author)
+                if (existingRecord != null) {
+                    dao.update(
+                        existingRecord.copy(
+                            readTime = existingRecord.readTime + record.readTime,
+                            lastRead = maxOf(existingRecord.lastRead, record.lastRead)
+                        )
+                    )
+                    dao.deleteReadRecord(record)
+                } else {
+                    dao.updateAuthorByBookName(record.deviceId, record.bookName, author)
+                }
+            }
+        }
     }
 }
