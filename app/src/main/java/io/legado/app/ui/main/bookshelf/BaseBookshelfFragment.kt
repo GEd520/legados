@@ -40,6 +40,10 @@ import io.legado.app.utils.showDialogFragment
 import io.legado.app.utils.startActivity
 import io.legado.app.utils.toastOnUi
 
+/**
+ * 书架Fragment基类
+ * 处理书架界面相关的逻辑，包括菜单操作、书籍导入导出等功能
+ */
 abstract class BaseBookshelfFragment(layoutId: Int) : VMBaseFragment<BookshelfViewModel>(layoutId),
     MainFragmentInterface {
 
@@ -48,6 +52,7 @@ abstract class BaseBookshelfFragment(layoutId: Int) : VMBaseFragment<BookshelfVi
     val activityViewModel by activityViewModels<MainViewModel>()
     override val viewModel by viewModels<BookshelfViewModel>()
 
+    /** 导入书单的ActivityResultLauncher，支持从文件选择器选择文件 */
     private val importBookshelf = registerForActivityResult(HandleFileContract()) {
         kotlin.runCatching {
             it.uri?.readText(requireContext())?.let { text ->
@@ -57,7 +62,13 @@ abstract class BaseBookshelfFragment(layoutId: Int) : VMBaseFragment<BookshelfVi
             toastOnUi(it.localizedMessage ?: "ERROR")
         }
     }
+    /** 导出书单结果的ActivityResultLauncher，用于选择保存位置 */
     private val exportResult = registerForActivityResult(HandleFileContract()) {
+        it.clipboardJson?.let { json ->
+            requireContext().sendToClip(json)
+            toastOnUi("已复制到剪贴板")
+            return@registerForActivityResult
+        }
         it.uri?.let { uri ->
             alert(R.string.export_success) {
                 if (uri.toString().isAbsUrl()) {
@@ -74,10 +85,15 @@ abstract class BaseBookshelfFragment(layoutId: Int) : VMBaseFragment<BookshelfVi
             }
         }
     }
+    /** 当前分组ID，用于确定导入书籍的分组 */
     abstract val groupId: Long
+    /** 当前书架的书籍列表 */
     abstract val books: List<Book>
+    /** 是否只更新已读书籍的目录 */
     abstract var onlyUpdateRead: Boolean
+    /** 分组LiveData观察者 */
     private var groupsLiveData: LiveData<List<BookGroup>>? = null
+    /** 添加书籍时的等待对话框 */
     private val waitDialog by lazy {
         WaitDialog(requireContext()).apply {
             setOnCancelListener {
@@ -88,10 +104,12 @@ abstract class BaseBookshelfFragment(layoutId: Int) : VMBaseFragment<BookshelfVi
 
     abstract fun gotoTop()
 
+    /** 创建选项菜单，加载main_bookshelf菜单资源 */
     override fun onCompatCreateOptionsMenu(menu: Menu) {
         menuInflater.inflate(R.menu.main_bookshelf, menu)
     }
 
+    /** 处理选项菜单的点击事件 */
     override fun onCompatOptionsItemSelected(item: MenuItem) {
         super.onCompatOptionsItemSelected(item)
         when (item.itemId) {
@@ -118,16 +136,12 @@ abstract class BaseBookshelfFragment(layoutId: Int) : VMBaseFragment<BookshelfVi
                 }
             }
 
-            R.id.menu_export_bookshelf_to_clipboard -> viewModel.exportBookshelfToJson(books) { json ->
-                requireContext().sendToClip(json)
-                toastOnUi("已复制到剪贴板")
-            }
-
             R.id.menu_import_bookshelf -> importBookshelfAlert(groupId)
             R.id.menu_log -> showDialogFragment<AppLogDialog>()
         }
     }
 
+    /** 初始化书籍分组数据观察 */
     protected fun initBookGroupData() {
         groupsLiveData?.removeObservers(viewLifecycleOwner)
         groupsLiveData = appDb.bookGroupDao.show.apply {
@@ -141,6 +155,7 @@ abstract class BaseBookshelfFragment(layoutId: Int) : VMBaseFragment<BookshelfVi
 
     abstract fun upSort()
 
+    /** 观察LiveBus事件，处理添加书籍进度更新 */
     override fun observeLiveBus() {
         viewModel.addBookProgressLiveData.observe(this) { count ->
             if (count < 0) {
@@ -151,6 +166,7 @@ abstract class BaseBookshelfFragment(layoutId: Int) : VMBaseFragment<BookshelfVi
         }
     }
 
+    /** 显示通过URL添加书籍的对话框 */
     @SuppressLint("InflateParams")
     fun showAddBookByUrlAlert() {
         alert(titleResource = R.string.add_book_url) {
@@ -169,6 +185,7 @@ abstract class BaseBookshelfFragment(layoutId: Int) : VMBaseFragment<BookshelfVi
         }
     }
 
+    /** 显示书架布局配置对话框 */
     @SuppressLint("InflateParams")
     fun configBookshelf() {
         alert(titleResource = R.string.bookshelf_layout) {
@@ -267,7 +284,7 @@ abstract class BaseBookshelfFragment(layoutId: Int) : VMBaseFragment<BookshelfVi
         }
     }
 
-
+    /** 显示导入书单对话框，支持输入URL或选择本地文件 */
     private fun importBookshelfAlert(groupId: Long) {
         alert(titleResource = R.string.import_bookshelf) {
             val alertBinding = DialogEditTextBinding.inflate(layoutInflater).apply {

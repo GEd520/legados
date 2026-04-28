@@ -80,16 +80,31 @@ class RssSourceActivity : VMBaseActivity<ActivityRssSourceBinding, RssSourceView
     private var sourceFlowJob: Job? = null
     private var groups = arrayListOf<String>()
     private var groupMenu: SubMenu? = null
+
+    /**
+     * 订阅源排序方式，使用 SharedPreferences 持久化保存
+     * 读取时从配置中获取，默认值为手动排序
+     * 写入时同步保存到配置中
+     */
     var sort = RssSourceSort.entries[appCtx.getPrefInt(PreferKey.rssSourceSort, 0)]
         private set(value) {
             field = value
             appCtx.putPrefInt(PreferKey.rssSourceSort, value.ordinal)
         }
+
+    /**
+     * 排序方向，使用 SharedPreferences 持久化保存
+     * true=升序，false=降序
+     */
     var sortAscending = appCtx.getPrefBoolean(PreferKey.rssSourceSortAscending, true)
         private set(value) {
             field = value
             appCtx.putPrefBoolean(PreferKey.rssSourceSortAscending, value)
         }
+
+    /**
+     * 是否按域名分组，使用 SharedPreferences 持久化保存
+     */
     private var groupSourcesByDomain = appCtx.getPrefBoolean(PreferKey.rssSourceGroupByDomain, false)
     
     /**
@@ -137,19 +152,27 @@ class RssSourceActivity : VMBaseActivity<ActivityRssSourceBinding, RssSourceView
         return super.onCompatCreateOptionsMenu(menu)
     }
 
+    /**
+     * 准备选项菜单，恢复菜单选中状态
+     * 从持久化配置中读取排序设置，同步到菜单项
+     * 注意：menu_group_sources_by_domain 在主菜单中，不在 action_sort 子菜单中
+     */
     override fun onPrepareOptionsMenu(menu: Menu): Boolean {
         groupMenu = menu.findItem(R.id.menu_group)?.subMenu
         val sortSubMenu = menu.findItem(R.id.action_sort).subMenu!!
+        // 恢复排序方向（升序/降序）菜单状态
         sortSubMenu.findItem(R.id.menu_sort_desc).isChecked = !sortAscending
         sortSubMenu.setGroupCheckable(R.id.menu_group_sort, true, true)
+        // 恢复排序方式菜单选中状态
         when (sort) {
-            RssSourceSort.Default -> sortSubMenu.findItem(R.id.menu_sort_manual).isChecked = true
-            RssSourceSort.Name -> sortSubMenu.findItem(R.id.menu_sort_name).isChecked = true
-            RssSourceSort.Url -> sortSubMenu.findItem(R.id.menu_sort_url).isChecked = true
-            RssSourceSort.Update -> sortSubMenu.findItem(R.id.menu_sort_time).isChecked = true
-            RssSourceSort.Enable -> sortSubMenu.findItem(R.id.menu_sort_enable).isChecked = true
+            RssSourceSort.Default -> sortSubMenu.findItem(R.id.menu_sort_manual)?.isChecked = true
+            RssSourceSort.Name -> sortSubMenu.findItem(R.id.menu_sort_name)?.isChecked = true
+            RssSourceSort.Url -> sortSubMenu.findItem(R.id.menu_sort_url)?.isChecked = true
+            RssSourceSort.Update -> sortSubMenu.findItem(R.id.menu_sort_time)?.isChecked = true
+            RssSourceSort.Enable -> sortSubMenu.findItem(R.id.menu_sort_enable)?.isChecked = true
         }
-        sortSubMenu.findItem(R.id.menu_group_sources_by_domain).isChecked = groupSourcesByDomain
+        // 按域名分组菜单在主菜单中，需要直接从 menu 查找
+        menu.findItem(R.id.menu_group_sources_by_domain)?.isChecked = groupSourcesByDomain
         upGroupMenu()
         return super.onPrepareOptionsMenu(menu)
     }

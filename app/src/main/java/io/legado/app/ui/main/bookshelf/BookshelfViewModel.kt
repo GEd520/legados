@@ -34,10 +34,22 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStreamWriter
 
+/**
+ * 书架ViewModel
+ * 处理书架相关的业务逻辑，包括书籍的导入、导出等功能
+ */
 class BookshelfViewModel(application: Application) : BaseViewModel(application) {
+    /** 添加书籍进度LiveData，-1表示完成 */
     val addBookProgressLiveData = MutableLiveData(-1)
+    /** 添加书籍的协程任务 */
     var addBookJob: Coroutine<*>? = null
 
+    /**
+     * 通过URL添加书籍
+     * 支持批量添加，每行一个URL
+     * 会自动识别书源并获取书籍信息
+     * @param bookUrls 书籍URL列表，支持多行
+     */
     fun addBookByUrl(bookUrls: String) {
         var successCount = 0
         addBookJob = execute {
@@ -121,6 +133,12 @@ class BookshelfViewModel(application: Application) : BaseViewModel(application) 
         }
     }
 
+    /**
+     * 导出书架书籍到JSON文件
+     * 将书籍信息（书名、作者、简介）导出为JSON数组格式的文件
+     * @param books 要导出的书籍列表
+     * @param success 导出成功回调，返回File对象
+     */
     fun exportBookshelf(books: List<Book>?, success: (file: File) -> Unit) {
         execute {
             books?.let {
@@ -150,33 +168,12 @@ class BookshelfViewModel(application: Application) : BaseViewModel(application) 
         }
     }
 
-    fun exportBookshelfToJson(books: List<Book>?, success: (json: String) -> Unit) {
-        execute {
-            books?.let {
-                val builder = StringBuilder()
-                builder.append("[\n")
-                it.forEachIndexed { index, book ->
-                    val bookMap = hashMapOf<String, String?>()
-                    bookMap["name"] = book.name
-                    bookMap["author"] = book.author
-                    bookMap["intro"] = book.getDisplayIntro()
-                    val json = GSON.toJson(bookMap, bookMap::class.java)
-                    builder.append("  ").append(json)
-                    if (index < it.size - 1) {
-                        builder.append(",")
-                    }
-                    builder.append("\n")
-                }
-                builder.append("]")
-                builder.toString()
-            } ?: throw NoStackTraceException("书籍不能为空")
-        }.onSuccess {
-            success(it)
-        }.onError {
-            context.toastOnUi("导出书籍出错\n${it.localizedMessage}")
-        }
-    }
-
+    /**
+     * 导入书架书籍
+     * 支持从URL导入或直接输入JSON字符串
+     * @param str URL地址或JSON字符串
+     * @param groupId 导入后添加到指定分组，0表示不分组
+     */
     fun importBookshelf(str: String, groupId: Long) {
         execute {
             val text = str.trim()
@@ -202,6 +199,13 @@ class BookshelfViewModel(application: Application) : BaseViewModel(application) 
         }
     }
 
+    /**
+     * 通过JSON导入书籍到书架
+     * 解析JSON数组，根据书名和作者搜索匹配书籍并添加到书架
+     * 会跳过已存在的书籍（根据书名和作者判断）
+     * @param json JSON格式的书籍列表
+     * @param groupId 导入后添加到指定分组，0表示不分组
+     */
     private fun importBookshelfByJson(json: String, groupId: Long) {
         execute {
             val bookSourceParts = appDb.bookSourceDao.allEnabledPart
