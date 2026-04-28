@@ -78,7 +78,7 @@ class SourceEditScrollBar @JvmOverloads constructor(
     fun attachRecyclerView(recyclerView: RecyclerView) {
         this.recyclerView = recyclerView
         recyclerView.addOnScrollListener(scrollListener)
-        visibility = GONE
+        post { updateScrollBarPosition() }
     }
 
     fun detachRecyclerView() {
@@ -185,6 +185,9 @@ class SourceEditScrollBar @JvmOverloads constructor(
 
         visibility = VISIBLE
         isScrollBarVisible = true
+        if (currentAlpha == 0f) {
+            currentAlpha = 1f
+        }
 
         val scrollBarHeight = max(
             scrollBarMinHeight.toFloat(),

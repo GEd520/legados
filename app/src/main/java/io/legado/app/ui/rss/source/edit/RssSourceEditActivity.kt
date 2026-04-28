@@ -33,6 +33,8 @@ import io.legado.app.ui.login.SourceLoginActivity
 import io.legado.app.ui.qrcode.QrCodeResult
 import io.legado.app.ui.rss.source.debug.RssSourceDebugActivity
 import io.legado.app.ui.widget.dialog.UrlOptionDialog
+import io.legado.app.ui.widget.dialog.CookieViewerDialog
+import io.legado.app.ui.widget.dialog.HelpSearchDialog
 import io.legado.app.ui.widget.dialog.VariableDialog
 import io.legado.app.ui.widget.keyboard.KeyboardToolPop
 import io.legado.app.ui.widget.text.EditEntity
@@ -205,6 +207,8 @@ class RssSourceEditActivity :
 
             R.id.menu_log -> showDialogFragment<AppLogDialog>()
             R.id.menu_help -> showHelp("rssRuleHelp")
+            R.id.menu_search_help -> showDialogFragment<HelpSearchDialog>()
+            R.id.menu_view_cookie -> showDialogFragment(CookieViewerDialog(getRssSource().sourceUrl))
         }
         return super.onCompatOptionsItemSelected(item)
     }
