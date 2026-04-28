@@ -8,22 +8,19 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.graphics.drawable.toBitmap
 import io.legado.app.help.config.ThemeConfig
-import io.legado.app.lib.theme.ThemeStore
 import io.legado.app.ui.book.search.SearchActivity
 import io.legado.app.utils.startActivityForBook
 import androidx.lifecycle.lifecycleScope
@@ -42,6 +39,7 @@ import io.legado.app.utils.setNavigationBarColorAuto
 import io.legado.app.utils.setStatusBarColorAuto
 import io.legado.app.lib.theme.backgroundColor
 import io.legado.app.lib.theme.primaryColor
+import io.legado.app.lib.theme.ThemeStore
 
 class ReadRecordActivity : AppCompatActivity() {
 
@@ -129,10 +127,19 @@ fun ReadRecordContent(
     val primaryColor = remember { ThemeStore.primaryColor(context) }
     val accentColor = remember { ThemeStore.accentColor(context) }
     val bgColor = remember { ThemeStore.backgroundColor(context) }
-    
+    val textPrimaryColor = remember { ThemeStore.textColorPrimary(context) }
+    val textSecondaryColor = remember { ThemeStore.textColorSecondary(context) }
+
     val isLight = ColorUtils.isColorLight(bgColor)
-    
-    val colorScheme = remember(isLight, primaryColor, accentColor, bgColor) {
+
+    val colorScheme = remember(
+        isLight,
+        primaryColor,
+        accentColor,
+        bgColor,
+        textPrimaryColor,
+        textSecondaryColor
+    ) {
         if (isLight) {
             lightColorScheme(
                 primary = Color(primaryColor),
@@ -143,9 +150,9 @@ fun ReadRecordContent(
                 surfaceVariant = Color(bgColor),
                 onPrimary = if (ColorUtils.isColorLight(primaryColor)) Color.Black else Color.White,
                 onSecondary = if (ColorUtils.isColorLight(accentColor)) Color.Black else Color.White,
-                onBackground = if (isLight) Color.Black else Color.White,
-                onSurface = if (isLight) Color.Black else Color.White,
-                onSurfaceVariant = if (isLight) Color.Black else Color.White,
+                onBackground = Color(textPrimaryColor),
+                onSurface = Color(textPrimaryColor),
+                onSurfaceVariant = Color(textSecondaryColor),
                 error = Color(0xFFE53935),
                 onError = Color.White
             )
@@ -159,9 +166,9 @@ fun ReadRecordContent(
                 surfaceVariant = Color(bgColor),
                 onPrimary = if (ColorUtils.isColorLight(primaryColor)) Color.Black else Color.White,
                 onSecondary = if (ColorUtils.isColorLight(accentColor)) Color.Black else Color.White,
-                onBackground = if (isLight) Color.Black else Color.White,
-                onSurface = if (isLight) Color.Black else Color.White,
-                onSurfaceVariant = if (isLight) Color.Black else Color.White,
+                onBackground = Color(textPrimaryColor),
+                onSurface = Color(textPrimaryColor),
+                onSurfaceVariant = Color(textSecondaryColor),
                 error = Color(0xFFFF5252),
                 onError = Color.Black
             )
@@ -187,7 +194,7 @@ fun BoxWithBackground(
     bgColor: Color,
     content: @Composable () -> Unit
 ) {
-    androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier.fillMaxSize()) {
         if (bgDrawable != null) {
             Image(
                 bitmap = bgDrawable.toBitmap().asImageBitmap(),
@@ -195,12 +202,23 @@ fun BoxWithBackground(
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        if (bgColor.luminance() > 0.5f) {
+                            bgColor.copy(alpha = 0.18f)
+                        } else {
+                            bgColor.copy(alpha = 0.28f)
+                        }
+                    )
+            )
         } else {
-            androidx.compose.foundation.layout.Box(
+            Box(
                 modifier = Modifier.fillMaxSize().background(bgColor)
             )
         }
-        
+
         content()
     }
 }
