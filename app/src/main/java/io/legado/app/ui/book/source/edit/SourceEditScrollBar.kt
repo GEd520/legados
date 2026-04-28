@@ -116,14 +116,16 @@ class SourceEditScrollBar @JvmOverloads constructor(
             MotionEvent.ACTION_DOWN -> {
                 if (!isScrollBarVisible) return false
                 isDragging = true
+                fadeAnimator?.cancel()
                 parent?.requestDisallowInterceptTouchEvent(true)
+                updateScrollBarPositionFromTouch(touchY)
                 scrollToPosition(touchY)
-                showScrollBar()
                 invalidate()
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
                 if (isDragging) {
+                    updateScrollBarPositionFromTouch(touchY)
                     scrollToPosition(touchY)
                     return true
                 }
@@ -153,8 +155,21 @@ class SourceEditScrollBar @JvmOverloads constructor(
         val proportion = (y / height).coerceIn(0f, 1f)
         val targetPos = (proportion * (itemCount - 1)).toInt()
 
-        recyclerView.stopScroll()
         layoutManager.scrollToPositionWithOffset(targetPos, 0)
+    }
+
+    private fun updateScrollBarPositionFromTouch(y: Float) {
+        var scrollBarHeight = scrollBarRect.height()
+        if (scrollBarHeight <= 0) {
+            scrollBarHeight = scrollBarMinHeight
+            scrollBarRect.bottom = scrollBarRect.top + scrollBarHeight
+        }
+
+        val scrollBarTop = (y - scrollBarHeight / 2).coerceIn(0f, height - scrollBarHeight)
+        scrollBarRect.top = scrollBarTop
+        scrollBarRect.bottom = scrollBarTop + scrollBarHeight
+
+        invalidate()
     }
 
     private fun updateScrollBarPosition() {

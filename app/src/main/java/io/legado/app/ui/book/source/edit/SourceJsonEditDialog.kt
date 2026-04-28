@@ -64,8 +64,7 @@ class SourceJsonEditDialog(
             when (it.itemId) {
                 R.id.menu_search -> toggleSearchPanel()
                 R.id.menu_save -> {
-                    val content = originalContent?.toString()
-                        ?: binding.contentView.text?.toString()
+                    val content = binding.contentView.text?.toString()
                         ?: return@setOnMenuItemClickListener true
                     try {
                         JsonParser.parseString(content)
