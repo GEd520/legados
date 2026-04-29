@@ -1,6 +1,5 @@
 package io.legado.app.ui.book.source.edit
 
-import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
@@ -8,7 +7,6 @@ import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
-import android.view.animation.LinearInterpolator
 import androidx.annotation.ColorInt
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -21,13 +19,13 @@ class SourceEditScrollBar @JvmOverloads constructor(
     defStyleAttr: Int = 0
 ) : View(context, attrs, defStyleAttr) {
 
-    private val scrollBarWidth = dpToPx(8)
+    private val scrollBarWidth = dpToPx(6)
     private val scrollBarMinHeight = dpToPx(40)
-    private val scrollBarMarginEnd = dpToPx(8)
-    private val touchAreaWidth = dpToPx(32)
+    private val scrollBarMarginEnd = dpToPx(4)
+    private val touchAreaPadding = dpToPx(12)
 
     @ColorInt
-    private val scrollBarColor: Int = ColorUtils.adjustAlpha(context.accentColor, 0.6f)
+    private val scrollBarColor: Int = ColorUtils.adjustAlpha(context.accentColor, 0.5f)
 
     @ColorInt
     private val scrollBarColorPressed: Int = context.accentColor
@@ -40,106 +38,28 @@ class SourceEditScrollBar @JvmOverloads constructor(
     private val scrollBarRect = RectF()
     private var recyclerView: RecyclerView? = null
     private var isDragging = false
-    private var isScrollBarVisible = false
-    private var fadeAnimator: ValueAnimator? = null
-    private var currentAlpha = 0f
+    private var dragStartY = 0f
+    private var scrollStartOffset = 0
 
     private val scrollListener = object : RecyclerView.OnScrollListener() {
         override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-            updateScrollBarPosition()
-        }
-
-        override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
-            when (newState) {
-                RecyclerView.SCROLL_STATE_DRAGGING,
-                RecyclerView.SCROLL_STATE_SETTLING -> {
-                    if (!isDragging) {
-                        showScrollBar()
-                    }
-                }
-                RecyclerView.SCROLL_STATE_IDLE -> {
-                    if (!isDragging) {
-                        hideScrollBar()
-                    }
-                }
-            }
+            invalidate()
         }
     }
 
     fun attachRecyclerView(recyclerView: RecyclerView) {
         this.recyclerView = recyclerView
         recyclerView.addOnScrollListener(scrollListener)
-        post { updateScrollBarPosition() }
+        post { invalidate() }
     }
 
     fun detachRecyclerView() {
-        fadeAnimator?.cancel()
         recyclerView?.removeOnScrollListener(scrollListener)
         recyclerView = null
     }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        if (!isScrollBarVisible) return
-
-        paint.alpha = (currentAlpha * 255).toInt()
-        paint.color = if (isDragging) scrollBarColorPressed else scrollBarColor
-
-        val right = width.toFloat() - scrollBarMarginEnd
-        val left = right - scrollBarWidth
-
-        scrollBarRect.set(
-            left,
-            scrollBarRect.top,
-            right,
-            scrollBarRect.bottom
-        )
-
-        canvas.drawRect(scrollBarRect, paint)
-    }
-
-    override fun onTouchEvent(event: MotionEvent): Boolean {
-        val touchX = event.x
-        val touchY = event.y
-
-        val scrollBarLeft = width - scrollBarMarginEnd - scrollBarWidth - touchAreaWidth / 2
-        val scrollBarRight = width - scrollBarMarginEnd + touchAreaWidth / 2
-
-        if (touchX < scrollBarLeft || touchX > scrollBarRight) {
-            return false
-        }
-
-        when (event.action) {
-            MotionEvent.ACTION_DOWN -> {
-                if (!isScrollBarVisible) return false
-                isDragging = true
-                fadeAnimator?.cancel()
-                parent?.requestDisallowInterceptTouchEvent(true)
-                scrollToPosition(touchY)
-                invalidate()
-                return true
-            }
-            MotionEvent.ACTION_MOVE -> {
-                if (isDragging) {
-                    scrollToPosition(touchY)
-                    return true
-                }
-            }
-            MotionEvent.ACTION_UP,
-            MotionEvent.ACTION_CANCEL -> {
-                if (isDragging) {
-                    isDragging = false
-                    parent?.requestDisallowInterceptTouchEvent(false)
-                    hideScrollBar()
-                    invalidate()
-                    return true
-                }
-            }
-        }
-        return super.onTouchEvent(event)
-    }
-
-    private fun scrollToPosition(y: Float) {
         val recyclerView = recyclerView ?: return
         val layoutManager = recyclerView.layoutManager as? LinearLayoutManager ?: return
         val adapter = recyclerView.adapter ?: return
@@ -147,88 +67,84 @@ class SourceEditScrollBar @JvmOverloads constructor(
         val itemCount = adapter.itemCount
         if (itemCount == 0) return
 
-        val proportion = (y / height).coerceIn(0f, 1f)
-        val targetPos = (proportion * (itemCount - 1)).toInt()
-
-        layoutManager.scrollToPositionWithOffset(targetPos, 0)
-    }
-
-    private fun updateScrollBarPosition() {
-        val recyclerView = recyclerView ?: return
-        val layoutManager = recyclerView.layoutManager as? LinearLayoutManager ?: return
-        val adapter = recyclerView.adapter ?: return
-
-        val itemCount = adapter.itemCount
-        if (itemCount == 0) {
-            visibility = GONE
-            return
-        }
-
         val verticalScrollRange = recyclerView.computeVerticalScrollRange()
         val verticalScrollExtent = recyclerView.computeVerticalScrollExtent()
-
-        if (verticalScrollRange <= verticalScrollExtent) {
-            visibility = GONE
-            isScrollBarVisible = false
-            return
-        }
-
-        visibility = VISIBLE
-        isScrollBarVisible = true
-        if (currentAlpha == 0f) {
-            currentAlpha = 1f
-        }
-
-        val scrollBarHeight = scrollBarMinHeight.toFloat()
-
         val verticalScrollOffset = recyclerView.computeVerticalScrollOffset()
-        val maxScroll = verticalScrollRange - verticalScrollExtent
-        val scrollProportion = if (maxScroll > 0) verticalScrollOffset.toFloat() / maxScroll else 0f
 
-        val scrollBarTop = scrollProportion * (height - scrollBarHeight)
+        if (verticalScrollRange <= verticalScrollExtent) return
+
+        val scrollBarHeight = (verticalScrollExtent.toFloat() / verticalScrollRange * height)
+            .coerceAtLeast(scrollBarMinHeight.toFloat())
+
+        val maxScroll = verticalScrollRange - verticalScrollExtent
+        val scrollProportion = verticalScrollOffset.toFloat() / maxScroll
+
+        val availableHeight = height - scrollBarHeight
+        val scrollBarTop = scrollProportion * availableHeight
         val scrollBarBottom = scrollBarTop + scrollBarHeight
 
-        scrollBarRect.top = scrollBarTop
-        scrollBarRect.bottom = scrollBarBottom
+        val right = width - scrollBarMarginEnd
+        val left = right - scrollBarWidth
 
-        invalidate()
+        scrollBarRect.set(left, scrollBarTop, right, scrollBarBottom)
+
+        paint.color = if (isDragging) scrollBarColorPressed else scrollBarColor
+        canvas.drawRect(scrollBarRect, paint)
     }
 
-    private fun showScrollBar() {
-        if (visibility != VISIBLE) {
-            visibility = VISIBLE
-        }
-        isScrollBarVisible = true
-        fadeAnimator?.cancel()
-        fadeAnimator = ValueAnimator.ofFloat(currentAlpha, 1f).apply {
-            duration = 150
-            interpolator = LinearInterpolator()
-            addUpdateListener { animator ->
-                currentAlpha = animator.animatedValue as Float
-                invalidate()
-            }
-            start()
-        }
-    }
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        val recyclerView = recyclerView ?: return false
+        val touchX = event.x
+        val touchY = event.y
 
-    private fun hideScrollBar() {
-        fadeAnimator?.cancel()
-        fadeAnimator = ValueAnimator.ofFloat(currentAlpha, 0f).apply {
-            duration = 500
-            startDelay = 1000
-            interpolator = LinearInterpolator()
-            addUpdateListener { animator ->
-                currentAlpha = animator.animatedValue as Float
-                invalidate()
-            }
-            addListener(object : android.animation.AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: android.animation.Animator) {
-                    isScrollBarVisible = false
-                    visibility = GONE
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                val scrollBarLeft = scrollBarRect.left - touchAreaPadding
+                val scrollBarRight = scrollBarRect.right + touchAreaPadding
+
+                if (touchY < scrollBarRect.top || touchY > scrollBarRect.bottom ||
+                    touchX < scrollBarLeft || touchX > scrollBarRight
+                ) {
+                    return false
                 }
-            })
-            start()
+
+                isDragging = true
+                dragStartY = touchY
+                scrollStartOffset = recyclerView.computeVerticalScrollOffset()
+                parent?.requestDisallowInterceptTouchEvent(true)
+                return true
+            }
+
+            MotionEvent.ACTION_MOVE -> {
+                if (!isDragging) return false
+
+                val deltaY = touchY - dragStartY
+                val recyclerView_height = recyclerView.height
+                val verticalScrollRange = recyclerView.computeVerticalScrollRange()
+                val verticalScrollExtent = recyclerView.computeVerticalScrollExtent()
+                val maxScroll = verticalScrollRange - verticalScrollExtent
+
+                if (maxScroll <= 0) return true
+
+                val scrollDelta = (deltaY / recyclerView_height * maxScroll).toInt()
+                val targetScroll = (scrollStartOffset + scrollDelta).coerceIn(0, maxScroll)
+
+                recyclerView.scrollBy(0, targetScroll - scrollStartOffset)
+                scrollStartOffset = targetScroll
+                dragStartY = touchY
+                return true
+            }
+
+            MotionEvent.ACTION_UP,
+            MotionEvent.ACTION_CANCEL -> {
+                if (isDragging) {
+                    isDragging = false
+                    parent?.requestDisallowInterceptTouchEvent(false)
+                    return true
+                }
+            }
         }
+        return super.onTouchEvent(event)
     }
 
     private fun dpToPx(dp: Int): Float {
