@@ -196,7 +196,7 @@ class BookshelfFragment2() : BaseBookshelfFragment(R.layout.fragment_bookshelf2)
                 }
             }.flowWithLifecycleAndDatabaseChangeFirst(
                 viewLifecycleOwner.lifecycle,
-                Lifecycle.State.RESUMED,
+                Lifecycle.State.STARTED,
                 AppDatabase.BOOK_TABLE_NAME
             ).catch {
                 AppLog.put("书架更新出错", it)

@@ -1015,6 +1015,8 @@
     <string name="cover_rule_summary">进入详情页时使用封面规则重新获取封面</string>
     <string name="cover_html_code">自动生成封面代码</string>
     <string name="cover_html_code_summary">自定义HTML代码来生成封面图片</string>
+    <string name="cover_html_enable">自动生成封面</string>
+    <string name="cover_html_enable_summary">使用HTML模板生成封面图片</string>
     <string name="cover_html_preview">预览</string>
     <string name="cover_html_book_name">书名</string>
     <string name="cover_html_author">作者</string>
@@ -1022,6 +1024,7 @@
     <string name="cover_html_template">HTML封面模板</string>
     <string name="cover_html_template_name">模板名称</string>
     <string name="cover_html_empty">空模板</string>
+    <string name="cover_html_code_empty">HTML代码不能为空</string>
     <string name="scroll_to_dur_source">定位到当前书源</string>
     <string name="sys_tts_config">系统 TTS 设置</string>
     <string name="sys_tts_config_summary">打开系统 TTS 设置界面</string>

@@ -233,7 +233,7 @@ class BooksFragment() : BaseFragment(R.layout.fragment_books),
                 }
             }.flowWithLifecycleAndDatabaseChangeFirst(
                 viewLifecycleOwner.lifecycle,
-                Lifecycle.State.RESUMED,
+                Lifecycle.State.STARTED,
                 AppDatabase.BOOK_TABLE_NAME
             ).catch {
                 AppLog.put("书架更新出错", it)
