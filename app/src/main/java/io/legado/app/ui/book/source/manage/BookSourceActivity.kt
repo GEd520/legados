@@ -98,6 +98,7 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
     private var sourceFlowJob: Job? = null
     private var checkMessageRefreshJob: Job? = null
     private val groups = linkedSetOf<String>()
+    private val bookGroups = linkedSetOf<String>()
     private var groupMenu: SubMenu? = null
     override var sort = BookSourceSort.Default
         private set
@@ -425,6 +426,20 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
                     delay(500)
                 }
         }
+        lifecycleScope.launch {
+            appDb.bookGroupDao.flowSelect()
+                .flowWithLifecycleAndDatabaseChange(
+                    lifecycle,
+                    table = AppDatabase.BOOK_GROUP_TABLE_NAME
+                )
+                .conflate()
+                .distinctUntilChanged()
+                .collect { groupList ->
+                    bookGroups.clear()
+                    bookGroups.addAll(groupList.map { it.groupName })
+                    delay(500)
+                }
+        }
     }
 
     override fun selectAll(selectAll: Boolean) {
@@ -551,10 +566,11 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
 
     @SuppressLint("InflateParams")
     private fun selectionAddToGroups() {
+        val allGroups = (groups + bookGroups).distinct()
         alert(titleResource = R.string.add_group) {
             val alertBinding = DialogEditTextBinding.inflate(layoutInflater).apply {
                 editView.setHint(R.string.group_name)
-                editView.setFilterValues(groups.toList())
+                editView.setFilterValues(allGroups)
                 editView.dropDownHeight = 180.dpToPx()
             }
             customView { alertBinding.root }
@@ -571,10 +587,11 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
 
     @SuppressLint("InflateParams")
     private fun selectionRemoveFromGroups() {
+        val allGroups = (groups + bookGroups).distinct()
         alert(titleResource = R.string.remove_group) {
             val alertBinding = DialogEditTextBinding.inflate(layoutInflater).apply {
                 editView.setHint(R.string.group_name)
-                editView.setFilterValues(groups.toList())
+                editView.setFilterValues(allGroups)
                 editView.dropDownHeight = 180.dpToPx()
             }
             customView { alertBinding.root }
