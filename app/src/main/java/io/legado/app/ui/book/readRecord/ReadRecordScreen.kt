@@ -21,7 +21,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -470,29 +469,9 @@ private fun readTimeRecordKey(record: ReadRecord): String {
 }
 
 @Composable
-private fun readRecordTopBarContainerColor(): Color {
-    val background = MaterialTheme.colorScheme.background
-    val alpha = if (background.luminance() > 0.5f) 0.82f else 0.92f
-    return MaterialTheme.colorScheme.surface.copy(alpha = alpha)
-}
-
-@Composable
-private fun readRecordCardContainerColor(): Color {
-    val background = MaterialTheme.colorScheme.background
-    val alpha = if (background.luminance() > 0.5f) 0.9f else 0.86f
-    return MaterialTheme.colorScheme.surface.copy(alpha = alpha)
-}
-
-@Composable
-private fun readRecordHeaderContainerColor(): Color {
-    val background = MaterialTheme.colorScheme.background
-    val alpha = if (background.luminance() > 0.5f) 0.7f else 0.82f
-    return MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alpha)
-}
-
-@Composable
 private fun DateHeader(date: String, totalDuration: Long) {
     val headerColor = readRecordHeaderContainerColor()
+    val secondaryTextColor = readRecordSecondaryTextColor()
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = headerColor
@@ -512,7 +491,7 @@ private fun DateHeader(date: String, totalDuration: Long) {
             Text(
                 text = formatReadDuration(totalDuration),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = secondaryTextColor
             )
         }
     }
@@ -521,6 +500,7 @@ private fun DateHeader(date: String, totalDuration: Long) {
 @Composable
 private fun TimelineDateHeader(date: String, totalDuration: Long) {
     val headerColor = readRecordHeaderContainerColor()
+    val secondaryTextColor = readRecordSecondaryTextColor()
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = headerColor
@@ -540,7 +520,7 @@ private fun TimelineDateHeader(date: String, totalDuration: Long) {
             Text(
                 text = formatReadDuration(totalDuration),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = secondaryTextColor
             )
         }
     }
@@ -556,6 +536,8 @@ private fun TimelineSessionView(
 ) {
     val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
     val startTime = timeFormat.format(Date(session.startTime))
+    val timelineAccentColor = readRecordTimelineAccentColor()
+    val secondaryTextColor = readRecordSecondaryTextColor()
     
     val deleteAction = rememberSwipeDeleteAction(onDelete)
     var chapterTitle by remember { mutableStateOf<String?>(null) }
@@ -584,12 +566,12 @@ private fun TimelineSessionView(
                             .width(2.dp)
                             .height(48.dp)
                             .shadow(2.dp, RoundedCornerShape(1.dp), clip = false)
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+                            .background(timelineAccentColor.copy(alpha = 0.7f))
                     )
                 }
                 Surface(
                     shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = timelineAccentColor,
                     modifier = Modifier
                         .size(12.dp)
                         .shadow(3.dp, CircleShape, clip = false)
@@ -605,7 +587,7 @@ private fun TimelineSessionView(
                 Text(
                     text = startTime,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = secondaryTextColor
                 )
             }
             
