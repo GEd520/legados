@@ -185,6 +185,9 @@ class TextDialog() : BaseDialogFragment(R.layout.dialog_text_view) {
                         }
                     }
                 }
+                R.id.menu_search_help -> {
+                    showDialogFragment(HelpSearchDialog())
+                }
             }
             true
         }
