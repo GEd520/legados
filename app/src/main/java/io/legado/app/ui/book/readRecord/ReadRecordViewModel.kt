@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
@@ -125,14 +126,30 @@ class ReadRecordViewModel : ViewModel() {
             .groupBy { it.bookName to it.bookAuthor }
             .mapValues { (_, details) -> details.sumOf { it.readTime } }
 
-        val readTimeRecords = data.latestRecords.map { record ->
-            val detailTime = detailReadTimes[record.bookName to record.bookAuthor] ?: 0L
-            if (record.readTime == 0L && detailTime > 0) {
-                record.copy(readTime = detailTime)
-            } else {
-                record
-            }
-        }.sortedByDescending { it.readTime }
+        val latestRecords = data.latestRecords.filter { record ->
+            dateStr == null || record.lastRead.toLocalDateString() == dateStr
+        }
+
+        val readTimeRecords = if (dateStr == null) {
+            data.latestRecords.map { record ->
+                val detailTime = detailReadTimes[record.bookName to record.bookAuthor] ?: 0L
+                if (record.readTime == 0L && detailTime > 0) {
+                    record.copy(readTime = detailTime)
+                } else {
+                    record
+                }
+            }.sortedByDescending { it.readTime }
+        } else {
+            val filteredDetailReadTimes = filteredDetails
+                .groupBy { it.bookName to it.bookAuthor }
+                .mapValues { (_, details) -> details.sumOf { it.readTime } }
+
+            data.latestRecords.mapNotNull { record ->
+                val dateReadTime = filteredDetailReadTimes[record.bookName to record.bookAuthor]
+                    ?: return@mapNotNull null
+                record.copy(readTime = dateReadTime)
+            }.sortedByDescending { it.readTime }
+        }
 
         ReadRecordUiState(
             isLoading = false,
@@ -141,7 +158,7 @@ class ReadRecordViewModel : ViewModel() {
             todayBookCount = todayBookCount,
             groupedRecords = filteredDetails.groupBy { it.date },
             timelineRecords = timelineMap,
-            latestRecords = data.latestRecords,
+            latestRecords = latestRecords,
             readTimeRecords = readTimeRecords,
             selectedDate = selectedDate,
             searchKey = searchKey,
@@ -230,4 +247,11 @@ class ReadRecordViewModel : ViewModel() {
         val latestRecords: List<ReadRecord>,
         val sessions: List<ReadRecordSession>
     )
+}
+
+private fun Long.toLocalDateString(): String {
+    return Date(this).toInstant()
+        .atZone(ZoneId.systemDefault())
+        .toLocalDate()
+        .format(DateTimeFormatter.ISO_LOCAL_DATE)
 }

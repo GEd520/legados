@@ -1,10 +1,12 @@
 package io.legado.app.ui.book.readRecord.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -70,7 +72,7 @@ fun HeatmapCalendarSection(
     dailyReadTimes: Map<LocalDate, Long>,
     currentMode: HeatmapMode,
     selectedDate: LocalDate?,
-    onDateSelected: (LocalDate) -> Unit
+    onDateSelected: (LocalDate?) -> Unit
 ) {
     val today = LocalDate.now()
     val weeksToShow = 16
@@ -115,7 +117,7 @@ fun HeatmapCalendarSection(
             horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalAlignment = Alignment.Top
         ) {
-            items(weeks) { week ->
+            items(weeks, key = { week -> week.first().toString() }) { week ->
                 HeatmapWeekColumn(
                     week = week,
                     dailyReadCounts = dailyReadCounts,
@@ -144,7 +146,7 @@ fun HeatmapWeekColumn(
     maxValue: Int,
     selectedDate: LocalDate?,
     today: LocalDate,
-    onDateSelected: (LocalDate) -> Unit
+    onDateSelected: (LocalDate?) -> Unit
 ) {
     val surfaceColor = MaterialTheme.colorScheme.surface
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
@@ -178,7 +180,11 @@ fun HeatmapWeekColumn(
             Surface(
                 modifier = Modifier
                     .size(16.dp)
-                    .clickable { onDateSelected(date) },
+                    .clickable {
+                        onDateSelected(
+                            if (isSelected) null else date
+                        )
+                    },
                 shape = RoundedCornerShape(2.dp),
                 color = color,
                 shadowElevation = 2.dp
@@ -188,6 +194,11 @@ fun HeatmapWeekColumn(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(1.dp)
+                            .border(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.primary,
+                                shape = RoundedCornerShape(2.dp)
+                            )
                     )
                 }
             }
@@ -322,5 +333,4 @@ fun HeatmapCalendarBottomSheet(
         }
     }
 }
-
 
