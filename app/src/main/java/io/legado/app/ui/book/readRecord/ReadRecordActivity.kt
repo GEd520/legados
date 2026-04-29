@@ -16,6 +16,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -131,44 +132,69 @@ fun ReadRecordContent(
     val textSecondaryColor = remember { ThemeStore.textColorSecondary(context) }
 
     val isLight = ColorUtils.isColorLight(bgColor)
+    val background = remember(bgColor) { Color(bgColor) }
+    val primary = remember(primaryColor) { Color(primaryColor) }
+    val secondary = remember(accentColor) { Color(accentColor) }
+    val onBackground = remember(textPrimaryColor) { Color(textPrimaryColor) }
+    val onBackgroundVariant = remember(textSecondaryColor) { Color(textSecondaryColor) }
+    val surface = remember(background, isLight) {
+        lerp(background, Color.White, if (isLight) 0.04f else 0.10f)
+    }
+    val surfaceVariant = remember(background, onBackground, isLight) {
+        lerp(background, onBackground, if (isLight) 0.05f else 0.14f)
+    }
+    val outline = remember(background, onBackground, isLight) {
+        lerp(background, onBackground, if (isLight) 0.12f else 0.24f)
+    }
 
     val colorScheme = remember(
         isLight,
-        primaryColor,
-        accentColor,
-        bgColor,
-        textPrimaryColor,
-        textSecondaryColor
+        primary,
+        secondary,
+        background,
+        onBackground,
+        onBackgroundVariant,
+        surface,
+        surfaceVariant,
+        outline
     ) {
         if (isLight) {
             lightColorScheme(
-                primary = Color(primaryColor),
-                secondary = Color(accentColor),
-                tertiary = Color(accentColor),
-                background = Color(bgColor),
-                surface = Color(bgColor),
-                surfaceVariant = Color(bgColor),
+                primary = primary,
+                secondary = secondary,
+                tertiary = secondary,
+                background = background,
+                surface = surface,
+                surfaceVariant = surfaceVariant,
+                secondaryContainer = surfaceVariant,
+                tertiaryContainer = surfaceVariant,
+                outline = outline,
+                outlineVariant = outline.copy(alpha = 0.75f),
                 onPrimary = if (ColorUtils.isColorLight(primaryColor)) Color.Black else Color.White,
                 onSecondary = if (ColorUtils.isColorLight(accentColor)) Color.Black else Color.White,
-                onBackground = Color(textPrimaryColor),
-                onSurface = Color(textPrimaryColor),
-                onSurfaceVariant = Color(textSecondaryColor),
+                onBackground = onBackground,
+                onSurface = onBackground,
+                onSurfaceVariant = onBackgroundVariant,
                 error = Color(0xFFE53935),
                 onError = Color.White
             )
         } else {
             darkColorScheme(
-                primary = Color(primaryColor),
-                secondary = Color(accentColor),
-                tertiary = Color(accentColor),
-                background = Color(bgColor),
-                surface = Color(bgColor),
-                surfaceVariant = Color(bgColor),
+                primary = primary,
+                secondary = secondary,
+                tertiary = secondary,
+                background = background,
+                surface = surface,
+                surfaceVariant = surfaceVariant,
+                secondaryContainer = surfaceVariant,
+                tertiaryContainer = surfaceVariant,
+                outline = outline,
+                outlineVariant = outline.copy(alpha = 0.8f),
                 onPrimary = if (ColorUtils.isColorLight(primaryColor)) Color.Black else Color.White,
                 onSecondary = if (ColorUtils.isColorLight(accentColor)) Color.Black else Color.White,
-                onBackground = Color(textPrimaryColor),
-                onSurface = Color(textPrimaryColor),
-                onSurfaceVariant = Color(textSecondaryColor),
+                onBackground = onBackground,
+                onSurface = onBackground,
+                onSurfaceVariant = onBackgroundVariant,
                 error = Color(0xFFFF5252),
                 onError = Color.Black
             )
@@ -178,7 +204,7 @@ fun ReadRecordContent(
     MaterialTheme(colorScheme = colorScheme) {
         BoxWithBackground(
             bgDrawable = bgDrawable,
-            bgColor = Color(bgColor)
+            bgColor = background
         ) {
             ReadRecordScreen(
                 onBackClick = onBackClick,
@@ -196,6 +222,7 @@ fun BoxWithBackground(
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         if (bgDrawable != null) {
+            val overlayAlpha = if (bgColor.luminance() > 0.5f) 0.22f else 0.40f
             Image(
                 bitmap = bgDrawable.toBitmap().asImageBitmap(),
                 contentDescription = null,
@@ -205,13 +232,7 @@ fun BoxWithBackground(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(
-                        if (bgColor.luminance() > 0.5f) {
-                            bgColor.copy(alpha = 0.18f)
-                        } else {
-                            bgColor.copy(alpha = 0.28f)
-                        }
-                    )
+                    .background(bgColor.copy(alpha = overlayAlpha))
             )
         } else {
             Box(

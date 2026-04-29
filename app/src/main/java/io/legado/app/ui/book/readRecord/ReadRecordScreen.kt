@@ -21,6 +21,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -61,6 +62,8 @@ fun ReadRecordScreen(
     var heatmapMode by remember { mutableStateOf(HeatmapMode.COUNT) }
     val listState = rememberLazyListState()
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
+    val topBarColor = readRecordTopBarContainerColor()
+    val searchFieldColor = readRecordCardContainerColor()
 
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var pendingDeleteAction by remember { mutableStateOf<(() -> Unit)?>(null) }
@@ -154,8 +157,8 @@ fun ReadRecordScreen(
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                    containerColor = topBarColor,
+                    scrolledContainerColor = topBarColor,
                     navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
                     titleContentColor = MaterialTheme.colorScheme.onSurface,
                     actionIconContentColor = MaterialTheme.colorScheme.onSurface
@@ -238,6 +241,17 @@ fun ReadRecordScreen(
                             }
                         }
                     },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = searchFieldColor,
+                        unfocusedContainerColor = searchFieldColor,
+                        disabledContainerColor = searchFieldColor,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
                     singleLine = true
                 )
             }
@@ -391,7 +405,7 @@ private fun LazyListScope.RecordListContent(
                 item(key = "header_$date") {
                     DateHeader(date = date, totalDuration = details.sumOf { it.readTime })
                 }
-                items(items = details.sortedByDescending { it.readTime }, key = { "agg_item_${date}|${it.bookName}_${it.bookAuthor}" }) { detail ->
+                items(items = details.sortedByDescending { it.readTime }, key = { detailRecordKey(date, it) }) { detail ->
                     RecordDetailItem(
                         detail = detail,
                         viewModel = viewModel,
@@ -420,7 +434,7 @@ private fun LazyListScope.RecordListContent(
             }
         }
         DisplayMode.LATEST -> {
-            items(items = state.latestRecords, key = { "latest_${it.bookName}_${it.bookAuthor}" }) { record ->
+            items(items = state.latestRecords, key = { latestRecordKey(it) }) { record ->
                 LatestRecordItem(
                     record = record,
                     viewModel = viewModel,
@@ -431,7 +445,7 @@ private fun LazyListScope.RecordListContent(
             }
         }
         DisplayMode.READ_TIME -> {
-            items(items = state.readTimeRecords, key = { "readtime_${it.bookName}_${it.bookAuthor}" }) { record ->
+            items(items = state.readTimeRecords, key = { readTimeRecordKey(it) }) { record ->
                 ReadTimeRecordItem(
                     record = record,
                     viewModel = viewModel,
@@ -443,11 +457,45 @@ private fun LazyListScope.RecordListContent(
     }
 }
 
+private fun detailRecordKey(date: String, detail: ReadRecordDetail): String {
+    return "agg_item_${date}|${detail.deviceId}|${detail.bookName}|${detail.bookAuthor}"
+}
+
+private fun latestRecordKey(record: ReadRecord): String {
+    return "latest_${record.deviceId}|${record.bookName}|${record.bookAuthor}"
+}
+
+private fun readTimeRecordKey(record: ReadRecord): String {
+    return "readtime_${record.deviceId}|${record.bookName}|${record.bookAuthor}"
+}
+
+@Composable
+private fun readRecordTopBarContainerColor(): Color {
+    val background = MaterialTheme.colorScheme.background
+    val alpha = if (background.luminance() > 0.5f) 0.82f else 0.92f
+    return MaterialTheme.colorScheme.surface.copy(alpha = alpha)
+}
+
+@Composable
+private fun readRecordCardContainerColor(): Color {
+    val background = MaterialTheme.colorScheme.background
+    val alpha = if (background.luminance() > 0.5f) 0.9f else 0.86f
+    return MaterialTheme.colorScheme.surface.copy(alpha = alpha)
+}
+
+@Composable
+private fun readRecordHeaderContainerColor(): Color {
+    val background = MaterialTheme.colorScheme.background
+    val alpha = if (background.luminance() > 0.5f) 0.7f else 0.82f
+    return MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alpha)
+}
+
 @Composable
 private fun DateHeader(date: String, totalDuration: Long) {
+    val headerColor = readRecordHeaderContainerColor()
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        color = headerColor
     ) {
         Row(
             modifier = Modifier
@@ -472,9 +520,10 @@ private fun DateHeader(date: String, totalDuration: Long) {
 
 @Composable
 private fun TimelineDateHeader(date: String, totalDuration: Long) {
+    val headerColor = readRecordHeaderContainerColor()
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        color = headerColor
     ) {
         Row(
             modifier = Modifier
@@ -616,6 +665,7 @@ private fun RecordDetailItem(
 ) {
     val deleteAction = rememberSwipeDeleteAction(onDelete)
     var chapterTitle by remember { mutableStateOf<String?>(null) }
+    val containerColor = readRecordCardContainerColor()
 
     LaunchedEffect(detail.bookName, detail.bookAuthor) {
         chapterTitle = viewModel.getBookDurChapterTitle(detail.bookName, detail.bookAuthor)
@@ -631,7 +681,7 @@ private fun RecordDetailItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable(onClick = onClick),
-            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+            color = containerColor,
             shape = RoundedCornerShape(12.dp)
         ) {
             Row(
@@ -694,6 +744,7 @@ private fun LatestRecordItem(
 ) {
     var showMenu by remember { mutableStateOf(false) }
     var chapterTitle by remember { mutableStateOf<String?>(null) }
+    val containerColor = readRecordCardContainerColor()
 
     LaunchedEffect(record.bookName, record.bookAuthor) {
         chapterTitle = viewModel.getBookDurChapterTitle(record.bookName, record.bookAuthor)
@@ -704,7 +755,7 @@ private fun LatestRecordItem(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp)
             .clickable(onClick = onClick),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+        color = containerColor,
         shape = RoundedCornerShape(12.dp)
     ) {
         Row(
@@ -809,6 +860,7 @@ private fun ReadTimeRecordItem(
     onDelete: () -> Unit
 ) {
     var chapterTitle by remember { mutableStateOf<String?>(null) }
+    val containerColor = readRecordCardContainerColor()
 
     LaunchedEffect(record.bookName, record.bookAuthor) {
         chapterTitle = viewModel.getBookDurChapterTitle(record.bookName, record.bookAuthor)
@@ -826,7 +878,7 @@ private fun ReadTimeRecordItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable(onClick = onClick),
-            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+            color = containerColor,
             shape = RoundedCornerShape(12.dp)
         ) {
             Row(
