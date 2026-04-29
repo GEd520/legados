@@ -24,6 +24,8 @@ import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 
+private typealias RecordIdentity = Triple<String, String, String>
+
 data class ReadRecordUiState(
     val isLoading: Boolean = true,
     val totalReadTime: Long = 0,
@@ -85,36 +87,45 @@ class ReadRecordViewModel : ViewModel() {
     ) { data, selectedDate, searchKey ->
         val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         val today = LocalDate.now()
-        val todayStr = today.format(DateTimeFormatter.ISO_LOCAL_DATE)
         val dateStr = selectedDate?.format(DateTimeFormatter.ISO_LOCAL_DATE)
 
-        val dailyCounts = data.details
-            .groupBy { it.date }
+        val searchedSessions = data.sessions.filter { session ->
+            searchKey.isEmpty() ||
+                session.bookName.contains(searchKey, ignoreCase = true) ||
+                session.bookAuthor.contains(searchKey, ignoreCase = true)
+        }
+
+        val mergedDailySessions = searchedSessions
+            .groupBy { dateFormat.format(Date(it.startTime)) }
+            .mapValues { (_, sessions) -> mergeContinuousSessions(sessions) }
+
+        val dailyCounts = mergedDailySessions
             .mapKeys { LocalDate.parse(it.key, DateTimeFormatter.ISO_LOCAL_DATE) }
             .mapValues { it.value.size }
 
-        val dailyTimes = data.sessions
-            .groupBy { dateFormat.format(Date(it.startTime)) }
+        val dailyTimes = mergedDailySessions
             .mapKeys { LocalDate.parse(it.key, DateTimeFormatter.ISO_LOCAL_DATE) }
             .mapValues { (_, sessions) ->
                 sessions.sumOf { (it.endTime - it.startTime).coerceAtLeast(0L) }
             }
 
         val todayReadTime = dailyTimes[today] ?: 0L
-        val todayBookCount = dailyCounts[today] ?: 0
+        val todayBookCount = data.details
+            .asSequence()
+            .filter { it.date == today.format(DateTimeFormatter.ISO_LOCAL_DATE) }
+            .map { recordIdentity(it.deviceId, it.bookName, it.bookAuthor) }
+            .distinct()
+            .count()
 
         val filteredDetails = data.details.filter { detail ->
             dateStr == null || detail.date == dateStr
         }
 
-        val timelineMap = data.sessions
+        val timelineMap = searchedSessions
             .asSequence()
             .filter { session ->
                 val sDate = dateFormat.format(Date(session.startTime))
-                (dateStr == null || sDate == dateStr) &&
-                        (searchKey.isEmpty() ||
-                                session.bookName.contains(searchKey, ignoreCase = true) ||
-                                session.bookAuthor.contains(searchKey, ignoreCase = true))
+                dateStr == null || sDate == dateStr
             }
             .groupBy { dateFormat.format(Date(it.startTime)) }
             .mapValues { (_, sessions) ->
@@ -123,16 +134,45 @@ class ReadRecordViewModel : ViewModel() {
             .toSortedMap(compareByDescending { it })
 
         val detailReadTimes = data.details
-            .groupBy { it.bookName to it.bookAuthor }
+            .groupBy { recordIdentity(it.deviceId, it.bookName, it.bookAuthor) }
             .mapValues { (_, details) -> details.sumOf { it.readTime } }
 
-        val latestRecords = data.latestRecords.filter { record ->
-            dateStr == null || record.lastRead.toLocalDateString() == dateStr
+        val latestRecords = if (dateStr == null) {
+            data.latestRecords
+        } else {
+            val filteredDetailsByRecord = filteredDetails.groupBy {
+                recordIdentity(it.deviceId, it.bookName, it.bookAuthor)
+            }
+            val latestRecordIndex = data.latestRecords.associateBy {
+                recordIdentity(it.deviceId, it.bookName, it.bookAuthor)
+            }
+
+            filteredDetailsByRecord.map { (identity, details) ->
+                val baseRecord = latestRecordIndex[identity]
+                val dayReadTime = details.sumOf { it.readTime }
+                val dayLastRead = details.maxOf { it.lastReadTime }
+                if (baseRecord != null) {
+                    baseRecord.copy(
+                        readTime = dayReadTime,
+                        lastRead = dayLastRead
+                    )
+                } else {
+                    ReadRecord(
+                        deviceId = identity.first,
+                        bookName = identity.second,
+                        bookAuthor = identity.third,
+                        readTime = dayReadTime,
+                        lastRead = dayLastRead
+                    )
+                }
+            }.sortedByDescending { it.lastRead }
         }
 
         val readTimeRecords = if (dateStr == null) {
             data.latestRecords.map { record ->
-                val detailTime = detailReadTimes[record.bookName to record.bookAuthor] ?: 0L
+                val detailTime = detailReadTimes[
+                    recordIdentity(record.deviceId, record.bookName, record.bookAuthor)
+                ] ?: 0L
                 if (record.readTime == 0L && detailTime > 0) {
                     record.copy(readTime = detailTime)
                 } else {
@@ -141,11 +181,13 @@ class ReadRecordViewModel : ViewModel() {
             }.sortedByDescending { it.readTime }
         } else {
             val filteredDetailReadTimes = filteredDetails
-                .groupBy { it.bookName to it.bookAuthor }
+                .groupBy { recordIdentity(it.deviceId, it.bookName, it.bookAuthor) }
                 .mapValues { (_, details) -> details.sumOf { it.readTime } }
 
-            data.latestRecords.mapNotNull { record ->
-                val dateReadTime = filteredDetailReadTimes[record.bookName to record.bookAuthor]
+            latestRecords.mapNotNull { record ->
+                val dateReadTime = filteredDetailReadTimes[
+                    recordIdentity(record.deviceId, record.bookName, record.bookAuthor)
+                ]
                     ?: return@mapNotNull null
                 record.copy(readTime = dateReadTime)
             }.sortedByDescending { it.readTime }
@@ -254,4 +296,8 @@ private fun Long.toLocalDateString(): String {
         .atZone(ZoneId.systemDefault())
         .toLocalDate()
         .format(DateTimeFormatter.ISO_LOCAL_DATE)
+}
+
+private fun recordIdentity(deviceId: String, bookName: String, bookAuthor: String): RecordIdentity {
+    return Triple(deviceId, bookName, bookAuthor)
 }

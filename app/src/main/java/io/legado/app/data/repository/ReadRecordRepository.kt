@@ -66,9 +66,9 @@ class ReadRecordRepository(
     }
 
     suspend fun getMergeCandidates(targetRecord: ReadRecord): List<ReadRecord> {
-        return dao.getReadRecordsByNameExcludingAuthor(
-            targetRecord.deviceId,
+        return dao.getReadRecordsByNameExcludingTarget(
             targetRecord.bookName,
+            targetRecord.deviceId,
             targetRecord.bookAuthor
         )
     }
@@ -225,7 +225,6 @@ class ReadRecordRepository(
 
     private suspend fun mergeSingleReadRecordInto(targetRecord: ReadRecord, sourceRecord: ReadRecord) {
         if (targetRecord == sourceRecord) return
-        if (targetRecord.deviceId != sourceRecord.deviceId) return
         if (targetRecord.bookName != sourceRecord.bookName) return
 
         val source = dao.getReadRecord(
@@ -238,12 +237,16 @@ class ReadRecordRepository(
             targetRecord.deviceId,
             targetRecord.bookName,
             targetRecord.bookAuthor
-        ) ?: targetRecord
+        ) ?: targetRecord.copy(readTime = 0L, lastRead = 0L)
+
+        val useSourceProgress = source.lastRead >= target.lastRead
 
         dao.insert(
             target.copy(
                 readTime = target.readTime + source.readTime,
-                lastRead = max(target.lastRead, source.lastRead)
+                lastRead = max(target.lastRead, source.lastRead),
+                durChapterTitle = if (useSourceProgress) source.durChapterTitle else target.durChapterTitle,
+                durChapterIndex = if (useSourceProgress) source.durChapterIndex else target.durChapterIndex
             )
         )
 
@@ -262,6 +265,7 @@ class ReadRecordRepository(
             if (existingTargetDetail == null) {
                 dao.insertDetail(
                     detail.copy(
+                        deviceId = targetRecord.deviceId,
                         bookAuthor = targetRecord.bookAuthor
                     )
                 )
@@ -284,7 +288,12 @@ class ReadRecordRepository(
             sourceRecord.bookAuthor
         )
         sourceSessions.forEach { session ->
-            dao.updateSession(session.copy(bookAuthor = targetRecord.bookAuthor))
+            dao.updateSession(
+                session.copy(
+                    deviceId = targetRecord.deviceId,
+                    bookAuthor = targetRecord.bookAuthor
+                )
+            )
         }
 
         dao.deleteReadRecord(source)
@@ -298,17 +307,50 @@ class ReadRecordRepository(
             if (!author.isNullOrBlank()) {
                 val existingRecord = dao.getReadRecord(record.deviceId, record.bookName, author)
                 if (existingRecord != null) {
-                    dao.update(
-                        existingRecord.copy(
-                            readTime = existingRecord.readTime + record.readTime,
-                            lastRead = maxOf(existingRecord.lastRead, record.lastRead)
-                        )
-                    )
-                    dao.deleteReadRecord(record)
+                    mergeSingleReadRecordInto(existingRecord, record)
                 } else {
-                    dao.updateAuthorByBookName(record.deviceId, record.bookName, author)
+                    migrateRecordAuthor(record, author)
                 }
             }
+        }
+    }
+
+    private suspend fun migrateRecordAuthor(record: ReadRecord, author: String) {
+        val source = dao.getReadRecord(record.deviceId, record.bookName, record.bookAuthor) ?: return
+
+        dao.insert(
+            source.copy(
+                bookAuthor = author
+            )
+        )
+        dao.deleteReadRecord(source)
+
+        val sourceDetails = dao.getDetailsByBook(record.deviceId, record.bookName, record.bookAuthor)
+        sourceDetails.forEach { detail ->
+            val existingTargetDetail = dao.getDetail(
+                record.deviceId,
+                record.bookName,
+                author,
+                detail.date
+            )
+            if (existingTargetDetail == null) {
+                dao.insertDetail(detail.copy(bookAuthor = author))
+            } else {
+                dao.insertDetail(
+                    existingTargetDetail.copy(
+                        readTime = existingTargetDetail.readTime + detail.readTime,
+                        readWords = existingTargetDetail.readWords + detail.readWords,
+                        firstReadTime = min(existingTargetDetail.firstReadTime, detail.firstReadTime),
+                        lastReadTime = max(existingTargetDetail.lastReadTime, detail.lastReadTime)
+                    )
+                )
+            }
+        }
+        dao.deleteDetailsByBook(record.deviceId, record.bookName, record.bookAuthor)
+
+        val sourceSessions = dao.getSessionsByBook(record.deviceId, record.bookName, record.bookAuthor)
+        sourceSessions.forEach { session ->
+            dao.updateSession(session.copy(bookAuthor = author))
         }
     }
 }
