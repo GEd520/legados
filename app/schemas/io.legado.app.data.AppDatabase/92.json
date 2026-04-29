@@ -1,8 +1,8 @@
 {
   "formatVersion": 1,
   "database": {
-    "version": 91,
-    "identityHash": "2d8854d5045844bf7986a10c0c7b312a",
+    "version": 92,
+    "identityHash": "18bf6b777d872c3ad129c4d9dbb40771",
     "entities": [
       {
         "tableName": "books",
@@ -1632,7 +1632,7 @@
       },
       {
         "tableName": "readRecord",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`deviceId` TEXT NOT NULL, `bookName` TEXT NOT NULL, `bookAuthor` TEXT NOT NULL DEFAULT '', `readTime` INTEGER NOT NULL DEFAULT 0, `lastRead` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`deviceId`, `bookName`, `bookAuthor`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`deviceId` TEXT NOT NULL, `bookName` TEXT NOT NULL, `bookAuthor` TEXT NOT NULL DEFAULT '', `readTime` INTEGER NOT NULL DEFAULT 0, `lastRead` INTEGER NOT NULL DEFAULT 0, `durChapterTitle` TEXT NOT NULL DEFAULT '', `durChapterIndex` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`deviceId`, `bookName`, `bookAuthor`))",
         "fields": [
           {
             "fieldPath": "deviceId",
@@ -1663,6 +1663,20 @@
           {
             "fieldPath": "lastRead",
             "columnName": "lastRead",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "durChapterTitle",
+            "columnName": "durChapterTitle",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "durChapterIndex",
+            "columnName": "durChapterIndex",
             "affinity": "INTEGER",
             "notNull": true,
             "defaultValue": "0"
@@ -2137,7 +2151,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '2d8854d5045844bf7986a10c0c7b312a')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '18bf6b777d872c3ad129c4d9dbb40771')"
     ]
   }
 }

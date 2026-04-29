@@ -318,9 +318,10 @@
             android:theme="@style/AppTheme.Transparent" />
         <!-- 阅读记录 -->
         <activity
-            android:name=".ui.about.ReadRecordActivity"
+            android:name=".ui.book.readRecord.ReadRecordActivity"
             android:configChanges="orientation|screenSize"
-            android:hardwareAccelerated="true" />
+            android:hardwareAccelerated="true"
+            android:exported="true" />
         <!-- 字典管理 -->
         <activity
             android:name=".ui.dict.rule.DictRuleActivity"

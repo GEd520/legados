@@ -1,0 +1,257 @@
+package io.legado.app.ui.book.readRecord
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import io.legado.app.data.appDb
+import io.legado.app.data.entities.readRecord.ReadRecord
+import io.legado.app.data.entities.readRecord.ReadRecordDetail
+import io.legado.app.data.entities.readRecord.ReadRecordSession
+import io.legado.app.data.repository.BookRepository
+import io.legado.app.data.repository.ReadRecordRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Date
+import java.util.Locale
+
+data class ReadRecordUiState(
+    val isLoading: Boolean = true,
+    val totalReadTime: Long = 0,
+    val todayReadTime: Long = 0,
+    val todayBookCount: Int = 0,
+    val groupedRecords: Map<String, List<ReadRecordDetail>> = emptyMap(),
+    val timelineRecords: Map<String, List<ReadRecordSession>> = emptyMap(),
+    val latestRecords: List<ReadRecord> = emptyList(),
+    val readTimeRecords: List<ReadRecord> = emptyList(),
+    val selectedDate: LocalDate? = null,
+    val searchKey: String? = null,
+    val dailyReadCounts: Map<LocalDate, Int> = emptyMap(),
+    val dailyReadTimes: Map<LocalDate, Long> = emptyMap()
+)
+
+enum class DisplayMode {
+    AGGREGATE,
+    TIMELINE,
+    LATEST,
+    READ_TIME
+}
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class ReadRecordViewModel : ViewModel() {
+
+    private val repository = ReadRecordRepository(appDb.readRecordDao)
+    private val bookRepository = BookRepository()
+
+    private val _displayMode = MutableStateFlow(DisplayMode.AGGREGATE)
+    val displayMode = _displayMode.asStateFlow()
+    private val _searchKey = MutableStateFlow("")
+    private val _selectedDate = MutableStateFlow<LocalDate?>(null)
+
+    init {
+        viewModelScope.launch {
+            repository.fixEmptyAuthors { bookName ->
+                bookRepository.getAuthorByBookName(bookName)
+            }
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val loadedDataFlow = _searchKey
+        .flatMapLatest { query ->
+            combine(
+                repository.getAllRecordDetails(query),
+                repository.getLatestReadRecords(query),
+                repository.getAllSessions(),
+                repository.getTotalReadTime()
+            ) { details, latest, sessions, totalTime ->
+                LoadedData(totalTime, details, latest, sessions)
+            }
+        }
+
+    val uiState: StateFlow<ReadRecordUiState> = combine(
+        loadedDataFlow,
+        _selectedDate,
+        _searchKey
+    ) { data, selectedDate, searchKey ->
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val today = LocalDate.now()
+        val todayStr = today.format(DateTimeFormatter.ISO_LOCAL_DATE)
+        val dateStr = selectedDate?.format(DateTimeFormatter.ISO_LOCAL_DATE)
+
+        val dailyCounts = data.details
+            .groupBy { it.date }
+            .mapKeys { LocalDate.parse(it.key, DateTimeFormatter.ISO_LOCAL_DATE) }
+            .mapValues { it.value.size }
+
+        val dailyTimes = data.sessions
+            .groupBy { dateFormat.format(Date(it.startTime)) }
+            .mapKeys { LocalDate.parse(it.key, DateTimeFormatter.ISO_LOCAL_DATE) }
+            .mapValues { (_, sessions) ->
+                sessions.sumOf { (it.endTime - it.startTime).coerceAtLeast(0L) }
+            }
+
+        val todayReadTime = dailyTimes[today] ?: 0L
+        val todayBookCount = dailyCounts[today] ?: 0
+
+        val filteredDetails = data.details.filter { detail ->
+            dateStr == null || detail.date == dateStr
+        }
+
+        val timelineMap = data.sessions
+            .asSequence()
+            .filter { session ->
+                val sDate = dateFormat.format(Date(session.startTime))
+                (dateStr == null || sDate == dateStr) &&
+                        (searchKey.isEmpty() ||
+                                session.bookName.contains(searchKey, ignoreCase = true) ||
+                                session.bookAuthor.contains(searchKey, ignoreCase = true))
+            }
+            .groupBy { dateFormat.format(Date(it.startTime)) }
+            .mapValues { (_, sessions) ->
+                mergeContinuousSessions(sessions).reversed()
+            }
+            .toSortedMap(compareByDescending { it })
+
+        val detailReadTimes = data.details
+            .groupBy { it.bookName to it.bookAuthor }
+            .mapValues { (_, details) -> details.sumOf { it.readTime } }
+
+        val latestRecords = data.latestRecords.filter { record ->
+            dateStr == null || record.lastRead.toLocalDateString() == dateStr
+        }
+
+        val readTimeRecords = if (dateStr == null) {
+            data.latestRecords.map { record ->
+                val detailTime = detailReadTimes[record.bookName to record.bookAuthor] ?: 0L
+                if (record.readTime == 0L && detailTime > 0) {
+                    record.copy(readTime = detailTime)
+                } else {
+                    record
+                }
+            }.sortedByDescending { it.readTime }
+        } else {
+            val filteredDetailReadTimes = filteredDetails
+                .groupBy { it.bookName to it.bookAuthor }
+                .mapValues { (_, details) -> details.sumOf { it.readTime } }
+
+            data.latestRecords.mapNotNull { record ->
+                val dateReadTime = filteredDetailReadTimes[record.bookName to record.bookAuthor]
+                    ?: return@mapNotNull null
+                record.copy(readTime = dateReadTime)
+            }.sortedByDescending { it.readTime }
+        }
+
+        ReadRecordUiState(
+            isLoading = false,
+            totalReadTime = data.totalReadTime,
+            todayReadTime = todayReadTime,
+            todayBookCount = todayBookCount,
+            groupedRecords = filteredDetails.groupBy { it.date },
+            timelineRecords = timelineMap,
+            latestRecords = latestRecords,
+            readTimeRecords = readTimeRecords,
+            selectedDate = selectedDate,
+            searchKey = searchKey,
+            dailyReadCounts = dailyCounts,
+            dailyReadTimes = dailyTimes
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = ReadRecordUiState(isLoading = true)
+    )
+
+    fun setSearchKey(query: String) {
+        _searchKey.value = query
+    }
+
+    fun setDisplayMode(mode: DisplayMode) {
+        _displayMode.value = mode
+    }
+
+    fun setSelectedDate(date: LocalDate?) {
+        _selectedDate.value = date
+    }
+
+    fun deleteDetail(detail: ReadRecordDetail) {
+        viewModelScope.launch { repository.deleteDetail(detail) }
+    }
+
+    fun deleteSession(session: ReadRecordSession) {
+        viewModelScope.launch { repository.deleteSession(session) }
+    }
+
+    fun deleteReadRecord(record: ReadRecord) {
+        viewModelScope.launch { repository.deleteReadRecord(record) }
+    }
+
+    private fun mergeContinuousSessions(sessions: List<ReadRecordSession>): List<ReadRecordSession> {
+        if (sessions.isEmpty()) return emptyList()
+        val sortedSessions = sessions.sortedBy { it.startTime }
+        val mergedList = mutableListOf<ReadRecordSession>()
+        mergedList.add(sortedSessions.first().copy())
+
+        val gapLimit = 20 * 60 * 1000L
+
+        for (i in 1 until sortedSessions.size) {
+            val current = sortedSessions[i]
+            val last = mergedList.last()
+            if (current.bookName == last.bookName &&
+                current.bookAuthor == last.bookAuthor &&
+                (current.startTime - last.endTime) <= gapLimit
+            ) {
+                mergedList[mergedList.lastIndex] = last.copy(endTime = maxOf(last.endTime, current.endTime))
+            } else {
+                mergedList.add(current.copy())
+            }
+        }
+        return mergedList
+    }
+
+    suspend fun getChapterTitle(bookName: String, bookAuthor: String, chapterIndexLong: Long): String? {
+        return bookRepository.getChapterTitle(bookName, bookAuthor, chapterIndexLong.toInt())
+    }
+
+    suspend fun getBookDurChapterTitle(bookName: String, bookAuthor: String): String? {
+        return bookRepository.getBookDurChapterTitle(bookName, bookAuthor)
+    }
+
+    suspend fun getBookCover(bookName: String, bookAuthor: String): String? {
+        return bookRepository.getBookCoverByNameAndAuthor(bookName, bookAuthor)
+    }
+
+    suspend fun getMergeCandidates(targetRecord: ReadRecord): List<ReadRecord> {
+        return repository.getMergeCandidates(targetRecord)
+    }
+
+    fun mergeReadRecords(targetRecord: ReadRecord, sourceRecords: List<ReadRecord>) {
+        if (sourceRecords.isEmpty()) return
+        viewModelScope.launch {
+            repository.mergeReadRecordInto(targetRecord, sourceRecords)
+        }
+    }
+
+    private data class LoadedData(
+        val totalReadTime: Long,
+        val details: List<ReadRecordDetail>,
+        val latestRecords: List<ReadRecord>,
+        val sessions: List<ReadRecordSession>
+    )
+}
+
+private fun Long.toLocalDateString(): String {
+    return Date(this).toInstant()
+        .atZone(ZoneId.systemDefault())
+        .toLocalDate()
+        .format(DateTimeFormatter.ISO_LOCAL_DATE)
+}

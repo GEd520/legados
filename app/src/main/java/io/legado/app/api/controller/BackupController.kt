@@ -261,17 +261,12 @@ object BackupController {
                 }
             }
 
-            Backup.getBackgroundImageFiles().forEach { bgFile ->
-                val exportFile = File(webBackupPath, bgFile.name)
-                if (!exportFile.exists()) {
-                    bgFile.copyTo(exportFile)
-                }
-            }
+            Backup.stageBackgroundImageFiles(webBackupPath)
         }
 
         // 打包ZIP
         val backupDir = File(webBackupPath)
-        val files = backupDir.listFiles()?.filter { it.isFile } ?: return null
+        val files = backupDir.listFiles()?.toList() ?: return null
         if (files.isEmpty()) return null
 
         val paths = files.map { it.absolutePath }

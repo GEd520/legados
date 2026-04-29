@@ -41,8 +41,10 @@ import io.legado.app.data.entities.Cookie
 import io.legado.app.data.entities.DictRule
 import io.legado.app.data.entities.HttpTTS
 import io.legado.app.data.entities.KeyboardAssist
-import io.legado.app.data.entities.ReadRecord
 import io.legado.app.data.entities.ReplaceRule
+import io.legado.app.data.entities.readRecord.ReadRecord
+import io.legado.app.data.entities.readRecord.ReadRecordDetail
+import io.legado.app.data.entities.readRecord.ReadRecordSession
 import io.legado.app.data.entities.RssArticle
 import io.legado.app.data.entities.RssReadRecord
 import io.legado.app.data.entities.RssSource
@@ -59,8 +61,7 @@ import java.util.Locale
 
 val appDb by lazy {
     Room.databaseBuilder(appCtx, AppDatabase::class.java, AppDatabase.DATABASE_NAME)
-        .fallbackToDestructiveMigration()
-        .fallbackToDestructiveMigrationOnDowngrade()
+        .fallbackToDestructiveMigrationFrom(false, 1, 2, 3, 4, 5, 6, 7, 8, 9)  
         .addMigrations(*DatabaseMigrations.migrations)
         .allowMainThreadQueries()
         .addCallback(AppDatabase.dbCallback)
@@ -68,12 +69,13 @@ val appDb by lazy {
 }
 
 @Database(
-    version = 91,
+    version = 92,
     exportSchema = true,
     entities = [Book::class, BookGroup::class, BookSource::class, BookChapter::class,
         ReplaceRule::class, SearchBook::class, SearchKeyword::class, Cookie::class,
         RssSource::class, Bookmark::class, RssArticle::class, RssReadRecord::class,
-        RssStar::class, TxtTocRule::class, ReadRecord::class, HttpTTS::class, Cache::class,
+        RssStar::class, TxtTocRule::class, ReadRecord::class, ReadRecordDetail::class, 
+        ReadRecordSession::class, HttpTTS::class, Cache::class,
         RuleSub::class, DictRule::class, KeyboardAssist::class, Server::class],
     views = [BookSourcePart::class],
     autoMigrations = [
@@ -124,7 +126,8 @@ val appDb by lazy {
         AutoMigration(from = 87, to = 88),
         AutoMigration(from = 88, to = 89),
         AutoMigration(from = 89, to = 90),
-        AutoMigration(from = 90, to = 91)
+        AutoMigration(from = 90, to = 91, spec = DatabaseMigrations.Migration_90_91::class),
+        AutoMigration(from = 91, to = 92)
     ]
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -153,7 +156,7 @@ abstract class AppDatabase : RoomDatabase() {
 
     companion object {
 
-        const val DATABASE_NAME = "legado_plus.db"
+        const val DATABASE_NAME = "legado.db"
 
         const val BOOK_TABLE_NAME = "books"
         const val BOOK_SOURCE_TABLE_NAME = "book_sources"

@@ -418,4 +418,58 @@ object DatabaseMigrations {
     )
     class Migration_84_85 : AutoMigrationSpec
 
+    @Suppress("ClassName")
+    @DeleteColumn.Entries(
+        DeleteColumn(
+            tableName = "readRecord",
+            columnName = "firstRead"
+        )
+    )
+    class Migration_90_91 : AutoMigrationSpec {
+        override fun onPostMigrate(db: SupportSQLiteDatabase) {
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS readRecord_new (
+                    deviceId TEXT NOT NULL,
+                    bookName TEXT NOT NULL,
+                    bookAuthor TEXT NOT NULL DEFAULT '',
+                    readTime INTEGER NOT NULL DEFAULT 0,
+                    lastRead INTEGER NOT NULL DEFAULT 0,
+                    PRIMARY KEY(deviceId, bookName, bookAuthor)
+                )
+            """.trimIndent())
+            db.execSQL("""
+                INSERT OR IGNORE INTO readRecord_new (deviceId, bookName, bookAuthor, readTime, lastRead)
+                SELECT deviceId, bookName, '', SUM(readTime), MAX(COALESCE(lastRead, 0)) 
+                FROM readRecord 
+                GROUP BY deviceId, bookName
+            """.trimIndent())
+            db.execSQL("DROP TABLE IF EXISTS readRecord")
+            db.execSQL("ALTER TABLE readRecord_new RENAME TO readRecord")
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS readRecordDetail (
+                    deviceId TEXT NOT NULL,
+                    bookName TEXT NOT NULL,
+                    bookAuthor TEXT NOT NULL DEFAULT '',
+                    date TEXT NOT NULL,
+                    readTime INTEGER NOT NULL DEFAULT 0,
+                    readWords INTEGER NOT NULL DEFAULT 0,
+                    firstReadTime INTEGER NOT NULL DEFAULT 0,
+                    lastReadTime INTEGER NOT NULL DEFAULT 0,
+                    PRIMARY KEY(deviceId, bookName, bookAuthor, date)
+                )
+            """.trimIndent())
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS readRecordSession (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    deviceId TEXT NOT NULL,
+                    bookName TEXT NOT NULL,
+                    bookAuthor TEXT NOT NULL DEFAULT '',
+                    startTime INTEGER NOT NULL,
+                    endTime INTEGER NOT NULL,
+                    words INTEGER NOT NULL DEFAULT 0
+                )
+            """.trimIndent())
+        }
+    }
+
 }

@@ -12,8 +12,11 @@ import io.legado.app.constant.Status
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookChapter
+import io.legado.app.constant.AppConst
 import io.legado.app.data.entities.BookSource
-import io.legado.app.data.entities.ReadRecord
+import io.legado.app.data.entities.readRecord.ReadRecord
+import io.legado.app.data.entities.readRecord.ReadRecordSession
+import io.legado.app.data.repository.ReadRecordRepository
 import io.legado.app.help.book.ContentProcessor
 import io.legado.app.help.book.getBookSource
 import io.legado.app.help.book.readSimulating
@@ -76,6 +79,7 @@ object AudioPlay : CoroutineScope by MainScope() {
     var bookSource: BookSource? = null
     val loadingChapters = arrayListOf<Int>()
     private val readRecord = ReadRecord()
+    private var sessionStartTime = 0L
     var readStartTime: Long = System.currentTimeMillis()
     val executor = globalExecutor
 
@@ -119,8 +123,11 @@ object AudioPlay : CoroutineScope by MainScope() {
         stop()
         AudioPlay.book = book
         readRecord.bookName = book.name
-        readRecord.readTime = appDb.readRecordDao.getReadTime(book.name) ?: 0
-        readRecord.firstRead = appDb.readRecordDao.getFirstRead(book.name) ?: 0
+        readRecord.bookAuthor = book.author
+        readRecord.deviceId = AppConst.androidId
+        readRecord.lastRead = System.currentTimeMillis()
+        sessionStartTime = System.currentTimeMillis()
+        readStartTime = System.currentTimeMillis()
         chapterSize = appDb.bookChapterDao.getChapterCount(book.bookUrl)
         simulatedChapterSize = if (book.readSimulating()) {
             book.simulatedTotalChapterNum()
@@ -153,13 +160,33 @@ object AudioPlay : CoroutineScope by MainScope() {
             return
         }
         executor.execute {
-            readRecord.readTime = readRecord.readTime + System.currentTimeMillis() - readStartTime
-            readStartTime = System.currentTimeMillis()
-            readRecord.lastRead = System.currentTimeMillis()
-            if (readRecord.firstRead == 0L) {
-                readRecord.firstRead = System.currentTimeMillis()
+            val now = System.currentTimeMillis()
+            
+            readRecord.readTime = readRecord.readTime + now - readStartTime
+            readStartTime = now
+            readRecord.lastRead = now
+            
+            val session = ReadRecordSession(
+                deviceId = readRecord.deviceId,
+                bookName = readRecord.bookName,
+                bookAuthor = readRecord.bookAuthor,
+                startTime = sessionStartTime,
+                endTime = now,
+                words = 0
+            )
+            
+            val repository = ReadRecordRepository(appDb.readRecordDao)
+            try {
+                kotlinx.coroutines.runBlocking {
+                    repository.saveReadSession(session)
+                }
+            } catch (e: Exception) {
+                kotlinx.coroutines.runBlocking {
+                    appDb.readRecordDao.insert(readRecord)
+                }
             }
-            appDb.readRecordDao.insert(readRecord)
+            
+            sessionStartTime = now
         }
     }
 
