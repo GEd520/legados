@@ -106,6 +106,7 @@ class BooksFragment() : BaseFragment(R.layout.fragment_books),
     }
 
     private fun initRecyclerView() {
+        binding.rvBookshelf.setHasFixedSize(true)
         binding.rvBookshelf.setEdgeEffectColor(primaryColor)
         upFastScrollerBar()
         binding.refreshLayout.setColorSchemeColors(accentColor)
@@ -252,7 +253,6 @@ class BooksFragment() : BaseFragment(R.layout.fragment_books),
                 binding.tvEmptyMsg.isGone = itemCount > 0
                 binding.refreshLayout.isEnabled = enableRefresh && itemCount > 0
                 booksAdapter.setItems(list)
-                delay(100)
             }
         }
     }

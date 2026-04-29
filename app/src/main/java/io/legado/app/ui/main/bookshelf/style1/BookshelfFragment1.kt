@@ -73,7 +73,7 @@ class BookshelfFragment1() : BaseBookshelfFragment(R.layout.fragment_bookshelf1)
         tabLayout.tabMode = TabLayout.MODE_SCROLLABLE
         tabLayout.setSelectedTabIndicatorColor(requireContext().accentColor)
         tabLayout.setupWithViewPager(binding.viewPagerBookshelf)
-        binding.viewPagerBookshelf.offscreenPageLimit = 1
+        binding.viewPagerBookshelf.offscreenPageLimit = 2
         binding.viewPagerBookshelf.adapter = adapter
     }
 
