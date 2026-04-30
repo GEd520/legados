@@ -566,7 +566,7 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
 
     @SuppressLint("InflateParams")
     private fun selectionAddToGroups() {
-        val allGroups = (groups + bookGroups).distinct()
+        val allGroups = appDb.bookSourceDao.allGroups()
         alert(titleResource = R.string.add_group) {
             val alertBinding = DialogEditTextBinding.inflate(layoutInflater).apply {
                 editView.setHint(R.string.group_name)
@@ -587,7 +587,7 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
 
     @SuppressLint("InflateParams")
     private fun selectionRemoveFromGroups() {
-        val allGroups = (groups + bookGroups).distinct()
+        val allGroups = appDb.bookSourceDao.allGroups()
         alert(titleResource = R.string.remove_group) {
             val alertBinding = DialogEditTextBinding.inflate(layoutInflater).apply {
                 editView.setHint(R.string.group_name)
