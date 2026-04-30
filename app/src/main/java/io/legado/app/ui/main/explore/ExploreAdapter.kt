@@ -54,6 +54,7 @@ import io.legado.app.help.webView.WebJsExtensions.Companion.nameSource
 import io.legado.app.help.webView.WebJsExtensions.Companion.wrapUseWebHtml
 import io.legado.app.help.webView.WebViewPool
 import io.legado.app.help.webView.WebViewPool.fitInlineContentSmooth
+import io.legado.app.help.webView.WebViewPool.installInlineContentRefitOnTouch
 import io.legado.app.help.webView.WebViewPool.prepareForInlineContent
 import io.legado.app.help.webView.WebViewPool.currentInlineContentGeneration
 import io.legado.app.help.webView.WebViewPool.scheduleInlineContentFit
@@ -928,6 +929,13 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
             pageLayoutKey,
             loadingIndicator
         )
+        installInlineContentRefitOnTouch(webView) {
+            val height = webView.layoutParams?.height ?: 0
+            if (height > 1) {
+                exploreWebViewHeightCache.put(pageLayoutKey, height)
+            }
+            container.requestLayout()
+        }
         webView.addJavascriptInterface(WebCacheManager, nameCache)
         source?.let {
             webView.addJavascriptInterface(it as BaseSource, nameSource)
