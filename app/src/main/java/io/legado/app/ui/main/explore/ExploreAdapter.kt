@@ -135,6 +135,10 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         anchor?.post(scrollAction) ?: scrollAction()
     }
 
+    fun clearPendingScrollToSource() {
+        scrollToSourceUrl = null
+    }
+
     /**
      * 创建视图绑定对象
      * 用于 RecyclerView 的 ViewHolder 创建
@@ -1492,6 +1496,7 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
             loadingIndicator.gone()
             webView.visible()
             container.requestLayout()
+            completePendingScrollToSource(sourceUrl, container)
         }
 
         private fun fitAndCacheHeight(webView: WebView, delayed: Boolean) {
