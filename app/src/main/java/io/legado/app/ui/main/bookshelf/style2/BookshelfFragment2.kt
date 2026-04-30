@@ -36,7 +36,6 @@ import io.legado.app.utils.startActivityForBook
 import io.legado.app.utils.viewbindingdelegate.viewBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.flowOn
@@ -75,6 +74,7 @@ class BookshelfFragment2() : BaseBookshelfFragment(R.layout.fragment_bookshelf2)
     private val bookshelfMargin by lazy { AppConfig.bookshelfMargin }
     private var itemCount = 0
     private var totalRows = 0
+    private var lastRowIndex = 0
 
     override fun onFragmentCreated(view: View, savedInstanceState: Bundle?) {
         setSupportToolbar(binding.titleBar.toolbar)
@@ -84,6 +84,7 @@ class BookshelfFragment2() : BaseBookshelfFragment(R.layout.fragment_bookshelf2)
     }
 
     private fun initRecyclerView() {
+        binding.rvBookshelf.setHasFixedSize(true)
         binding.rvBookshelf.setEdgeEffectColor(primaryColor)
         binding.refreshLayout.setColorSchemeColors(accentColor)
         binding.refreshLayout.setOnRefreshListener {
@@ -101,7 +102,10 @@ class BookshelfFragment2() : BaseBookshelfFragment(R.layout.fragment_bookshelf2)
          * 恢复滚动位置
          * **/
         binding.rvBookshelf.itemAnimator =  null
-        binding.rvBookshelf.addItemDecoration( object : RecyclerView.ItemDecoration() {
+        binding.rvBookshelf.addItemDecoration(object : RecyclerView.ItemDecoration() {
+            private val marginFirst = bookshelfMargin + 24
+            private val marginNormal = bookshelfMargin
+            
             override fun getItemOffsets(
                 outRect: Rect,
                 view: View,
@@ -109,31 +113,20 @@ class BookshelfFragment2() : BaseBookshelfFragment(R.layout.fragment_bookshelf2)
                 state: RecyclerView.State
             ) {
                 val position = parent.getChildAdapterPosition(view)
+                if (position == RecyclerView.NO_POSITION) return
+                
                 if (bookshelfLayout >= 2) {
-                    val spanCount = bookshelfLayout
-                    val rowIndex = position / spanCount
+                    val rowIndex = position / bookshelfLayout
                     when (rowIndex) {
-                        0 -> { //第一行加额外上边距
-                            outRect.set(bookshelfMargin, bookshelfMargin + 24, bookshelfMargin, bookshelfMargin)
-                        }
-                        totalRows - 1 -> { //最后一行加额外下边距
-                            outRect.set(bookshelfMargin, bookshelfMargin, bookshelfMargin, bookshelfMargin + 24)
-                        }
-                        else -> {
-                            outRect.set(bookshelfMargin, bookshelfMargin, bookshelfMargin, bookshelfMargin)
-                        }
+                        0 -> outRect.set(bookshelfMargin, marginFirst, bookshelfMargin, bookshelfMargin)
+                        lastRowIndex -> outRect.set(bookshelfMargin, bookshelfMargin, bookshelfMargin, marginFirst)
+                        else -> outRect.set(bookshelfMargin, bookshelfMargin, bookshelfMargin, bookshelfMargin)
                     }
                 } else {
                     when (position) {
-                        0 -> {
-                            outRect.set(0, bookshelfMargin + 24, 0, bookshelfMargin)
-                        }
-                        itemCount - 1 -> {
-                            outRect.set(0, bookshelfMargin, 0, bookshelfMargin + 24)
-                        }
-                        else -> {
-                            outRect.set(0, bookshelfMargin, 0, bookshelfMargin)
-                        }
+                        0 -> outRect.set(0, marginFirst, 0, marginNormal)
+                        itemCount - 1 -> outRect.set(0, marginNormal, 0, marginFirst)
+                        else -> outRect.set(0, marginNormal, 0, marginNormal)
                     }
                 }
             }
@@ -148,6 +141,7 @@ class BookshelfFragment2() : BaseBookshelfFragment(R.layout.fragment_bookshelf2)
             val spanCount = bookshelfLayout
             if (spanCount >= 2) {
                 totalRows = if (itemCount % spanCount == 0) itemCount / spanCount else itemCount / spanCount + 1
+                lastRowIndex = totalRows - 1
             }
             binding.tvEmptyMsg.isGone = itemCount > 0
             binding.refreshLayout.isEnabled = enableRefresh && itemCount > 0
@@ -202,7 +196,7 @@ class BookshelfFragment2() : BaseBookshelfFragment(R.layout.fragment_bookshelf2)
                 }
             }.flowWithLifecycleAndDatabaseChangeFirst(
                 viewLifecycleOwner.lifecycle,
-                Lifecycle.State.RESUMED,
+                Lifecycle.State.STARTED,
                 AppDatabase.BOOK_TABLE_NAME
             ).catch {
                 AppLog.put("书架更新出错", it)
@@ -213,10 +207,10 @@ class BookshelfFragment2() : BaseBookshelfFragment(R.layout.fragment_bookshelf2)
                 val spanCount = bookshelfLayout
                 if (spanCount >= 2) {
                     totalRows = if (itemCount % spanCount == 0) itemCount / spanCount else itemCount / spanCount + 1
+                    lastRowIndex = totalRows - 1
                 }
                 binding.tvEmptyMsg.isGone = itemCount > 0
                 binding.refreshLayout.isEnabled = enableRefresh && itemCount > 0
-                delay(100)
             }
         }
     }

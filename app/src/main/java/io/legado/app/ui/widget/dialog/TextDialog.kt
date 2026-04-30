@@ -269,10 +269,10 @@ class TextDialog() : BaseDialogFragment(R.layout.dialog_text_view) {
         // 创建帮助文档列表适配器
         val adapter = ArrayAdapter(
             requireContext(),
-            android.R.layout.simple_spinner_item,
+            R.layout.item_spinner_dropdown,
             HelpDocManager.allHelpDocs.map { it.displayName }
         )
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        adapter.setDropDownViewResource(R.layout.item_spinner_dropdown)
         binding.helpSpinner.adapter = adapter
         
         // 设置当前选中的文档

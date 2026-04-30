@@ -161,6 +161,7 @@ abstract class AppDatabase : RoomDatabase() {
         const val BOOK_TABLE_NAME = "books"
         const val BOOK_SOURCE_TABLE_NAME = "book_sources"
         const val RSS_SOURCE_TABLE_NAME = "rssSources"
+        const val BOOK_GROUP_TABLE_NAME = "book_groups"
 
         val dbCallback = object : Callback() {
 

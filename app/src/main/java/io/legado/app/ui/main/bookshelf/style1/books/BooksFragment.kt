@@ -91,6 +91,7 @@ class BooksFragment() : BaseFragment(R.layout.fragment_books),
     private val bookshelfMargin by lazy { AppConfig.bookshelfMargin }
     private var itemCount = 0
     private var totalRows = 0
+    private var lastRowIndex = 0
 
     override fun onFragmentCreated(view: View, savedInstanceState: Bundle?) {
         arguments?.let {
@@ -106,6 +107,7 @@ class BooksFragment() : BaseFragment(R.layout.fragment_books),
     }
 
     private fun initRecyclerView() {
+        binding.rvBookshelf.setHasFixedSize(true)
         binding.rvBookshelf.setEdgeEffectColor(primaryColor)
         upFastScrollerBar()
         binding.refreshLayout.setColorSchemeColors(accentColor)
@@ -146,7 +148,10 @@ class BooksFragment() : BaseFragment(R.layout.fragment_books),
 //                }
 //            }
 //        })
-        binding.rvBookshelf.addItemDecoration( object : RecyclerView.ItemDecoration() {
+        binding.rvBookshelf.addItemDecoration(object : RecyclerView.ItemDecoration() {
+            private val marginFirst = bookshelfMargin + 24
+            private val marginNormal = bookshelfMargin
+            
             override fun getItemOffsets(
                 outRect: Rect,
                 view: View,
@@ -154,31 +159,20 @@ class BooksFragment() : BaseFragment(R.layout.fragment_books),
                 state: RecyclerView.State
             ) {
                 val position = parent.getChildAdapterPosition(view)
+                if (position == RecyclerView.NO_POSITION) return
+                
                 if (bookshelfLayout >= 2) {
-                    val spanCount = bookshelfLayout
-                    val rowIndex = position / spanCount
+                    val rowIndex = position / bookshelfLayout
                     when (rowIndex) {
-                        0 -> { //第一行加额外上边距
-                            outRect.set(bookshelfMargin, bookshelfMargin + 24, bookshelfMargin, bookshelfMargin)
-                        }
-                        totalRows - 1 -> { //最后一行加额外下边距
-                            outRect.set(bookshelfMargin, bookshelfMargin, bookshelfMargin, bookshelfMargin + 24)
-                        }
-                        else -> {
-                            outRect.set(bookshelfMargin, bookshelfMargin, bookshelfMargin, bookshelfMargin)
-                        }
+                        0 -> outRect.set(bookshelfMargin, marginFirst, bookshelfMargin, bookshelfMargin)
+                        lastRowIndex -> outRect.set(bookshelfMargin, bookshelfMargin, bookshelfMargin, marginFirst)
+                        else -> outRect.set(bookshelfMargin, bookshelfMargin, bookshelfMargin, bookshelfMargin)
                     }
                 } else {
                     when (position) {
-                        0 -> {
-                            outRect.set(0, bookshelfMargin + 24, 0, bookshelfMargin)
-                        }
-                        itemCount - 1 -> {
-                            outRect.set(0, bookshelfMargin, 0, bookshelfMargin + 24)
-                        }
-                        else -> {
-                            outRect.set(0, bookshelfMargin, 0, bookshelfMargin)
-                        }
+                        0 -> outRect.set(0, marginFirst, 0, marginNormal)
+                        itemCount - 1 -> outRect.set(0, marginNormal, 0, marginFirst)
+                        else -> outRect.set(0, marginNormal, 0, marginNormal)
                     }
                 }
             }
@@ -239,7 +233,7 @@ class BooksFragment() : BaseFragment(R.layout.fragment_books),
                 }
             }.flowWithLifecycleAndDatabaseChangeFirst(
                 viewLifecycleOwner.lifecycle,
-                Lifecycle.State.RESUMED,
+                Lifecycle.State.STARTED,
                 AppDatabase.BOOK_TABLE_NAME
             ).catch {
                 AppLog.put("书架更新出错", it)
@@ -248,11 +242,11 @@ class BooksFragment() : BaseFragment(R.layout.fragment_books),
                 val spanCount = bookshelfLayout
                 if (spanCount >= 2) {
                     totalRows = if (itemCount % spanCount == 0) itemCount / spanCount else itemCount / spanCount + 1
+                    lastRowIndex = totalRows - 1
                 }
                 binding.tvEmptyMsg.isGone = itemCount > 0
                 binding.refreshLayout.isEnabled = enableRefresh && itemCount > 0
                 booksAdapter.setItems(list)
-                delay(100)
             }
         }
     }

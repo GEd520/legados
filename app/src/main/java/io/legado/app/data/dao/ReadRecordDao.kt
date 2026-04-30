@@ -42,11 +42,11 @@ interface ReadRecordDao {
     @Query("SELECT * FROM readRecord WHERE deviceId = :deviceId AND bookName = :bookName AND bookAuthor = :bookAuthor")
     suspend fun getReadRecord(deviceId: String, bookName: String, bookAuthor: String): ReadRecord?
 
-    @Query("SELECT * FROM readRecord WHERE deviceId = :deviceId AND bookName = :bookName")
-    suspend fun getReadRecordsByName(deviceId: String, bookName: String): List<ReadRecord>
+    @Query("SELECT * FROM readRecord WHERE bookName = :bookName")
+    suspend fun getReadRecordsByName(bookName: String): List<ReadRecord>
 
-    @Query("SELECT * FROM readRecord WHERE deviceId = :deviceId AND bookName = :bookName AND bookAuthor != :excludeAuthor")
-    suspend fun getReadRecordsByNameExcludingAuthor(deviceId: String, bookName: String, excludeAuthor: String): List<ReadRecord>
+    @Query("SELECT * FROM readRecord WHERE bookName = :bookName AND NOT (deviceId = :excludeDeviceId AND bookAuthor = :excludeAuthor)")
+    suspend fun getReadRecordsByNameExcludingTarget(bookName: String, excludeDeviceId: String, excludeAuthor: String): List<ReadRecord>
 
     @Query("SELECT SUM(readTime) FROM readRecord")
     fun getTotalReadTime(): Flow<Long?>
@@ -102,13 +102,13 @@ interface ReadRecordDao {
     @Query("SELECT * FROM readRecordSession WHERE deviceId = :deviceId AND bookName = :bookName AND bookAuthor = :bookAuthor")
     suspend fun getSessionsByBook(deviceId: String, bookName: String, bookAuthor: String): List<ReadRecordSession>
 
-    @Query("SELECT * FROM readRecordSession WHERE deviceId = :deviceId AND bookName = :bookName AND bookAuthor = :bookAuthor AND date(startTime / 1000, 'unixepoch') = :date")
+    @Query("SELECT * FROM readRecordSession WHERE deviceId = :deviceId AND bookName = :bookName AND bookAuthor = :bookAuthor AND date(startTime / 1000, 'unixepoch', 'localtime') = :date")
     suspend fun getSessionsByBookAndDate(deviceId: String, bookName: String, bookAuthor: String, date: String): List<ReadRecordSession>
 
     @Query("DELETE FROM readRecordSession WHERE deviceId = :deviceId AND bookName = :bookName AND bookAuthor = :bookAuthor")
     suspend fun deleteSessionsByBook(deviceId: String, bookName: String, bookAuthor: String)
 
-    @Query("DELETE FROM readRecordSession WHERE deviceId = :deviceId AND bookName = :bookName AND bookAuthor = :bookAuthor AND date(startTime / 1000, 'unixepoch') = :date")
+    @Query("DELETE FROM readRecordSession WHERE deviceId = :deviceId AND bookName = :bookName AND bookAuthor = :bookAuthor AND date(startTime / 1000, 'unixepoch', 'localtime') = :date")
     suspend fun deleteSessionsByBookAndDate(deviceId: String, bookName: String, bookAuthor: String, date: String)
 
     @Query("SELECT * FROM readRecord WHERE bookAuthor = ''")

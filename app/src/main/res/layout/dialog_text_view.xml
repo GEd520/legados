@@ -14,34 +14,25 @@
         app:titleTextAppearance="@style/ToolbarTitle"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <LinearLayout
+    <FrameLayout
         android:id="@+id/help_selector_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:paddingTop="8dp"
-        android:paddingBottom="8dp"
-        android:background="?attr/selectableItemBackground"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
         android:visibility="gone"
+        android:background="?attr/selectableItemBackground"
         app:layout_constraintTop_toBottomOf="@+id/tool_bar">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/help"
-            android:textColor="@color/primaryText"
-            android:textSize="16sp" />
 
         <Spinner
             android:id="@+id/help_spinner"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp" />
+            android:layout_gravity="start|center_vertical" />
 
-    </LinearLayout>
+    </FrameLayout>
 
     <io.legado.app.ui.widget.text.ScrollTextView
         android:id="@+id/text_view"
