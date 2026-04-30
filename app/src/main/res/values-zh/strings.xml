@@ -854,7 +854,7 @@
     <string name="create_bookmark_error">创建书签失败</string>
     <string name="single_url">单 URL</string>
     <string name="export_bookshelf">导出书单</string>
-    <string name="export_bookshelf_to_clipboard">导出JSON到剪贴板</string>
+    <string name="export_to_clipboard">导出JSON到剪贴板</string>
     <string name="import_bookshelf">导入书单</string>
     <string name="pre_download">预下载</string>
     <string name="pre_download_m">预下载%s页</string>

@@ -84,7 +84,7 @@ class HandleFileActivity :
                 SelectItem(getString(R.string.upload_url), 111)
             ).apply {
                 addAll(getDirActions())
-                add(SelectItem(getString(R.string.export_bookshelf_to_clipboard), 114))
+                add(SelectItem(getString(R.string.export_to_clipboard), 114))
             }
 
             HandleFileContract.IMAGE -> getImageActions()
@@ -170,7 +170,7 @@ class HandleFileActivity :
                         showInputImgSrcDialog()
                     }
 
-                    114 -> getFileData()?.let { fileData ->  // 导出书单为JSON到剪贴板
+                    114 -> getFileData()?.let { fileData ->
                         val file = fileData.second
                         if (file is java.io.File && file.exists()) {
                             val json = file.readText()
