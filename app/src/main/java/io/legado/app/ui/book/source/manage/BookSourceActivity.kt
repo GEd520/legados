@@ -117,6 +117,11 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
         }
     }
     private val exportDir = registerForActivityResult(HandleFileContract()) {
+        it.clipboardJson?.let { json ->
+            sendToClip(json)
+            toastOnUi("已复制到剪贴板")
+            return@registerForActivityResult
+        }
         it.uri?.let { uri ->
             alert(R.string.export_success) {
                 if (uri.toString().isAbsUrl()) {

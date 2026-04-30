@@ -122,6 +122,11 @@ class RssSourceActivity : VMBaseActivity<ActivityRssSourceBinding, RssSourceView
         }
     }
     private val exportResult = registerForActivityResult(HandleFileContract()) {
+        it.clipboardJson?.let { json ->
+            sendToClip(json)
+            toastOnUi("已复制到剪贴板")
+            return@registerForActivityResult
+        }
         it.uri?.let { uri ->
             alert(R.string.export_success) {
                 if (uri.toString().isAbsUrl()) {
