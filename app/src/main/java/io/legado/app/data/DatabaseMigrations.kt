@@ -20,7 +20,7 @@ object DatabaseMigrations {
             migration_31_32, migration_32_33, migration_33_34, migration_34_35,
             migration_35_36, migration_36_37, migration_37_38, migration_38_39,
             migration_39_40, migration_40_41, migration_41_42, migration_42_43,
-            migration_95_96, migration_96_97, migration_97_98
+            migration_95_96, migration_96_97, migration_97_98, migration_99_98
         )
     }
 
@@ -584,6 +584,14 @@ object DatabaseMigrations {
             db.execSQL(
                 "CREATE INDEX IF NOT EXISTS `index_cover_gallery_images_groupId` ON `cover_gallery_images` (`groupId`)"
             )
+        }
+    }
+
+    // 降级迁移：从版本 99 降级到 98
+    // 假设版本 99 与 98 表结构相同，仅更新版本号
+    private val migration_99_98 = object : Migration(99, 98) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // 空迁移：版本 99 与 98 表结构相同，无需修改
         }
     }
 
