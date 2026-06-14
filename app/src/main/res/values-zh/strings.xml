@@ -72,6 +72,13 @@
     <string name="setting">设置</string>
     <string name="theme_setting">主题设置</string>
     <string name="theme_setting_s">与界面/颜色相关的一些设置</string>
+    <string name="general_settings">通用设置</string>
+    <string name="interface_manage">界面管理</string>
+    <string name="other_settings">其他设置</string>
+    <string name="navigation_bar_manage">底栏管理</string>
+    <string name="navigation_bar_manage_summary">管理底栏样式和效果</string>
+    <string name="top_bar_manage">顶栏管理</string>
+    <string name="top_bar_manage_summary">管理顶栏样式</string>
     <string name="other_setting">其它设置</string>
     <string name="other_setting_s">与功能相关的一些设置</string>
     <string name="precise_manage">精准管理</string>
@@ -890,6 +897,16 @@
     <string name="save_night_theme_summary">保存夜间主题配置以供调用和分享</string>
     <string name="theme_list">主题列表</string>
     <string name="theme_list_summary">使用、保存、导入或分享主题</string>
+    <string name="day_theme">日间主题</string>
+    <string name="add_theme">添加主题</string>
+    <string name="apply_theme">应用</string>
+    <string name="applied">已应用</string>
+    <string name="edit_theme">编辑</string>
+    <string name="more">更多</string>
+    <string name="theme_summary_empty">暂无%s主题，点击下方添加</string>
+    <string name="theme_summary">点击应用按钮应用主题，点击编辑按钮编辑主题</string>
+    <string name="builtin">内置</string>
+    <string name="current_applied">当前应用</string>
     <string name="select_theme">切换默认主题</string>
     <string name="sort_by_lastUpdateTime">更新时间排序</string>
     <string name="search_content">全文搜索</string>
@@ -1533,4 +1550,35 @@
     <string name="underline_width_thick">粗</string>
     <string name="underline_offset_near">近</string>
     <string name="underline_offset_far">远</string>
+    
+    <!-- 底栏管理 -->
+    <string name="add_nav_bar_config">添加底栏包</string>
+    <string name="nav_bar_summary_empty">暂无%s底栏包，点击下方添加</string>
+    <string name="nav_bar_summary">点击应用按钮应用底栏包，点击编辑按钮编辑底栏包</string>
+    <string name="custom_nav_bar">自定义底栏</string>
+    <string name="layout_mode">布局模式</string>
+    <string name="effect_mode">材质模式</string>
+    <string name="opacity">不透明度</string>
+    <string name="applied_nav_bar_config">已应用底栏包: %s</string>
+    <string name="share_nav_bar_config">分享底栏包配置</string>
+    
+    <!-- 顶栏管理 -->
+    <string name="add_top_bar_config">添加顶栏包</string>
+    <string name="top_bar_summary_empty">暂无%s顶栏包，点击下方添加</string>
+    <string name="top_bar_summary">管理主页面顶栏的%s样式</string>
+    <string name="custom_top_bar">自定义顶栏</string>
+    <string name="top_bar_style">顶栏样式</string>
+    <string name="corner_scale">圆角倍率</string>
+    <string name="tag_bar_opacity">标签栏透明度</string>
+    <string name="tag_selected_opacity">选中标签透明度</string>
+    <string name="wallpaper">壁纸</string>
+    <string name="applied_top_bar_config">已应用顶栏包: %s</string>
+    <string name="share_top_bar_config">分享顶栏包配置</string>
+    
+    <!-- 通用 -->
+    <string name="manual_config">手动配置</string>
+    <string name="import_success">导入成功</string>
+    <string name="import_failed">导入失败</string>
+    <string name="clipboard_empty">剪贴板为空</string>
+    <string name="apply">应用</string>
 </resources>

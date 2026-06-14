@@ -75,6 +75,13 @@
     <string name="setting">Settings</string>
     <string name="theme_setting">Theme settings</string>
     <string name="theme_setting_s">Some settings related to interface or color</string>
+    <string name="general_settings">General Settings</string>
+    <string name="interface_manage">Interface Management</string>
+    <string name="other_settings">Other Settings</string>
+    <string name="navigation_bar_manage">Navigation Bar</string>
+    <string name="navigation_bar_manage_summary">Manage navigation bar style and effects</string>
+    <string name="top_bar_manage">Top Bar</string>
+    <string name="top_bar_manage_summary">Manage top bar style</string>
     <string name="other_setting">Other settings</string>
     <string name="other_setting_s">Some function-related settings</string>
     <string name="precise_manage">Precise Management</string>
@@ -905,6 +912,16 @@
     <string name="save_night_theme_summary">Save night theme config</string>
     <string name="theme_list">Theme list</string>
     <string name="theme_list_summary">Save, Import, Share theme</string>
+    <string name="day_theme">Day Theme</string>
+    <string name="add_theme">Add Theme</string>
+    <string name="apply_theme">Apply</string>
+    <string name="applied">Applied</string>
+    <string name="edit_theme">Edit</string>
+    <string name="more">More</string>
+    <string name="theme_summary_empty">No %s themes, click below to add</string>
+    <string name="theme_summary">Click Apply button to apply theme, click Edit button to edit theme</string>
+    <string name="builtin">Builtin</string>
+    <string name="current_applied">Current applied</string>
     <string name="select_theme">Switch default theme</string>
     <string name="sort_by_lastUpdateTime">Sort by update time</string>
     <string name="sort_by_respondTime">Sort by respond time</string>
@@ -1708,4 +1725,35 @@
     <string name="view_result">查看结果</string>
     <string name="open_editor">打开编辑器</string>
     <string name="info">信息</string>
+    
+    <!-- Navigation Bar Manage -->
+    <string name="add_nav_bar_config">Add Navigation Bar Config</string>
+    <string name="nav_bar_summary_empty">No %s navigation bar configs, click below to add</string>
+    <string name="nav_bar_summary">Click Apply button to apply config, click Edit button to edit config</string>
+    <string name="custom_nav_bar">Custom Navigation Bar</string>
+    <string name="layout_mode">Layout Mode</string>
+    <string name="effect_mode">Effect Mode</string>
+    <string name="opacity">Opacity</string>
+    <string name="applied_nav_bar_config">Applied navigation bar config: %s</string>
+    <string name="share_nav_bar_config">Share navigation bar config</string>
+    
+    <!-- Top Bar Manage -->
+    <string name="add_top_bar_config">Add Top Bar Config</string>
+    <string name="top_bar_summary_empty">No %s top bar configs, click below to add</string>
+    <string name="top_bar_summary">Manage main page top bar %s style</string>
+    <string name="custom_top_bar">Custom Top Bar</string>
+    <string name="top_bar_style">Top Bar Style</string>
+    <string name="corner_scale">Corner Scale</string>
+    <string name="tag_bar_opacity">Tag Bar Opacity</string>
+    <string name="tag_selected_opacity">Selected Tag Opacity</string>
+    <string name="wallpaper">Wallpaper</string>
+    <string name="applied_top_bar_config">Applied top bar config: %s</string>
+    <string name="share_top_bar_config">Share top bar config</string>
+    
+    <!-- Common -->
+    <string name="manual_config">Manual Config</string>
+    <string name="import_success">Import success</string>
+    <string name="import_failed">Import failed</string>
+    <string name="clipboard_empty">Clipboard is empty</string>
+    <string name="apply">Apply</string>
 </resources>

@@ -3,37 +3,194 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="8dp"
+    android:layout_marginVertical="6dp"
+    android:padding="10dp"
+    android:minHeight="122dp"
     android:gravity="center_vertical"
     android:orientation="horizontal">
 
-    <CheckBox
-        android:id="@+id/cb_select"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="8dp"
-        android:visibility="gone"
-        tools:visibility="visible" />
+    <!-- 预览卡片 -->
+    <FrameLayout
+        android:id="@+id/preview_container"
+        android:layout_width="74dp"
+        android:layout_height="102dp"
+        android:background="@drawable/bg_theme_preview_card"
+        android:elevation="4dp">
 
-    <androidx.appcompat.widget.AppCompatImageView
-        android:id="@+id/iv_current"
-        android:layout_width="20dp"
-        android:layout_height="20dp"
-        android:layout_marginEnd="4dp"
-        android:src="@drawable/ic_check"
-        android:tint="@color/primaryText"
-        android:visibility="gone"
-        tools:visibility="visible" />
+        <!-- 预览内容 -->
+        <View
+            android:id="@+id/preview_primary"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_theme_preview_card" />
 
-    <TextView
-        android:id="@+id/tv_name"
+        <View
+            android:id="@+id/preview_bar1"
+            android:layout_width="56dp"
+            android:layout_height="8dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="44dp"
+            android:background="@drawable/bg_theme_preview_card" />
+
+        <View
+            android:id="@+id/preview_bar2"
+            android:layout_width="40dp"
+            android:layout_height="8dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="56dp"
+            android:background="@drawable/bg_theme_preview_card" />
+
+        <!-- 当前主题标记 -->
+        <androidx.appcompat.widget.AppCompatImageView
+            android:id="@+id/iv_current"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="end|bottom"
+            android:layout_marginEnd="4dp"
+            android:layout_marginBottom="4dp"
+            android:src="@drawable/ic_check"
+            android:tint="@color/primaryText"
+            android:visibility="gone"
+            tools:visibility="visible" />
+    </FrameLayout>
+
+    <Space
+        android:layout_width="12dp"
+        android:layout_height="0dp" />
+
+    <!-- 信息区域 -->
+    <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:maxLines="1"
-        android:textColor="@color/primaryText"
-        tools:text="theme" />
+        android:orientation="vertical">
 
+        <!-- 名称 + 来源标签 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/tv_name"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/primaryText"
+                tools:text="主题名称" />
+
+            <!-- 内置标签 -->
+            <TextView
+                android:id="@+id/tv_builtin"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="4dp"
+                android:maxWidth="118dp"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:text="@string/builtin"
+                android:textSize="12sp"
+                android:textColor="@color/primaryText"
+                android:background="@drawable/bg_action_button"
+                android:visibility="gone"
+                tools:visibility="visible" />
+        </LinearLayout>
+
+        <!-- 信息文本 -->
+        <TextView
+            android:id="@+id/tv_info"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:textSize="12sp"
+            android:textColor="@color/secondaryText"
+            tools:text="日间 · 2024-01-01" />
+
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="8dp" />
+
+        <!-- 底部按钮 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <!-- 应用按钮 -->
+            <TextView
+                android:id="@+id/tv_apply"
+                android:layout_width="wrap_content"
+                android:layout_height="34dp"
+                android:minWidth="56dp"
+                android:paddingHorizontal="12dp"
+                android:gravity="center"
+                android:text="@string/apply_theme"
+                android:textSize="13sp"
+                android:textColor="@color/primaryText"
+                android:background="@drawable/bg_action_button"
+                android:foreground="?attr/selectableItemBackground" />
+
+            <Space
+                android:layout_width="8dp"
+                android:layout_height="0dp" />
+
+            <!-- 编辑按钮 -->
+            <TextView
+                android:id="@+id/tv_edit"
+                android:layout_width="wrap_content"
+                android:layout_height="34dp"
+                android:minWidth="56dp"
+                android:paddingHorizontal="12dp"
+                android:gravity="center"
+                android:text="@string/edit_theme"
+                android:textSize="13sp"
+                android:textColor="@color/primaryText"
+                android:background="@drawable/bg_action_button"
+                android:foreground="?attr/selectableItemBackground" />
+
+            <Space
+                android:layout_width="8dp"
+                android:layout_height="0dp" />
+
+            <!-- 更多按钮 -->
+            <TextView
+                android:id="@+id/tv_more"
+                android:layout_width="wrap_content"
+                android:layout_height="34dp"
+                android:minWidth="56dp"
+                android:paddingHorizontal="12dp"
+                android:gravity="center"
+                android:text="@string/more"
+                android:textSize="13sp"
+                android:textColor="@color/primaryText"
+                android:background="@drawable/bg_action_button"
+                android:foreground="?attr/selectableItemBackground"
+                android:visibility="gone"
+                tools:visibility="visible" />
+        </LinearLayout>
+
+        <!-- 多选模式下的 CheckBox -->
+        <CheckBox
+            android:id="@+id/cb_select"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:visibility="gone"
+            tools:visibility="visible" />
+    </LinearLayout>
+
+    <!-- 多选模式下的操作按钮 (保留原有的布局兼容性) -->
     <androidx.appcompat.widget.AppCompatImageView
         android:id="@+id/iv_share"
         android:layout_width="36dp"
@@ -45,6 +202,7 @@
         android:tooltipText="@string/edit"
         android:src="@drawable/ic_share"
         android:tint="@color/primaryText"
+        android:visibility="gone"
         tools:ignore="UnusedAttribute" />
 
     <androidx.appcompat.widget.AppCompatImageView
@@ -57,6 +215,7 @@
         android:padding="6dp"
         android:src="@drawable/ic_clear_all"
         android:tint="@color/primaryText"
+        android:visibility="gone"
         tools:ignore="UnusedAttribute" />
 
 </LinearLayout>

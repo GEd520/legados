@@ -233,6 +233,12 @@
         <activity
             android:name=".ui.config.ConfigActivity"
             android:launchMode="standard" />
+        <activity
+            android:name=".ui.config.NavigationBarManageActivity"
+            android:launchMode="standard" />
+        <activity
+            android:name=".ui.config.TopBarManageActivity"
+            android:launchMode="standard" />
         <!-- 搜索界面 -->
         <activity
             android:name=".ui.book.search.SearchActivity"

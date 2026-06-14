@@ -51,4 +51,12 @@
     <color name="regex_status_success">#66BB6A</color>
     <color name="regex_status_error">#EF5350</color>
     <color name="regex_edit_border">#424242</color>
+
+    <!-- 主题 Tab 切换相关颜色 (夜间模式) -->
+    <color name="background_tab_container">#14FFFFFF</color>
+    <color name="background_tab_selected">#12FFFFFF</color>
+    <color name="background_add_button">#08FFFFFF</color>
+    <color name="border_add_button">#15FFFFFF</color>
+    <color name="background_action_button">#08FFFFFF</color>
+    <color name="background_preview_card">#303030</color>
 </resources>

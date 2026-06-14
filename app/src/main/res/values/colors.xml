@@ -138,4 +138,12 @@
     <color name="default_night_accent">#FFFFFF</color>
     <color name="default_night_background">#000000</color>
     <color name="default_night_bottom_background">#000000</color>
+
+    <!-- 主题 Tab 切换相关颜色 -->
+    <color name="background_tab_container">#0A000000</color>
+    <color name="background_tab_selected">#06000000</color>
+    <color name="background_add_button">#04000000</color>
+    <color name="border_add_button">#08000000</color>
+    <color name="background_action_button">#04000000</color>
+    <color name="background_preview_card">#FFFFFF</color>
 </resources>
