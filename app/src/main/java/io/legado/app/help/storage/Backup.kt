@@ -144,6 +144,7 @@ object Backup {
             HighlightRuleStore.backupFileName,
             "readRecord.json",
             "readRecordDetail.json",
+            "readRecordSession.json",
             "searchHistory.json",
             "txtTocRule.json",
             "httpTTS.json",
@@ -463,6 +464,9 @@ object Backup {
         }
         if (selectedFiles.contains("readRecordDetail.json")) {
             writeListToJson(appDb.readRecordDao.getAllDetailsList(), "readRecordDetail.json", backupPath)
+        }
+        if (selectedFiles.contains("readRecordSession.json")) {
+            writeListToJson(appDb.readRecordDao.getAllSessionsList(), "readRecordSession.json", backupPath)
         }
         if (selectedFiles.contains("searchHistory.json")) {
             writeListToJson(appDb.searchKeywordDao.all, "searchHistory.json", backupPath)

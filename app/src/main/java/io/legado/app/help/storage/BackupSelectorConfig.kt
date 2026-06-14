@@ -31,6 +31,7 @@ object BackupSelectorConfig {
         BackupItem("highlightRule", "highlightRule.json", "高亮规则", "配置"),
         BackupItem("readRecord", "readRecord.json", "阅读记录", "数据库"),
         BackupItem("readRecordDetail", "readRecordDetail.json", "阅读记录详情", "数据库"),
+        BackupItem("readRecordSession", "readRecordSession.json", "阅读时间线", "数据库"),
         BackupItem("searchHistory", "searchHistory.json", "搜索历史", "数据库"),
         BackupItem("txtTocRule", "txtTocRule.json", "TXT目录规则", "数据库"),
         BackupItem("httpTTS", "httpTTS.json", "TTS配置", "数据库"),
