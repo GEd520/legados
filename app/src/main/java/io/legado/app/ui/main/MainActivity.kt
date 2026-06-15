@@ -4,8 +4,12 @@ package io.legado.app.ui.main
 
 import android.os.Bundle
 import android.text.format.DateUtils
+import android.view.Gravity
 import android.view.MenuItem
 import android.view.ViewGroup
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
+import android.widget.FrameLayout
 import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.core.view.get
@@ -28,9 +32,15 @@ import io.legado.app.help.AppWebDav
 import io.legado.app.help.book.BookHelp
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.config.LocalConfig
+import io.legado.app.help.config.NavigationBarConfig
+import io.legado.app.help.config.ThemeConfig
 import io.legado.app.help.coroutine.Coroutine
 import io.legado.app.help.storage.Backup
 import io.legado.app.lib.dialogs.alert
+import io.legado.app.lib.theme.accentColor
+import io.legado.app.lib.theme.bottomBackground
+import io.legado.app.lib.theme.elevation
+import io.legado.app.lib.theme.getSecondaryTextColor
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.service.BaseReadAloudService
 import io.legado.app.ui.about.CrashLogsDialog
@@ -63,9 +73,11 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import splitties.views.bottomPadding
 import kotlin.coroutines.resume
-import androidx.core.view.get
+import androidx.core.graphics.drawable.toDrawable
 import io.legado.app.help.update.AppUpdate
 import io.legado.app.ui.about.UpdateDialog
+import io.legado.app.utils.ColorUtils
+import io.legado.app.utils.dpToPx
 import kotlin.time.Duration.Companion.hours
 
 /**
@@ -91,6 +103,8 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
     private var pagePosition = 0
     private val fragmentMap = hashMapOf<Int, Fragment>()
     private var bottomMenuCount = 4
+    private var bottomNavigationConfigSignature: String? = null
+    private var bottomNavigationInset = 0
     private val EXIT_INTERVAL = 2000L
     private val realPositions = arrayOf(idBookshelf, idExplore, idRss, idMy)
     private val adapter by lazy {
@@ -174,6 +188,11 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
         return false
     }
 
+    override fun onResume() {
+        super.onResume()
+        refreshBottomNavigationConfig()
+    }
+
     override fun onNavigationItemReselected(item: MenuItem) {
         when (item.itemId) {
             R.id.menu_bookshelf -> {
@@ -201,13 +220,108 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
         viewPagerMain.addOnPageChangeListener(PageChangeCallback())
         bottomNavigationView.setOnNavigationItemSelectedListener(this@MainActivity)
         bottomNavigationView.setOnNavigationItemReselectedListener(this@MainActivity)
+        refreshBottomNavigationConfig(force = true)
         if (AppConfig.isEInkMode) {
             bottomNavigationView.setBackgroundResource(R.drawable.bg_eink_border_top)
         }
         bottomNavigationView.setOnApplyWindowInsetsListenerCompat { view, windowInsets ->
-            val height = windowInsets.navigationBarHeight
-            view.bottomPadding = height
-            windowInsets.inset(0, 0, 0, height)
+            bottomNavigationInset = windowInsets.navigationBarHeight
+            view.bottomPadding = 0
+            refreshBottomNavigationConfig(force = true)
+            windowInsets
+        }
+    }
+
+    private fun refreshBottomNavigationConfig(force: Boolean = false) {
+        val signature = NavigationBarConfig.currentSignature(this, AppConfig.isNightTheme)
+        if (!force && bottomNavigationConfigSignature == signature) {
+            return
+        }
+        bottomNavigationConfigSignature = signature
+        ThemeConfig.applyTheme(this)
+        applyNavigationBarPackage()
+    }
+
+    private fun applyNavigationBarPackage() = binding.run {
+        val config = NavigationBarConfig.activeConfig(this@MainActivity, AppConfig.isNightTheme)
+        val bgColor = bottomBackground
+        val hasCustomIcons = NavigationBarConfig.applyToMenu(
+            bottomNavigationView.menu,
+            this@MainActivity,
+            AppConfig.isNightTheme
+        )
+        if (hasCustomIcons) {
+            bottomNavigationView.itemIconTintList = null
+        } else {
+            bottomNavigationView.restoreThemeIconTint()
+        }
+        bottomNavigationView.itemBackground = Color.TRANSPARENT.toDrawable()
+        applyBottomNavigationShell(config, bgColor)
+        val textIsDark = ColorUtils.isColorLight(bgColor)
+        bottomNavigationView.itemTextColor = io.legado.app.lib.theme.Selector.colorBuild()
+            .setDefaultColor(getSecondaryTextColor(textIsDark))
+            .setSelectedColor(accentColor)
+            .create()
+        bottomNavigationView.post {
+            applyBottomNavigationSelectedIndicator(config, bgColor)
+        }
+    }
+
+    private fun applyBottomNavigationShell(config: NavigationBarConfig, bgColor: Int) = binding.run {
+        val floating = config.layoutMode == NavigationBarConfig.LAYOUT_FLOATING
+        val standard = config.layoutMode == NavigationBarConfig.LAYOUT_STANDARD
+        val horizontalMargin = if (floating) 14.dpToPx() else 0
+        val topMargin = 0
+        val bottomMargin = if (floating) 12.dpToPx() + bottomNavigationInset else 0
+        bottomNavigationView.layoutParams = (bottomNavigationView.layoutParams as FrameLayout.LayoutParams).apply {
+            width = ViewGroup.LayoutParams.MATCH_PARENT
+            height = ViewGroup.LayoutParams.WRAP_CONTENT
+            gravity = Gravity.BOTTOM
+            setMargins(horizontalMargin, topMargin, horizontalMargin, bottomMargin)
+        }
+        bottomNavigationView.minimumHeight = if (floating) 42.dpToPx() else 50.dpToPx()
+        bottomNavigationView.itemIconSize = if (floating) 20.dpToPx() else 22.dpToPx()
+        bottomNavigationView.setPadding(
+            if (floating) 6.dpToPx() else 0,
+            0,
+            if (floating) 6.dpToPx() else 0,
+            if (standard) bottomNavigationInset else 0
+        )
+        bottomNavigationView.alpha = 1f
+        bottomNavigationView.elevation = if (floating) elevation else 0f
+        bottomNavigationView.setBackgroundColor(Color.TRANSPARENT)
+        bottomNavigationView.background = createBottomNavigationShellDrawable(config, bgColor)
+    }
+
+    private fun createBottomNavigationShellDrawable(config: NavigationBarConfig, bgColor: Int): GradientDrawable {
+        val standard = config.layoutMode == NavigationBarConfig.LAYOUT_STANDARD
+        val radius = when {
+            standard -> 0f
+            config.effectMode == NavigationBarConfig.EFFECT_FROSTED -> 21f.dpToPx()
+            else -> 20f.dpToPx()
+        }
+        val strokeColor = config.borderColor?.let {
+            ColorUtils.withAlpha(it, config.borderAlpha.coerceIn(0, 100) / 100f)
+        }
+        return GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = radius
+            setColor(bgColor)
+            setStroke(
+                if (!standard && strokeColor != null) 1.dpToPx() else 0,
+                strokeColor ?: Color.TRANSPARENT
+            )
+        }
+    }
+
+    private fun applyBottomNavigationSelectedIndicator(config: NavigationBarConfig, bgColor: Int) = binding.run {
+        val menuView = bottomNavigationView.getChildAt(0) as? ViewGroup ?: return@run
+        val visibleItems = NavigationBarConfig.items
+            .filter { bottomNavigationView.menu.findItem(it.menuId)?.isVisible == true }
+        visibleItems.forEachIndexed { index, _ ->
+            val child = menuView.getChildAt(index) ?: return@forEachIndexed
+            child.background = Color.TRANSPARENT.toDrawable()
+            child.setPadding(0, 3.dpToPx(), 0, 3.dpToPx())
         }
     }
 
@@ -370,11 +484,17 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
         observeEvent<String>(EventBus.RECREATE) {
             recreate()
         }
+        observeEvent<Boolean>(EventBus.NAVIGATION_BAR_CHANGED) {
+            if (it == AppConfig.isNightTheme) {
+                refreshBottomNavigationConfig(force = true)
+            }
+        }
         observeEvent<Boolean>(EventBus.NOTIFY_MAIN) {
             binding.apply {
                 if (it) {
                     bottomNavigationView.menu.clear()
                     bottomNavigationView.inflateMenu(R.menu.main_bnv)
+                    refreshBottomNavigationConfig(force = true)
                     onUpBooksBadgeView = null
                 }
                 upBottomMenu()
@@ -438,6 +558,8 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
         override fun onPageSelected(position: Int) {
             pagePosition = position
             binding.bottomNavigationView.menu[realPositions[position]].isChecked = true
+            val config = NavigationBarConfig.activeConfig(this@MainActivity, AppConfig.isNightTheme)
+            applyBottomNavigationSelectedIndicator(config, bottomBackground)
         }
 
     }

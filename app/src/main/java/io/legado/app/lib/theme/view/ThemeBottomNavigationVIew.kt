@@ -1,6 +1,7 @@
 package io.legado.app.lib.theme.view
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.util.AttributeSet
 import android.view.LayoutInflater
@@ -31,12 +32,7 @@ class ThemeBottomNavigationVIew(context: Context, attrs: AttributeSet) :
             setBackgroundColor(bgColor)
             elevation = context.elevation
         }
-        val textIsDark = ColorUtils.isColorLight(bgColor)
-        val textColor = context.getSecondaryTextColor(textIsDark)
-        val colorStateList = Selector.colorBuild()
-            .setDefaultColor(textColor)
-            .setSelectedColor(ThemeStore.accentColor(context))
-            .create()
+        val colorStateList = createThemeColorStateList()
         itemIconTintList = colorStateList
         itemTextColor = colorStateList
         if (AppConfig.isEInkMode || transparentNavBar) {
@@ -45,6 +41,22 @@ class ThemeBottomNavigationVIew(context: Context, attrs: AttributeSet) :
         }
 
         ViewCompat.setOnApplyWindowInsetsListener(this, null)
+    }
+
+    fun createThemeColorStateList(): ColorStateList {
+        val bgColor = context.bottomBackground
+        val textIsDark = ColorUtils.isColorLight(bgColor)
+        val textColor = context.getSecondaryTextColor(textIsDark)
+        return Selector.colorBuild()
+            .setDefaultColor(textColor)
+            .setSelectedColor(ThemeStore.accentColor(context))
+            .create()
+    }
+
+    fun restoreThemeIconTint() {
+        val colorStateList = createThemeColorStateList()
+        itemIconTintList = colorStateList
+        itemTextColor = colorStateList
     }
 
     fun addBadgeView(index: Int): BadgeView {

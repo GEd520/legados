@@ -1731,11 +1731,23 @@
     <string name="nav_bar_summary_empty">No %s navigation bar configs, click below to add</string>
     <string name="nav_bar_summary">Click Apply button to apply config, click Edit button to edit config</string>
     <string name="custom_nav_bar">Custom Navigation Bar</string>
+    <string name="navigation_bar_name">Navigation bar name</string>
+    <string name="navigation_bar_config_missing">Navigation bar config missing</string>
     <string name="layout_mode">Layout Mode</string>
     <string name="effect_mode">Effect Mode</string>
+    <string name="bottom_bar_layout_mode">Bottom bar layout mode</string>
+    <string name="bottom_bar_effect_mode">Bottom bar effect mode</string>
+    <string name="bottom_bar_border_color">Bottom bar border color</string>
+    <string name="bottom_bar_border_alpha">Bottom bar border opacity</string>
     <string name="opacity">Opacity</string>
+    <string name="navigation_icon_normal">Normal icon</string>
+    <string name="navigation_icon_selected">Selected icon</string>
     <string name="applied_nav_bar_config">Applied navigation bar config: %s</string>
     <string name="share_nav_bar_config">Share navigation bar config</string>
+    <string name="file_not_exist">File does not exist</string>
+    <string name="transparent">Transparent</string>
+    <string name="accent_color">Accent color</string>
+    <string name="custom">Custom</string>
     
     <!-- Top Bar Manage -->
     <string name="add_top_bar_config">Add Top Bar Config</string>

@@ -1,110 +1,235 @@
 package io.legado.app.help.config
 
+import android.content.Context
 import android.graphics.Color
+import android.graphics.drawable.Drawable
+import android.graphics.drawable.StateListDrawable
+import android.view.Menu
+import androidx.annotation.DrawableRes
+import androidx.annotation.IdRes
 import androidx.annotation.Keep
+import androidx.annotation.StringRes
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.DrawableCompat
+import io.legado.app.R
+import io.legado.app.constant.EventBus
+import io.legado.app.lib.theme.ThemeStore
+import io.legado.app.lib.theme.getSecondaryTextColor
+import io.legado.app.utils.ColorUtils
 import io.legado.app.utils.GSON
 import io.legado.app.utils.fromJsonObject
-import java.util.Date
+import io.legado.app.utils.getPrefString
+import io.legado.app.utils.postEvent
+import io.legado.app.utils.putPrefString
 
-/**
- * 底栏配置包 - 参考 mmr 项目的 NavigationBarConfig
- */
 @Keep
 data class NavigationBarConfig(
     var id: String,
     var name: String,
     var isNight: Boolean,
     var isBuiltin: Boolean = false,
-    var layoutMode: String = "floating",  // floating, standard, sidebar
-    var effectMode: String = "glass",     // solid, glass, frosted
-    var opacity: Int = 72,                // 0 ~ 100
-    var borderColor: Int? = null,         // 边框颜色
-    var borderAlpha: Int = 100,           // 边框透明度 0 ~ 100
-    var wallpaperPath: String? = null,    // 底栏壁纸路径 (仅标准模式)
-    var sidebarBackgroundPath: String? = null, // 侧边栏背景路径 (仅侧边栏模式)
-    var sidebarGravity: String = "start", // start, end (仅侧边栏模式)
-    var icons: Map<String, String> = emptyMap(), // 图标配置
+    var layoutMode: String = LAYOUT_FLOATING,
+    var effectMode: String = EFFECT_GLASS,
+    var opacity: Int = 76,
+    var borderColor: Int? = null,
+    var borderAlpha: Int = 100,
+    var wallpaperPath: String? = null,
+    var sidebarBackgroundPath: String? = null,
+    var sidebarGravity: String = "start",
+    var icons: Map<String, String> = emptyMap(),
     var updatedAt: Long = System.currentTimeMillis()
 ) {
 
-    fun toJson(): String {
-        return GSON.toJson(this)
+    data class NavItem(
+        val key: String,
+        @StringRes val titleRes: Int,
+        @IdRes val menuId: Int,
+        @DrawableRes val defaultIconRes: Int
+    )
+
+    fun toJson(): String = GSON.toJson(this)
+
+    fun copySelf(): NavigationBarConfig = copy(icons = icons.toMap())
+
+    fun getLayoutModeText(): String = when (layoutMode) {
+        LAYOUT_STANDARD -> "常规底栏"
+        LAYOUT_SIDEBAR -> "侧边栏"
+        else -> "悬浮底栏"
+    }
+
+    fun getEffectModeText(): String = when (effectMode) {
+        EFFECT_SOLID -> "实色"
+        EFFECT_FROSTED -> "磨砂"
+        else -> "玻璃"
     }
 
     companion object {
+        const val LAYOUT_FLOATING = "floating"
+        const val LAYOUT_STANDARD = "standard"
+        const val LAYOUT_SIDEBAR = "sidebar"
+        const val EFFECT_SOLID = "solid"
+        const val EFFECT_GLASS = "glass"
+        const val EFFECT_FROSTED = "frosted"
+        const val STATE_NORMAL = "normal"
+        const val STATE_SELECTED = "selected"
+
+        private const val PREF_KEY_ACTIVE_DAY = "activeDayNavBarId"
+        private const val PREF_KEY_ACTIVE_NIGHT = "activeNightNavBarId"
+        private const val PREF_KEY_CUSTOM_CONFIGS = "customNavBarConfigs"
+
+        val items = listOf(
+            NavItem("bookshelf", R.string.bookshelf, R.id.menu_bookshelf, R.drawable.ic_bottom_books),
+            NavItem("discovery", R.string.discovery, R.id.menu_discovery, R.drawable.ic_bottom_explore),
+            NavItem("rss", R.string.rss, R.id.menu_rss, R.drawable.ic_bottom_rss_feed),
+            NavItem("my", R.string.my, R.id.menu_my_config, R.drawable.ic_bottom_person)
+        )
+
         fun fromJson(json: String): NavigationBarConfig {
             return GSON.fromJsonObject<NavigationBarConfig>(json).getOrThrow()
         }
 
-        // 创建默认日间底栏配置
         fun createDefaultDay(): NavigationBarConfig {
             return NavigationBarConfig(
                 id = "builtin_default_day",
-                name = "默认",
+                name = "日间底栏",
                 isNight = false,
-                isBuiltin = true,
-                layoutMode = "floating",
-                effectMode = "glass",
-                opacity = 72
+                isBuiltin = true
             )
         }
 
-        // 创建默认夜间底栏配置
         fun createDefaultNight(): NavigationBarConfig {
             return NavigationBarConfig(
                 id = "builtin_default_night",
-                name = "默认",
+                name = "夜间底栏",
                 isNight = true,
-                isBuiltin = true,
-                layoutMode = "floating",
-                effectMode = "glass",
-                opacity = 72
+                isBuiltin = true
             )
         }
-    }
 
-    fun copy(): NavigationBarConfig {
-        return NavigationBarConfig(
-            id = id,
-            name = name,
-            isNight = isNight,
-            isBuiltin = isBuiltin,
-            layoutMode = layoutMode,
-            effectMode = effectMode,
-            opacity = opacity,
-            borderColor = borderColor,
-            borderAlpha = borderAlpha,
-            wallpaperPath = wallpaperPath,
-            sidebarBackgroundPath = sidebarBackgroundPath,
-            sidebarGravity = sidebarGravity,
-            icons = icons,
-            updatedAt = updatedAt
-        )
-    }
+        fun loadConfigs(context: Context): MutableList<NavigationBarConfig> {
+            val configs = mutableListOf(createDefaultDay(), createDefaultNight())
+            context.getPrefString(PREF_KEY_CUSTOM_CONFIGS)
+                ?.lineSequence()
+                ?.filter { it.isNotBlank() }
+                ?.forEach { json -> runCatching { configs.add(fromJson(json)) } }
+            return configs
+        }
 
-    fun getLayoutModeText(): String {
-        return when (layoutMode) {
-            "floating" -> "悬浮"
-            "standard" -> "标准"
-            "sidebar" -> "侧边栏"
-            else -> "悬浮"
+        fun saveConfigs(context: Context, configs: List<NavigationBarConfig>) {
+            context.putPrefString(
+                PREF_KEY_CUSTOM_CONFIGS,
+                configs.filter { !it.isBuiltin }.joinToString("\n") { it.toJson() }
+            )
+        }
+
+        fun activeId(context: Context, isNight: Boolean): String? {
+            return context.getPrefString(if (isNight) PREF_KEY_ACTIVE_NIGHT else PREF_KEY_ACTIVE_DAY)
+        }
+
+        fun setActiveId(context: Context, isNight: Boolean, id: String?) {
+            context.putPrefString(if (isNight) PREF_KEY_ACTIVE_NIGHT else PREF_KEY_ACTIVE_DAY, id.orEmpty())
+        }
+
+        fun activeConfig(context: Context, isNight: Boolean): NavigationBarConfig {
+            val configs = loadConfigs(context)
+            val activeId = activeId(context, isNight)
+            return configs.firstOrNull { it.isNight == isNight && it.id == activeId }
+                ?: configs.first { it.isNight == isNight }
+        }
+
+        fun currentSignature(context: Context, isNight: Boolean): String {
+            val config = activeConfig(context, isNight)
+            val iconSignature = config.icons.entries
+                .sortedBy { it.key }
+                .joinToString("|") { "${it.key}:${it.value}" }
+            return listOf(
+                isNight,
+                config.id,
+                config.layoutMode,
+                config.effectMode,
+                config.opacity,
+                config.borderColor,
+                config.borderAlpha,
+                config.updatedAt,
+                iconSignature
+            ).joinToString("|")
+        }
+
+        fun applyConfig(context: Context, config: NavigationBarConfig, recreate: Boolean = false) {
+            setActiveId(context, config.isNight, config.id)
+            ThemeConfig.applyTheme(context)
+            postEvent(EventBus.NAVIGATION_BAR_CHANGED, config.isNight)
+            if (recreate) postEvent(EventBus.RECREATE, "")
+        }
+
+        fun resolveForTheme(
+            context: Context,
+            isNight: Boolean,
+            baseBottomColor: Int,
+            baseTransparentNavBar: Boolean
+        ): Resolved {
+            val config = activeConfig(context, isNight)
+            if (config.isBuiltin) {
+                return Resolved(ColorUtils.withAlpha(baseBottomColor, 1f), baseTransparentNavBar)
+            }
+            return Resolved(
+                bottomBackground = resolveBottomColor(baseBottomColor, config),
+                transparentNavBar = config.layoutMode != LAYOUT_STANDARD || config.opacity < 100
+            )
+        }
+
+        fun resolveBottomColor(baseColor: Int, config: NavigationBarConfig): Int {
+            val alpha = config.opacity.coerceIn(0, 100) / 100f
+            if (config.isBuiltin) return ColorUtils.withAlpha(baseColor, 1f)
+            return when (config.effectMode) {
+                EFFECT_SOLID -> ColorUtils.withAlpha(baseColor, alpha)
+                EFFECT_FROSTED -> ColorUtils.withAlpha(baseColor, (alpha * 0.88f).coerceIn(0f, 1f))
+                else -> ColorUtils.withAlpha(baseColor, (alpha * 0.72f).coerceIn(0f, 1f))
+            }
+        }
+
+        fun applyToMenu(menu: Menu, context: Context, isNight: Boolean): Boolean {
+            val config = activeConfig(context, isNight)
+            var hasCustom = false
+            items.forEach { item ->
+                val normal = loadIconDrawable(context, config.icons[iconKey(item.key, STATE_NORMAL)])
+                val selected = loadIconDrawable(context, config.icons[iconKey(item.key, STATE_SELECTED)])
+                if (normal != null || selected != null) hasCustom = true
+                menu.findItem(item.menuId)?.icon = StateListDrawable().apply {
+                    addState(intArrayOf(android.R.attr.state_checked), selected ?: normal ?: defaultDrawable(context, item.defaultIconRes, true))
+                    addState(intArrayOf(android.R.attr.state_selected), selected ?: normal ?: defaultDrawable(context, item.defaultIconRes, true))
+                    addState(intArrayOf(), normal ?: defaultDrawable(context, item.defaultIconRes, false))
+                }
+            }
+            return hasCustom
+        }
+
+        fun previewDrawable(context: Context, config: NavigationBarConfig, item: NavItem, selected: Boolean): Drawable? {
+            val state = if (selected) STATE_SELECTED else STATE_NORMAL
+            return loadIconDrawable(context, config.icons[iconKey(item.key, state)])
+                ?: loadIconDrawable(context, config.icons[iconKey(item.key, STATE_NORMAL)])
+                ?: defaultDrawable(context, item.defaultIconRes, selected)
+        }
+
+        fun iconKey(itemKey: String, state: String): String = "${itemKey}_$state"
+
+        private fun loadIconDrawable(context: Context, path: String?): Drawable? {
+            if (path.isNullOrBlank()) return null
+            return Drawable.createFromPath(path)
+        }
+
+        private fun defaultDrawable(context: Context, @DrawableRes resId: Int, selected: Boolean): Drawable {
+            val drawable = ContextCompat.getDrawable(context, resId)!!.mutate()
+            val bg = ThemeStore.bottomBackground(context)
+            val textIsDark = ColorUtils.isColorLight(bg)
+            val color = if (selected) ThemeStore.accentColor(context) else context.getSecondaryTextColor(textIsDark)
+            DrawableCompat.setTint(drawable, color)
+            return drawable
         }
     }
 
-    fun getEffectModeText(): String {
-        return when (effectMode) {
-            "solid" -> "实心"
-            "glass" -> "玻璃"
-            "frosted" -> "磨砂"
-            else -> "玻璃"
-        }
-    }
-
-    fun getSidebarGravityText(): String {
-        return when (sidebarGravity) {
-            "start" -> "左侧"
-            "end" -> "右侧"
-            else -> "左侧"
-        }
-    }
+    data class Resolved(
+        val bottomBackground: Int,
+        val transparentNavBar: Boolean
+    )
 }

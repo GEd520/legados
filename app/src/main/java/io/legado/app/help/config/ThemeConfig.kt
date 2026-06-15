@@ -497,12 +497,18 @@ object ThemeConfig {
                     getPrefInt(PreferKey.cNBBackground, getCompatColor(R.color.default_night_bottom_background))
                 val transparentNavBar =
                     getPrefBoolean(PreferKey.tNavBarN, false)
+                val navBarStyle = NavigationBarConfig.resolveForTheme(
+                    context = this,
+                    isNight = true,
+                    baseBottomColor = bBackground,
+                    baseTransparentNavBar = transparentNavBar
+                )
                 ThemeStore.editTheme(this)
                     .primaryColor(ColorUtils.withAlpha(primary, 1f))
                     .accentColor(ColorUtils.withAlpha(accent, 1f))
                     .backgroundColor(ColorUtils.withAlpha(background, 1f))
-                    .bottomBackground(ColorUtils.withAlpha(bBackground, 1f))
-                    .transparentNavBar(transparentNavBar)
+                    .bottomBackground(navBarStyle.bottomBackground)
+                    .transparentNavBar(navBarStyle.transparentNavBar)
                     .apply()
             }
 
@@ -521,12 +527,18 @@ object ThemeConfig {
                     getPrefInt(PreferKey.cBBackground, getCompatColor(R.color.default_bottom_background))
                 val transparentNavBar =
                     getPrefBoolean(PreferKey.tNavBar, false)
+                val navBarStyle = NavigationBarConfig.resolveForTheme(
+                    context = this,
+                    isNight = false,
+                    baseBottomColor = bBackground,
+                    baseTransparentNavBar = transparentNavBar
+                )
                 ThemeStore.editTheme(this)
                     .primaryColor(ColorUtils.withAlpha(primary, 1f))
                     .accentColor(ColorUtils.withAlpha(accent, 1f))
                     .backgroundColor(ColorUtils.withAlpha(background, 1f))
-                    .bottomBackground(ColorUtils.withAlpha(bBackground, 1f))
-                    .transparentNavBar(transparentNavBar)
+                    .bottomBackground(navBarStyle.bottomBackground)
+                    .transparentNavBar(navBarStyle.transparentNavBar)
                     .apply()
             }
         }

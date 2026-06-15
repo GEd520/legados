@@ -1556,11 +1556,23 @@
     <string name="nav_bar_summary_empty">暂无%s底栏包，点击下方添加</string>
     <string name="nav_bar_summary">点击应用按钮应用底栏包，点击编辑按钮编辑底栏包</string>
     <string name="custom_nav_bar">自定义底栏</string>
+    <string name="navigation_bar_name">底栏包名称</string>
+    <string name="navigation_bar_config_missing">底栏配置不存在</string>
     <string name="layout_mode">布局模式</string>
     <string name="effect_mode">材质模式</string>
+    <string name="bottom_bar_layout_mode">底栏布局模式</string>
+    <string name="bottom_bar_effect_mode">底栏材质模式</string>
+    <string name="bottom_bar_border_color">底栏边框颜色</string>
+    <string name="bottom_bar_border_alpha">底栏边框透明度</string>
     <string name="opacity">不透明度</string>
+    <string name="navigation_icon_normal">普通图标</string>
+    <string name="navigation_icon_selected">选中图标</string>
     <string name="applied_nav_bar_config">已应用底栏包: %s</string>
     <string name="share_nav_bar_config">分享底栏包配置</string>
+    <string name="file_not_exist">文件不存在</string>
+    <string name="transparent">透明</string>
+    <string name="accent_color">强调色</string>
+    <string name="custom">自定义</string>
     
     <!-- 顶栏管理 -->
     <string name="add_top_bar_config">添加顶栏包</string>
