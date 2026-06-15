@@ -4,4 +4,6 @@ interface MainFragmentInterface {
 
     val position: Int?
 
+    fun updateMainBottomPadding(bottomPadding: Int) = Unit
+
 }

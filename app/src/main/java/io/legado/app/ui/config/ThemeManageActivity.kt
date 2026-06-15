@@ -1,9 +1,13 @@
 package io.legado.app.ui.config
 
 import android.content.Context
+import android.graphics.Color
+import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
+import android.net.Uri
 import android.os.Bundle
 import android.view.Gravity
+import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
@@ -13,96 +17,111 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Switch
 import android.widget.TextView
-import androidx.appcompat.widget.Toolbar
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.toColorInt
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.jaredrummler.android.colorpicker.ColorPickerDialog
 import com.jaredrummler.android.colorpicker.ColorPickerDialogListener
 import io.legado.app.R
-import io.legado.app.base.BaseDialogFragment
+import io.legado.app.base.BaseActivity
 import io.legado.app.base.adapter.ItemViewHolder
 import io.legado.app.base.adapter.RecyclerAdapter
-import io.legado.app.constant.AppLog
-import io.legado.app.databinding.DialogThemeListBinding
+import io.legado.app.constant.PreferKey
+import io.legado.app.databinding.ActivityThemeManageBinding
 import io.legado.app.databinding.ItemThemeConfigBinding
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.config.ThemeConfig
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.dialogs.selector
 import io.legado.app.lib.theme.accentColor
-import io.legado.app.lib.theme.primaryColor
+import io.legado.app.ui.file.HandleFileContract
 import io.legado.app.ui.widget.number.NumberPickerDialog
 import io.legado.app.ui.widget.recycler.VerticalDivider
-import io.legado.app.utils.*
+import io.legado.app.utils.FileUtils
+import io.legado.app.utils.GSON
+import io.legado.app.utils.applyTint
+import io.legado.app.utils.externalFiles
+import io.legado.app.utils.getClipText
+import io.legado.app.utils.hexString
+import io.legado.app.utils.readUri
+import io.legado.app.utils.share
+import io.legado.app.utils.toastOnUi
 import io.legado.app.utils.viewbindingdelegate.viewBinding
+import java.io.File
+import java.io.FileOutputStream
 import java.util.Locale
 
-class ThemeListDialog : BaseDialogFragment(R.layout.dialog_theme_list),
-    Toolbar.OnMenuItemClickListener,
+class ThemeManageActivity : BaseActivity<ActivityThemeManageBinding>(),
     ColorPickerDialogListener {
 
-    private val binding by viewBinding(DialogThemeListBinding::bind)
-    private val adapter by lazy { Adapter(requireContext()) }
-    private var isMultiSelectMode = false
+    override val binding by viewBinding(ActivityThemeManageBinding::inflate)
+    private val adapter by lazy { Adapter(this) }
     private val selectedPositions = mutableSetOf<Int>()
-    private var isNightThemeTab = false  // 当前选中的 Tab (false = 日间, true = 夜间)
+    private var isMultiSelectMode = false
+    private var isNightThemeTab = false
     private var editingTheme: ThemeConfig.Config? = null
     private var editingThemeIndex = -1
     private var editingDialog: LinearLayout? = null
 
-    override fun onStart() {
-        super.onStart()
-        setLayout(0.96f, 0.96f)
+    private val selectBackgroundImage = registerForActivityResult(HandleFileContract()) { result ->
+        val uri = result.uri ?: return@registerForActivityResult
+        val config = editingTheme ?: return@registerForActivityResult
+        saveBackgroundImage(uri, config)
     }
 
-    override fun onFragmentCreated(view: View, savedInstanceState: Bundle?) {
-        binding.toolBar.setBackgroundColor(primaryColor)
-        binding.toolBar.setTitle(R.string.theme_list)
+    override fun onActivityCreated(savedInstanceState: Bundle?) {
         initView()
-        initMenu()
         initTabs()
         initData()
         updateSummary()
     }
 
+    override fun onCompatCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(
+            if (isMultiSelectMode) R.menu.theme_list_multi else R.menu.theme_list,
+            menu
+        )
+        menu.applyTint(this)
+        return true
+    }
+
+    override fun onCompatOptionsItemSelected(item: MenuItem): Boolean {
+        when (item.itemId) {
+            R.id.menu_import -> importFromClipboard()
+            R.id.menu_select_all -> selectAllOrClear()
+            R.id.menu_to_top -> toTopSelected()
+            R.id.menu_export -> exportSelected()
+            R.id.menu_delete -> deleteSelected()
+            else -> return super.onCompatOptionsItemSelected(item)
+        }
+        return true
+    }
+
     private fun initView() = binding.run {
-        recyclerView.layoutManager = LinearLayoutManager(requireContext())
-        recyclerView.addItemDecoration(VerticalDivider(requireContext()))
+        recyclerView.layoutManager = LinearLayoutManager(this@ThemeManageActivity)
+        recyclerView.addItemDecoration(VerticalDivider(this@ThemeManageActivity))
         recyclerView.adapter = adapter
-        
-        // 添加主题按钮
         tvAddTheme.setOnClickListener {
             showAddOptions()
         }
     }
 
-    private fun initMenu() = binding.run {
-        toolBar.setOnMenuItemClickListener(this@ThemeListDialog)
-        toolBar.inflateMenu(R.menu.theme_list)
-        toolBar.menu.applyTint(requireContext())
-    }
-
-    // 初始化 Tab 切换
     private fun initTabs() = binding.run {
-        // 初始化时根据当前主题模式设置 Tab
         isNightThemeTab = AppConfig.isNightTheme
         updateTabSelection()
-        
-        // 日间 Tab 点击
         tabDay.setOnClickListener {
             if (isNightThemeTab) {
                 isNightThemeTab = false
+                exitMultiSelectMode()
                 updateTabSelection()
                 initData()
                 updateSummary()
             }
         }
-        
-        // 夜间 Tab 点击
         tabNight.setOnClickListener {
             if (!isNightThemeTab) {
                 isNightThemeTab = true
+                exitMultiSelectMode()
                 updateTabSelection()
                 initData()
                 updateSummary()
@@ -110,148 +129,83 @@ class ThemeListDialog : BaseDialogFragment(R.layout.dialog_theme_list),
         }
     }
 
-    // 更新 Tab 选中状态
     private fun updateTabSelection() = binding.run {
-        val accentColor = requireContext().accentColor
-        val primaryTextColor = ContextCompat.getColor(requireContext(), R.color.primaryText)
-        
-        // 日间 Tab
-        val dayTabSelected = !isNightThemeTab
-        tvTabDay.setTextColor(if (dayTabSelected) accentColor else primaryTextColor)
-        tabDay.background = if (dayTabSelected) {
-            ContextCompat.getDrawable(requireContext(), R.drawable.bg_theme_tab_selected)
+        val activeColor = accentColor
+        val primaryTextColor = ContextCompat.getColor(this@ThemeManageActivity, R.color.primaryText)
+        val daySelected = !isNightThemeTab
+        tvTabDay.setTextColor(if (daySelected) activeColor else primaryTextColor)
+        tabDay.background = if (daySelected) {
+            ContextCompat.getDrawable(this@ThemeManageActivity, R.drawable.bg_theme_tab_selected)
         } else {
             null
         }
-        
-        // 夜间 Tab
-        val nightTabSelected = isNightThemeTab
-        tvTabNight.setTextColor(if (nightTabSelected) accentColor else primaryTextColor)
-        tabNight.background = if (nightTabSelected) {
-            ContextCompat.getDrawable(requireContext(), R.drawable.bg_theme_tab_selected)
+        tvTabNight.setTextColor(if (!daySelected) activeColor else primaryTextColor)
+        tabNight.background = if (!daySelected) {
+            ContextCompat.getDrawable(this@ThemeManageActivity, R.drawable.bg_theme_tab_selected)
         } else {
             null
         }
     }
 
-    // 更新摘要文本
     private fun updateSummary() = binding.run {
         val filteredThemes = getFilteredThemes()
-        if (filteredThemes.isEmpty()) {
+        tvSummary.text = if (filteredThemes.isEmpty()) {
             val themeType = if (isNightThemeTab) getString(R.string.night) else getString(R.string.day)
-            tvSummary.text = getString(R.string.theme_summary_empty, themeType)
+            getString(R.string.theme_summary_empty, themeType)
         } else {
-            tvSummary.text = getString(R.string.theme_summary)
+            getString(R.string.theme_summary)
         }
     }
 
-    // 获取过滤后的主题列表
     private fun getFilteredThemes(): List<ThemeConfig.Config> {
         return ThemeConfig.configList.filter { it.isNightTheme == isNightThemeTab }
     }
 
-    // 初始化多选菜单
-    private fun initMultiSelectMenu() = binding.run {
-        toolBar.menu.clear()
-        toolBar.inflateMenu(R.menu.theme_list_multi)
-        toolBar.menu.applyTint(requireContext())
-        toolBar.setTitle(getString(R.string.selected, selectedPositions.size))
-    }
-
-    fun initData() {
+    private fun initData() {
         adapter.setItems(getFilteredThemes())
     }
 
-    override fun onMenuItemClick(item: MenuItem?): Boolean {
-        when (item?.itemId) {
-            R.id.menu_import -> {
-                requireContext().getClipText()?.let { clipText ->
-                    val count = ThemeConfig.addConfig(clipText)
-                    if (count > 0) {
-                        initData()
-                        toastOnUi("成功导入 $count 个主题")
-                    } else {
-                        toastOnUi("格式不对,添加失败")
-                    }
-                } ?: toastOnUi("剪贴板为空")
-            }
-            R.id.menu_select_all -> {
-                if (selectedPositions.size == adapter.itemCount) {
-                    selectedPositions.clear()
-                } else {
-                    selectedPositions.clear()
-                    for (i in 0 until adapter.itemCount) {
-                        selectedPositions.add(i)
-                    }
-                }
-                adapter.notifyDataSetChanged()
-                binding.toolBar.setTitle(getString(R.string.selected, selectedPositions.size))
-            }
-            R.id.menu_to_top -> {
-                if (selectedPositions.isEmpty()) {
-                    toastOnUi("请先选择主题")
-                    return true
-                }
-                toTopSelected()
-            }
-            R.id.menu_export -> {
-                if (selectedPositions.isEmpty()) {
-                    toastOnUi("请先选择主题")
-                    return true
-                }
-                exportSelected()
-            }
-            R.id.menu_delete -> {
-                if (selectedPositions.isEmpty()) {
-                    toastOnUi("请先选择主题")
-                    return true
-                }
-                deleteSelected()
-            }
-        }
-        return true
-    }
-
-    // 显示添加主题选项
     private fun showAddOptions() {
         val items = listOf(
             getString(R.string.manual_config),
             getString(R.string.import_str)
         )
-        requireContext().selector(items = items) { _, i ->
-            when (i) {
+        selector(items = items) { _, index ->
+            when (index) {
                 0 -> editTheme(null)
-                1 -> {
-                    requireContext().getClipText()?.let { clipText ->
-                        val count = ThemeConfig.addConfig(clipText)
-                        if (count > 0) {
-                            initData()
-                            updateSummary()
-                            toastOnUi("成功导入 $count 个主题")
-                        } else {
-                            toastOnUi("格式不对,添加失败")
-                        }
-                    } ?: toastOnUi("剪贴板为空")
-                }
+                1 -> importFromClipboard()
             }
         }
     }
 
-    // 进入多选模式
+    private fun importFromClipboard() {
+        getClipText()?.let { clipText ->
+            val count = ThemeConfig.addConfig(clipText)
+            if (count > 0) {
+                initData()
+                updateSummary()
+                toastOnUi(R.string.import_success)
+            } else {
+                toastOnUi(R.string.import_failed)
+            }
+        } ?: toastOnUi(R.string.clipboard_empty)
+    }
+
     private fun enterMultiSelectMode(position: Int) {
         isMultiSelectMode = true
         selectedPositions.clear()
         selectedPositions.add(position)
-        initMultiSelectMenu()
+        binding.titleBar.title = getString(R.string.selected, selectedPositions.size)
+        invalidateOptionsMenu()
         adapter.notifyDataSetChanged()
     }
 
     private fun exitMultiSelectMode() {
+        if (!isMultiSelectMode) return
         isMultiSelectMode = false
         selectedPositions.clear()
-        binding.toolBar.menu.clear()
-        initMenu()
-        binding.toolBar.setTitle(R.string.theme_list)
+        binding.titleBar.setTitle(R.string.theme_list)
+        invalidateOptionsMenu()
         adapter.notifyDataSetChanged()
     }
 
@@ -266,32 +220,44 @@ class ThemeListDialog : BaseDialogFragment(R.layout.dialog_theme_list),
             selectedPositions.add(position)
         }
         adapter.notifyItemChanged(position)
-        binding.toolBar.setTitle(getString(R.string.selected, selectedPositions.size))
+        binding.titleBar.title = getString(R.string.selected, selectedPositions.size)
+    }
+
+    private fun selectAllOrClear() {
+        if (selectedPositions.size == adapter.itemCount) {
+            selectedPositions.clear()
+        } else {
+            selectedPositions.clear()
+            for (i in 0 until adapter.itemCount) {
+                selectedPositions.add(i)
+            }
+        }
+        if (selectedPositions.isEmpty()) {
+            exitMultiSelectMode()
+        } else {
+            binding.titleBar.title = getString(R.string.selected, selectedPositions.size)
+            adapter.notifyDataSetChanged()
+        }
     }
 
     private fun exportSelected() {
         val filteredThemes = getFilteredThemes()
-        val configs = selectedPositions.sorted().map { index ->
-            filteredThemes[index]
-        }
-        val json = GSON.toJson(configs)
-        requireContext().share(json, "主题分享")
+        val configs = selectedPositions.sorted().mapNotNull { filteredThemes.getOrNull(it) }
+        share(GSON.toJson(configs), getString(R.string.theme_list))
         exitMultiSelectMode()
     }
 
     private fun deleteSelected() {
+        if (selectedPositions.isEmpty()) {
+            toastOnUi(R.string.select_theme)
+            return
+        }
         alert(R.string.delete, R.string.sure_del) {
             yesButton {
                 val filteredThemes = getFilteredThemes()
-                val positions = selectedPositions.sortedDescending()
-                // 需要找到在原始列表中的位置
-                positions.forEach { filteredIndex ->
-                    val config = filteredThemes[filteredIndex]
-                    val originalIndex = ThemeConfig.configList.indexOfFirst { 
-                        it.themeName == config.themeName && it.isNightTheme == config.isNightTheme 
-                    }
-                    if (originalIndex >= 0) {
-                        ThemeConfig.delConfig(originalIndex)
+                selectedPositions.sortedDescending().forEach { filteredIndex ->
+                    filteredThemes.getOrNull(filteredIndex)?.let { config ->
+                        findThemeIndex(config).takeIf { it >= 0 }?.let(ThemeConfig::delConfig)
                     }
                 }
                 exitMultiSelectMode()
@@ -302,49 +268,18 @@ class ThemeListDialog : BaseDialogFragment(R.layout.dialog_theme_list),
         }
     }
 
-    // 移动选中主题到顶部
     private fun toTopSelected() {
+        if (selectedPositions.isEmpty()) {
+            toastOnUi(R.string.select_theme)
+            return
+        }
         val filteredThemes = getFilteredThemes()
-        val positions = selectedPositions.sorted()
-        val themeNames = positions.map { filteredThemes[it].themeName }
-        AppLog.put("置顶主题: ${themeNames.joinToString(", ")}", toast = true)
-        
-        // 需要找到在原始列表中的位置
-        val originalPositions = positions.map { filteredIndex ->
-            val config = filteredThemes[filteredIndex]
-            ThemeConfig.configList.indexOfFirst { 
-                it.themeName == config.themeName && it.isNightTheme == config.isNightTheme 
-            }
-        }.filter { it >= 0 }
-        
+        val originalPositions = selectedPositions.sorted().mapNotNull { filteredIndex ->
+            filteredThemes.getOrNull(filteredIndex)?.let(::findThemeIndex)?.takeIf { it >= 0 }
+        }
         ThemeConfig.toTopConfigs(originalPositions)
         exitMultiSelectMode()
         initData()
-    }
-
-    fun delete(index: Int) {
-        val filteredThemes = getFilteredThemes()
-        val config = filteredThemes[index]
-        val originalIndex = ThemeConfig.configList.indexOfFirst { 
-            it.themeName == config.themeName && it.isNightTheme == config.isNightTheme 
-        }
-        
-        alert(R.string.delete, R.string.sure_del) {
-            yesButton {
-                if (originalIndex >= 0) {
-                    ThemeConfig.delConfig(originalIndex)
-                }
-                initData()
-                updateSummary()
-            }
-            noButton()
-        }
-    }
-
-    fun share(index: Int) {
-        val filteredThemes = getFilteredThemes()
-        val json = GSON.toJson(filteredThemes[index])
-        requireContext().share(json, "主题分享")
     }
 
     private fun editTheme(position: Int?) {
@@ -356,7 +291,7 @@ class ThemeListDialog : BaseDialogFragment(R.layout.dialog_theme_list),
         editingDialog = root
         alert(if (source == null) R.string.add_theme else R.string.edit_theme) {
             customView {
-                ScrollView(requireContext()).apply {
+                ScrollView(this@ThemeManageActivity).apply {
                     addView(root)
                 }
             }
@@ -371,13 +306,8 @@ class ThemeListDialog : BaseDialogFragment(R.layout.dialog_theme_list),
                     return@okButton
                 }
                 config.themeName = name
-                config.backgroundImgPath = root.findViewWithTag<EditText>("backgroundImgPath")
-                    ?.text
-                    ?.toString()
-                    ?.trim()
-                    ?.takeIf { it.isNotBlank() }
                 if (!isValidThemeConfig(config)) {
-                    toastOnUi("颜色格式不正确")
+                    toastOnUi(R.string.wrong_format)
                     return@okButton
                 }
                 saveEditedTheme(config)
@@ -392,15 +322,14 @@ class ThemeListDialog : BaseDialogFragment(R.layout.dialog_theme_list),
     }
 
     private fun newThemeConfig(): ThemeConfig.Config {
-        val current = ThemeConfig.getDurConfig(requireContext())
-        return current.copy(
+        return ThemeConfig.getDurConfig(this).copy(
             themeName = getNextThemeName(),
             isNightTheme = isNightThemeTab
         )
     }
 
     private fun buildThemeEditView(config: ThemeConfig.Config): LinearLayout {
-        return LinearLayout(requireContext()).apply {
+        return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(8.dp, 8.dp, 8.dp, 8.dp)
             addView(EditText(context).apply {
@@ -413,27 +342,27 @@ class ThemeListDialog : BaseDialogFragment(R.layout.dialog_theme_list),
                     48.dp
                 )
             })
-            addView(colorRow("主色", config.primaryColor, COLOR_PRIMARY))
-            addView(colorRow("强调色", config.accentColor, COLOR_ACCENT))
-            addView(colorRow("背景色", config.backgroundColor, COLOR_BACKGROUND))
-            addView(colorRow("底栏背景色", config.bottomBackground, COLOR_BOTTOM_BACKGROUND))
-            addView(switchRow("导航栏透明", config.transparentNavBar) {
+            addView(colorRow(getString(R.string.primary), config.primaryColor, COLOR_PRIMARY))
+            addView(colorRow(getString(R.string.accent_color), config.accentColor, COLOR_ACCENT))
+            addView(colorRow(getString(R.string.background_color), config.backgroundColor, COLOR_BACKGROUND))
+            addView(colorRow(getString(R.string.bottom_background_color), config.bottomBackground, COLOR_BOTTOM_BACKGROUND))
+            addView(switchRow(getString(R.string.imm_navigation_bar_s), config.transparentNavBar) {
                 config.transparentNavBar = !config.transparentNavBar
                 refreshThemeEditDialog()
             })
-            addView(optionRow("背景图路径", config.backgroundImgPath.orEmpty()) {
+            addView(optionRow(getString(R.string.background_image), displayPath(config.backgroundImgPath)) {
                 editBackgroundPath(config)
             })
-            addView(optionRow("背景模糊", "${config.backgroundImgBlur}") {
+            addView(optionRow(getString(R.string.background_image_blurring), "${config.backgroundImgBlur}") {
                 editBackgroundBlur(config)
             })
         }
     }
 
     private fun colorRow(title: String, value: String, dialogId: Int): View {
-        return optionRow(title, value.uppercase(Locale.ROOT)) {
+        return colorOptionRow(title, value.uppercase(Locale.ROOT)) {
             val color = runCatching { value.toColorInt() }
-                .getOrDefault(ContextCompat.getColor(requireContext(), R.color.default_primary))
+                .getOrDefault(ContextCompat.getColor(this, R.color.default_primary))
             val dialog = ColorPickerDialog.newBuilder()
                 .setDialogType(ColorPickerDialog.TYPE_CUSTOM)
                 .setColor(color)
@@ -442,16 +371,36 @@ class ThemeListDialog : BaseDialogFragment(R.layout.dialog_theme_list),
                 .setAllowCustom(true)
                 .setDialogId(dialogId)
                 .create()
-            dialog.setColorPickerDialogListener(this@ThemeListDialog)
-            parentFragmentManager
+            dialog.setColorPickerDialogListener(this)
+            supportFragmentManager
                 .beginTransaction()
                 .add(dialog, "theme_color_$dialogId")
                 .commitAllowingStateLoss()
         }
     }
 
+    private fun colorOptionRow(title: String, value: String, onClick: () -> Unit): View {
+        return optionRow(title, value, onClick).also { row ->
+            val valueView = (row as? LinearLayout)?.getChildAt(1) as? TextView ?: return@also
+            val color = runCatching { value.toColorInt() }.getOrNull() ?: return@also
+            val swatch = View(this).apply {
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    cornerRadius = 5.dp.toFloat()
+                    setColor(color)
+                    setStroke(1.dp, ContextCompat.getColor(context, R.color.secondaryText))
+                }
+                layoutParams = LinearLayout.LayoutParams(28.dp, 22.dp).apply {
+                    marginStart = 10.dp
+                }
+            }
+            row.addView(swatch)
+            valueView.maxWidth = 118.dp
+        }
+    }
+
     private fun optionRow(title: String, value: String, onClick: () -> Unit): View {
-        return LinearLayout(requireContext()).apply {
+        return LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(14.dp, 0, 14.dp, 0)
@@ -470,13 +419,15 @@ class ThemeListDialog : BaseDialogFragment(R.layout.dialog_theme_list),
                 text = value.ifBlank { getString(R.string.not_available) }
                 textSize = 13f
                 setTextColor(ContextCompat.getColor(context, R.color.secondaryText))
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.MIDDLE
             })
             setOnClickListener { onClick() }
         }
     }
 
     private fun switchRow(title: String, checked: Boolean, onClick: () -> Unit): View {
-        return LinearLayout(requireContext()).apply {
+        return LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(14.dp, 0, 8.dp, 0)
@@ -500,9 +451,32 @@ class ThemeListDialog : BaseDialogFragment(R.layout.dialog_theme_list),
     }
 
     private fun editBackgroundPath(config: ThemeConfig.Config) {
-        alert("背景图路径") {
-            val editText = EditText(requireContext()).apply {
-                hint = "本地路径或 http(s) 链接"
+        val actions = mutableListOf(
+            getString(R.string.select_image),
+            getString(R.string.input_path_or_url)
+        )
+        if (!config.backgroundImgPath.isNullOrBlank()) {
+            actions.add(getString(R.string.clear))
+        }
+        selector(getString(R.string.background_image), actions) { _, index ->
+            when (index) {
+                0 -> selectBackgroundImage.launch {
+                    mode = HandleFileContract.IMAGE
+                    title = getString(R.string.background_image)
+                }
+                1 -> alertInputBackgroundPath(config)
+                2 -> {
+                    config.backgroundImgPath = null
+                    refreshThemeEditDialog()
+                }
+            }
+        }
+    }
+
+    private fun alertInputBackgroundPath(config: ThemeConfig.Config) {
+        alert(R.string.background_image) {
+            val editText = EditText(this@ThemeManageActivity).apply {
+                hint = getString(R.string.input_path_or_url)
                 setText(config.backgroundImgPath.orEmpty())
                 setSingleLine(false)
                 minLines = 2
@@ -516,9 +490,37 @@ class ThemeListDialog : BaseDialogFragment(R.layout.dialog_theme_list),
         }
     }
 
+    private fun saveBackgroundImage(uri: Uri, config: ThemeConfig.Config) {
+        kotlin.runCatching {
+            readUri(uri) { fileDoc, inputStream ->
+                val key = if (config.isNightTheme) PreferKey.bgImageN else PreferKey.bgImage
+                val suffix = when {
+                    fileDoc.name.contains(".9.png", true) -> ".9.png"
+                    fileDoc.name.contains(".") -> "." + fileDoc.name.substringAfterLast(".")
+                    else -> ".jpg"
+                }
+                val fileName = "theme_${System.currentTimeMillis()}$suffix"
+                val file = FileUtils.createFileIfNotExist(externalFiles, key, fileName)
+                FileOutputStream(file).use { output ->
+                    inputStream.copyTo(output)
+                }
+                config.backgroundImgPath = file.absolutePath
+            }
+        }.onSuccess {
+            refreshThemeEditDialog()
+        }.onFailure {
+            toastOnUi(it.localizedMessage)
+        }
+    }
+
+    private fun displayPath(path: String?): String {
+        if (path.isNullOrBlank()) return getString(R.string.select_image)
+        return path.substringAfterLast('/').substringAfterLast('\\').ifBlank { path }
+    }
+
     private fun editBackgroundBlur(config: ThemeConfig.Config) {
-        NumberPickerDialog(requireContext())
-            .setTitle("背景模糊")
+        NumberPickerDialog(this)
+            .setTitle(getString(R.string.background_image_blurring))
             .setMinValue(0)
             .setMaxValue(25)
             .setValue(config.backgroundImgBlur.coerceIn(0, 25))
@@ -542,10 +544,9 @@ class ThemeListDialog : BaseDialogFragment(R.layout.dialog_theme_list),
     }
 
     private fun saveEditedTheme(config: ThemeConfig.Config) {
-        val oldIndex = editingThemeIndex
         val exactIndex = findThemeIndex(config)
         val targetIndex = when {
-            oldIndex >= 0 -> oldIndex
+            editingThemeIndex >= 0 -> editingThemeIndex
             exactIndex >= 0 -> exactIndex
             else -> -1
         }
@@ -557,11 +558,39 @@ class ThemeListDialog : BaseDialogFragment(R.layout.dialog_theme_list),
         ThemeConfig.save()
         initData()
         updateSummary()
-        val current = ThemeConfig.getDurConfig(requireContext())
+        val current = ThemeConfig.getDurConfig(this)
         if (current.themeName == config.themeName && current.isNightTheme == config.isNightTheme) {
-            ThemeConfig.applyConfig(requireContext(), config)
+            ThemeConfig.applyConfig(this, config)
         }
-        toastOnUi("主题已保存")
+        toastOnUi(R.string.success)
+    }
+
+    private fun delete(position: Int) {
+        val config = getFilteredThemes().getOrNull(position) ?: return
+        val originalIndex = findThemeIndex(config)
+        alert(R.string.delete, R.string.sure_del) {
+            yesButton {
+                if (originalIndex >= 0) {
+                    ThemeConfig.delConfig(originalIndex)
+                }
+                initData()
+                updateSummary()
+            }
+            noButton()
+        }
+    }
+
+    private fun share(position: Int) {
+        val config = getFilteredThemes().getOrNull(position) ?: return
+        share(GSON.toJson(config), getString(R.string.theme_list))
+    }
+
+    private fun applyTheme(config: ThemeConfig.Config) {
+        ThemeConfig.applyConfig(this, config)
+        isNightThemeTab = config.isNightTheme
+        updateTabSelection()
+        adapter.notifyDataSetChanged()
+        toastOnUi(getString(R.string.applied_theme_config, config.themeName))
     }
 
     private fun findThemeIndex(config: ThemeConfig.Config): Int {
@@ -622,78 +651,46 @@ class ThemeListDialog : BaseDialogFragment(R.layout.dialog_theme_list),
         ) {
             binding.apply {
                 tvName.text = item.themeName
-                
-                // 设置预览卡片的背景颜色
-                val bgColor = try {
-                    android.graphics.Color.parseColor(item.backgroundColor)
-                } catch (e: Exception) {
-                    if (item.isNightTheme) {
-                        ContextCompat.getColor(context, R.color.default_night_background)
-                    } else {
-                        ContextCompat.getColor(context, R.color.default_background)
-                    }
+                tvBuiltin.visibility = View.GONE
+                val bgColor = parseThemeColor(
+                    item.backgroundColor,
+                    if (item.isNightTheme) R.color.default_night_background else R.color.default_background
+                )
+                val primaryColor = parseThemeColor(
+                    item.primaryColor,
+                    if (item.isNightTheme) R.color.default_night_primary else R.color.default_primary
+                )
+                previewContainer.elevation = 8.dp.toFloat()
+                previewContainer.translationZ = 2.dp.toFloat()
+                previewContainer.background = previewBackgroundDrawable(item, bgColor)
+                previewPrimary.background = GradientDrawable().apply {
+                    cornerRadius = 4f
+                    setColor(primaryColor)
                 }
-                
-                val primaryColor = try {
-                    android.graphics.Color.parseColor(item.primaryColor)
-                } catch (e: Exception) {
-                    if (item.isNightTheme) {
-                        ContextCompat.getColor(context, R.color.default_night_primary)
-                    } else {
-                        ContextCompat.getColor(context, R.color.default_primary)
-                    }
+                previewBar1.background = GradientDrawable().apply {
+                    cornerRadius = 2f
+                    setColor(primaryColor)
+                    alpha = 77
                 }
-                
-                // 设置预览容器背景
-                val previewDrawable = GradientDrawable()
-                previewDrawable.cornerRadius = 10f
-                previewDrawable.setColor(bgColor)
-                previewContainer.background = previewDrawable
-                
-                // 设置预览元素颜色
-                val primaryDrawable = GradientDrawable()
-                primaryDrawable.cornerRadius = 4f
-                primaryDrawable.setColor(primaryColor)
-                previewPrimary.background = primaryDrawable
-                
-                val bar1Drawable = GradientDrawable()
-                bar1Drawable.cornerRadius = 2f
-                bar1Drawable.setColor(primaryColor)
-                bar1Drawable.alpha = 77  // 30% opacity
-                previewBar1.background = bar1Drawable
-                
-                val bar2Drawable = GradientDrawable()
-                bar2Drawable.cornerRadius = 2f
-                bar2Drawable.setColor(primaryColor)
-                bar2Drawable.alpha = 51  // 20% opacity
-                previewBar2.background = bar2Drawable
-                
-                // 检查是否是当前应用的主题
+                previewBar2.background = GradientDrawable().apply {
+                    cornerRadius = 2f
+                    setColor(primaryColor)
+                    alpha = 51
+                }
                 val currentConfig = ThemeConfig.getDurConfig(context)
-                val isCurrentTheme = item.themeName == currentConfig.themeName 
-                    && item.isNightTheme == currentConfig.isNightTheme
-                
-                // 设置当前主题标记
+                val isCurrentTheme = item.themeName == currentConfig.themeName &&
+                    item.isNightTheme == currentConfig.isNightTheme
                 ivCurrent.visibility = if (isCurrentTheme && !isMultiSelectMode) View.VISIBLE else View.GONE
-                
-                // 设置信息文本
                 val themeType = if (item.isNightTheme) getString(R.string.night) else getString(R.string.day)
-                val infoText = if (isCurrentTheme) {
-                    "${getString(R.string.current_applied)} · $themeType"
+                tvInfo.text = if (isCurrentTheme) {
+                    "${getString(R.string.current_applied)} | $themeType"
                 } else {
                     themeType
                 }
-                tvInfo.text = infoText
-                
-                // 设置应用按钮文本
                 tvApply.text = if (isCurrentTheme) getString(R.string.applied) else getString(R.string.apply_theme)
-                if (isCurrentTheme) {
-                    tvApply.setTextColor(ContextCompat.getColor(context, R.color.error))
-                } else {
-                    tvApply.setTextColor(ContextCompat.getColor(context, R.color.primaryText))
-                }
-                
-                // 多选模式下的显示
+                tvApply.setTextColor(
+                    if (isCurrentTheme) accentColor else ContextCompat.getColor(context, R.color.primaryText)
+                )
                 if (isMultiSelectMode) {
                     cbSelect.visibility = View.VISIBLE
                     cbSelect.isChecked = selectedPositions.contains(holder.layoutPosition)
@@ -716,9 +713,8 @@ class ThemeListDialog : BaseDialogFragment(R.layout.dialog_theme_list),
         override fun registerListener(holder: ItemViewHolder, binding: ItemThemeConfigBinding) {
             binding.apply {
                 root.setOnClickListener {
-                    val position = holder.layoutPosition
                     if (isMultiSelectMode) {
-                        toggleSelection(position)
+                        toggleSelection(holder.layoutPosition)
                     }
                 }
                 root.setOnLongClickListener {
@@ -729,14 +725,7 @@ class ThemeListDialog : BaseDialogFragment(R.layout.dialog_theme_list),
                 }
                 tvApply.setOnClickListener {
                     if (!isMultiSelectMode) {
-                        val filteredThemes = getFilteredThemes()
-                        val config = filteredThemes[holder.layoutPosition]
-                        AppLog.put("应用主题: ${config.themeName}", toast = true)
-                        ThemeConfig.applyConfig(context, config)
-                        // 更新 Tab 到应用的主题类型
-                        isNightThemeTab = config.isNightTheme
-                        updateTabSelection()
-                        adapter.notifyDataSetChanged()
+                        getFilteredThemes().getOrNull(holder.layoutPosition)?.let(::applyTheme)
                     }
                 }
                 tvEdit.setOnClickListener {
@@ -746,35 +735,46 @@ class ThemeListDialog : BaseDialogFragment(R.layout.dialog_theme_list),
                 }
                 tvMore.setOnClickListener {
                     if (!isMultiSelectMode) {
-                        val filteredThemes = getFilteredThemes()
-                        val config = filteredThemes[holder.layoutPosition]
-                        showMoreOptions(config, holder.layoutPosition)
+                        showMoreOptions(holder.layoutPosition)
                     }
                 }
             }
         }
-        
-        private fun showMoreOptions(config: ThemeConfig.Config, position: Int) {
+
+        private fun showMoreOptions(position: Int) {
             val items = listOf(
                 getString(R.string.apply_theme),
                 getString(R.string.edit),
                 getString(R.string.export_str),
                 getString(R.string.delete)
             )
-            requireContext().selector(items = items) { _, i ->
-                when (i) {
-                    0 -> {
-                        AppLog.put("应用主题: ${config.themeName}", toast = true)
-                        ThemeConfig.applyConfig(context, config)
-                        isNightThemeTab = config.isNightTheme
-                        updateTabSelection()
-                        adapter.notifyDataSetChanged()
-                    }
+            selector(items = items) { _, index ->
+                when (index) {
+                    0 -> getFilteredThemes().getOrNull(position)?.let(::applyTheme)
                     1 -> editTheme(position)
                     2 -> share(position)
                     3 -> delete(position)
                 }
             }
+        }
+    }
+
+    private fun parseThemeColor(value: String, fallback: Int): Int {
+        return runCatching { Color.parseColor(value) }
+            .getOrDefault(ContextCompat.getColor(this, fallback))
+    }
+
+    private fun previewBackgroundDrawable(item: ThemeConfig.Config, fallbackColor: Int): Drawable {
+        val path = item.backgroundImgPath
+        val image = when {
+            path.isNullOrBlank() -> null
+            path.startsWith("http", ignoreCase = true) -> null
+            File(path).exists() -> Drawable.createFromPath(path)
+            else -> null
+        }
+        return image ?: GradientDrawable().apply {
+            cornerRadius = 10f
+            setColor(fallbackColor)
         }
     }
 

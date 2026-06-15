@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.view.View
 import android.view.ViewConfiguration
 import androidx.appcompat.widget.SearchView
+import androidx.core.view.updatePadding
 import androidx.core.view.isGone
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -27,6 +28,7 @@ import io.legado.app.ui.book.group.GroupEditDialog
 import io.legado.app.ui.book.info.BookInfoActivity
 import io.legado.app.ui.book.search.SearchActivity
 import io.legado.app.ui.main.bookshelf.BaseBookshelfFragment
+import io.legado.app.ui.main.MainActivity
 import io.legado.app.utils.cnCompare
 import io.legado.app.utils.flowWithLifecycleAndDatabaseChangeFirst
 import io.legado.app.utils.observeEvent
@@ -87,6 +89,7 @@ class BookshelfFragment2() : BaseBookshelfFragment(R.layout.fragment_bookshelf2)
     private fun initRecyclerView() {
         binding.rvBookshelf.setHasFixedSize(true)
         binding.rvBookshelf.setEdgeEffectColor(primaryColor)
+        updateMainBottomPadding((activity as? MainActivity)?.mainContentBottomPadding() ?: 0)
         upFastScrollerBar()
         binding.refreshLayout.setColorSchemeColors(accentColor)
         binding.refreshLayout.setOnRefreshListener {
@@ -133,6 +136,11 @@ class BookshelfFragment2() : BaseBookshelfFragment(R.layout.fragment_bookshelf2)
                 }
             }
         })
+    }
+
+    override fun updateMainBottomPadding(bottomPadding: Int) {
+        binding.rvBookshelf.clipToPadding = false
+        binding.rvBookshelf.updatePadding(bottom = bottomPadding)
     }
 
     private fun upFastScrollerBar() {

@@ -22,6 +22,7 @@ import io.legado.app.databinding.ActivityNavigationBarManageBinding
 import io.legado.app.databinding.ItemNavBarConfigBinding
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.config.NavigationBarConfig
+import io.legado.app.help.config.ThemeConfig
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.dialogs.selector
 import io.legado.app.lib.theme.accentColor
@@ -31,6 +32,8 @@ import io.legado.app.ui.widget.recycler.VerticalDivider
 import io.legado.app.utils.externalFiles
 import io.legado.app.utils.getFile
 import io.legado.app.utils.getClipText
+import io.legado.app.utils.getPrefBoolean
+import io.legado.app.utils.putPrefBoolean
 import io.legado.app.utils.share
 import io.legado.app.utils.toastOnUi
 import io.legado.app.utils.viewbindingdelegate.viewBinding
@@ -55,6 +58,7 @@ class NavigationBarManageActivity : BaseActivity<ActivityNavigationBarManageBind
     private var pendingIconRequest: IconRequest? = null
 
     companion object {
+        private const val PREF_KEY_IS_NIGHT = "navBarIsNight"
         private const val COLOR_DIALOG_BORDER = 1
     }
 
@@ -96,11 +100,12 @@ class NavigationBarManageActivity : BaseActivity<ActivityNavigationBarManageBind
     }
 
     private fun initTabs() = binding.run {
-        isNightMode = AppConfig.isNightTheme
+        isNightMode = getPrefBoolean(PREF_KEY_IS_NIGHT, AppConfig.isNightTheme)
         updateTabSelection()
         tabDay.setOnClickListener {
             if (isNightMode) {
                 isNightMode = false
+                putPrefBoolean(PREF_KEY_IS_NIGHT, isNightMode)
                 updateTabSelection()
                 loadConfigs()
             }
@@ -108,6 +113,7 @@ class NavigationBarManageActivity : BaseActivity<ActivityNavigationBarManageBind
         tabNight.setOnClickListener {
             if (!isNightMode) {
                 isNightMode = true
+                putPrefBoolean(PREF_KEY_IS_NIGHT, isNightMode)
                 updateTabSelection()
                 loadConfigs()
             }
@@ -160,6 +166,7 @@ class NavigationBarManageActivity : BaseActivity<ActivityNavigationBarManageBind
     }
 
     private fun saveConfigs() {
+        putPrefBoolean(PREF_KEY_IS_NIGHT, isNightMode)
         NavigationBarConfig.setActiveId(this, isNightMode, activeConfigId)
         NavigationBarConfig.saveConfigs(this, configs)
     }
@@ -179,7 +186,7 @@ class NavigationBarManageActivity : BaseActivity<ActivityNavigationBarManageBind
 
     private fun editConfig(existing: NavigationBarConfig?) {
         val isEdit = existing != null
-        val wasActive = isEdit && existing?.id == activeConfigId
+        val wasActive = existing?.id == activeConfigId
         val config = existing?.copySelf() ?: NavigationBarConfig(
             id = "custom_${System.currentTimeMillis()}",
             name = getNextConfigName(),
@@ -187,7 +194,7 @@ class NavigationBarManageActivity : BaseActivity<ActivityNavigationBarManageBind
             isBuiltin = false,
             layoutMode = NavigationBarConfig.LAYOUT_FLOATING,
             effectMode = NavigationBarConfig.EFFECT_GLASS,
-            opacity = 72
+            opacity = 100
         )
 
         showEditDialog(config, isEdit) { updatedConfig ->
@@ -199,12 +206,11 @@ class NavigationBarManageActivity : BaseActivity<ActivityNavigationBarManageBind
                 }
             } else {
                 configs.add(updatedConfig)
-                activeConfigId = updatedConfig.id
             }
             saveConfigs()
             adapter.setItems(getFilteredConfigs())
             updateSummary()
-            if (!isEdit || wasActive) {
+            if (wasActive) {
                 applyConfig(updatedConfig)
             }
         }
@@ -245,11 +251,11 @@ class NavigationBarManageActivity : BaseActivity<ActivityNavigationBarManageBind
                 )
             })
             addView(optionRow(getString(R.string.bottom_bar_layout_mode), config.getLayoutModeText()) {
-                selectLayoutMode(config)
+                selectLayoutModeClean(config)
             })
             if (config.layoutMode == NavigationBarConfig.LAYOUT_FLOATING) {
                 addView(optionRow(getString(R.string.bottom_bar_effect_mode), config.getEffectModeText()) {
-                    selectEffectMode(config)
+                    selectEffectModeClean(config)
                 })
             }
             if (config.layoutMode != NavigationBarConfig.LAYOUT_SIDEBAR) {
@@ -363,6 +369,44 @@ class NavigationBarManageActivity : BaseActivity<ActivityNavigationBarManageBind
                 rebuilt.removeViewAt(0)
                 root.addView(child)
             }
+        }
+    }
+
+    private fun selectLayoutModeClean(config: NavigationBarConfig) {
+        val modes = listOf(
+            NavigationBarConfig.LAYOUT_FLOATING,
+            NavigationBarConfig.LAYOUT_STANDARD,
+            NavigationBarConfig.LAYOUT_SIDEBAR
+        )
+        val labels = listOf(
+            getString(R.string.floating_bottom_bar),
+            getString(R.string.standard_bottom_bar),
+            getString(R.string.side_bar)
+        )
+        selector(items = labels) { _, i ->
+            config.layoutMode = modes[i]
+            if (config.layoutMode == NavigationBarConfig.LAYOUT_STANDARD) {
+                config.effectMode = NavigationBarConfig.EFFECT_SOLID
+                config.opacity = 100
+            }
+            refreshEditDialog()
+        }
+    }
+
+    private fun selectEffectModeClean(config: NavigationBarConfig) {
+        val modes = listOf(
+            NavigationBarConfig.EFFECT_SOLID,
+            NavigationBarConfig.EFFECT_GLASS,
+            NavigationBarConfig.EFFECT_FROSTED
+        )
+        val labels = listOf(
+            getString(R.string.effect_solid),
+            getString(R.string.effect_glass),
+            getString(R.string.effect_frosted)
+        )
+        selector(items = labels) { _, i ->
+            config.effectMode = modes[i]
+            refreshEditDialog()
         }
     }
 
@@ -520,7 +564,12 @@ class NavigationBarManageActivity : BaseActivity<ActivityNavigationBarManageBind
     private fun applyConfig(config: NavigationBarConfig) {
         activeConfigId = config.id
         saveConfigs()
-        NavigationBarConfig.applyConfig(this, config)
+        if (AppConfig.isNightTheme != config.isNight) {
+            AppConfig.isNightTheme = config.isNight
+            ThemeConfig.applyDayNight(this)
+        } else {
+            NavigationBarConfig.applyConfig(this, config)
+        }
         adapter.setItems(getFilteredConfigs())
         toastOnUi(getString(R.string.applied_nav_bar_config, config.name))
     }
@@ -598,10 +647,7 @@ class NavigationBarManageActivity : BaseActivity<ActivityNavigationBarManageBind
 
                 tvApply.text = if (isActive) getString(R.string.applied) else getString(R.string.apply)
                 tvApply.setTextColor(
-                    ContextCompat.getColor(
-                        context,
-                        if (isActive) R.color.error else R.color.primaryText
-                    )
+                    if (isActive) accentColor else ContextCompat.getColor(context, R.color.primaryText)
                 )
                 tvEdit.visibility = if (item.isBuiltin) View.GONE else View.VISIBLE
             }

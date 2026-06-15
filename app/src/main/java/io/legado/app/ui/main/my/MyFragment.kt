@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import androidx.core.view.updatePadding
 import androidx.preference.Preference
 import io.legado.app.R
 import io.legado.app.base.BaseFragment
@@ -30,6 +31,7 @@ import io.legado.app.ui.dict.rule.DictRuleActivity
 import io.legado.app.ui.urlRecord.UrlRecordActivity
 import io.legado.app.ui.file.FileManageActivity
 import io.legado.app.ui.download.DownloadManageActivity
+import io.legado.app.ui.main.MainActivity
 import io.legado.app.ui.main.MainFragmentInterface
 import io.legado.app.help.config.AppConfig
 import io.legado.app.ui.replace.ReplaceRuleActivity
@@ -75,6 +77,11 @@ class MyFragment() : BaseFragment(R.layout.fragment_my_config), MainFragmentInte
         when (item.itemId) {
             R.id.menu_help -> showHelp("appHelp")
         }
+    }
+
+    override fun updateMainBottomPadding(bottomPadding: Int) {
+        (childFragmentManager.findFragmentByTag("prefFragment") as? MyPreferenceFragment)
+            ?.updateMainBottomPadding(bottomPadding)
     }
 
     /**
@@ -125,6 +132,12 @@ class MyFragment() : BaseFragment(R.layout.fragment_my_config), MainFragmentInte
         override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
             super.onViewCreated(view, savedInstanceState)
             listView.setEdgeEffectColor(primaryColor)
+            updateMainBottomPadding((activity as? MainActivity)?.mainContentBottomPadding() ?: 0)
+        }
+
+        fun updateMainBottomPadding(bottomPadding: Int) {
+            listView.clipToPadding = false
+            listView.updatePadding(bottom = bottomPadding)
         }
 
         override fun onResume() {

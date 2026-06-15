@@ -78,6 +78,8 @@ import io.legado.app.help.update.AppUpdate
 import io.legado.app.ui.about.UpdateDialog
 import io.legado.app.utils.ColorUtils
 import io.legado.app.utils.dpToPx
+import io.legado.app.utils.getCompatColor
+import io.legado.app.utils.getPrefInt
 import kotlin.time.Duration.Companion.hours
 
 /**
@@ -242,9 +244,24 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
         applyNavigationBarPackage()
     }
 
+    fun mainContentBottomPadding(): Int {
+        val bottomNav = binding.bottomNavigationView
+        val layoutParams = bottomNav.layoutParams as? FrameLayout.LayoutParams
+        val navHeight = bottomNav.height.takeIf { it > 0 } ?: bottomNav.minimumHeight
+        val bottomMargin = layoutParams?.bottomMargin ?: 0
+        return navHeight + bottomMargin + 8.dpToPx()
+    }
+
+    private fun refreshMainContentBottomPadding() {
+        val bottomPadding = mainContentBottomPadding()
+        fragmentMap.values.forEach { fragment ->
+            (fragment as? MainFragmentInterface)?.updateMainBottomPadding(bottomPadding)
+        }
+    }
+
     private fun applyNavigationBarPackage() = binding.run {
         val config = NavigationBarConfig.activeConfig(this@MainActivity, AppConfig.isNightTheme)
-        val bgColor = bottomBackground
+        val bgColor = resolveNavigationBarBackground(config)
         val hasCustomIcons = NavigationBarConfig.applyToMenu(
             bottomNavigationView.menu,
             this@MainActivity,
@@ -264,7 +281,20 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
             .create()
         bottomNavigationView.post {
             applyBottomNavigationSelectedIndicator(config, bgColor)
+            refreshMainContentBottomPadding()
         }
+    }
+
+    private fun resolveNavigationBarBackground(config: NavigationBarConfig): Int {
+        if (config.isBuiltin) {
+            return bottomBackground
+        }
+        val baseColor = if (AppConfig.isNightTheme) {
+            getPrefInt(PreferKey.cNBBackground, getCompatColor(R.color.default_night_bottom_background))
+        } else {
+            getPrefInt(PreferKey.cBBackground, getCompatColor(R.color.default_bottom_background))
+        }
+        return NavigationBarConfig.resolveBottomColor(baseColor, config)
     }
 
     private fun applyBottomNavigationShell(config: NavigationBarConfig, bgColor: Int) = binding.run {

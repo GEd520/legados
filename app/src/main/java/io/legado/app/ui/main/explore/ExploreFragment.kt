@@ -6,6 +6,7 @@ import android.view.MenuItem
 import android.view.SubMenu
 import android.view.View
 import androidx.appcompat.widget.SearchView
+import androidx.core.view.updatePadding
 import androidx.core.view.isGone
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -29,6 +30,7 @@ import io.legado.app.ui.book.source.manage.BookSourceSort
 import io.legado.app.ui.book.search.SearchActivity
 import io.legado.app.ui.book.source.edit.BookSourceEditActivity
 import io.legado.app.ui.main.MainFragmentInterface
+import io.legado.app.ui.main.MainActivity
 import io.legado.app.utils.applyTint
 import io.legado.app.utils.cnCompare
 import io.legado.app.utils.flowWithLifecycleAndDatabaseChange
@@ -134,6 +136,7 @@ class ExploreFragment() : VMBaseFragment<ExploreViewModel>(R.layout.fragment_exp
 
     private fun initRecyclerView() {
         binding.rvFind.setEdgeEffectColor(primaryColor)
+        updateMainBottomPadding((activity as? MainActivity)?.mainContentBottomPadding() ?: 0)
         binding.rvFind.layoutManager = linearLayoutManager
         binding.rvFind.adapter = adapter
         (binding.rvFind.itemAnimator as? SimpleItemAnimator)?.supportsChangeAnimations = false
@@ -147,6 +150,11 @@ class ExploreFragment() : VMBaseFragment<ExploreViewModel>(R.layout.fragment_exp
                 }
             }
         })
+    }
+
+    override fun updateMainBottomPadding(bottomPadding: Int) {
+        binding.rvFind.clipToPadding = false
+        binding.rvFind.updatePadding(bottom = bottomPadding)
     }
 
     private fun initGroupData() {

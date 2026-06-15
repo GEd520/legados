@@ -10,17 +10,19 @@ import androidx.annotation.IdRes
 import androidx.annotation.Keep
 import androidx.annotation.StringRes
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import androidx.core.graphics.drawable.DrawableCompat
+import com.google.gson.JsonArray
 import io.legado.app.R
 import io.legado.app.constant.EventBus
 import io.legado.app.lib.theme.ThemeStore
 import io.legado.app.lib.theme.getSecondaryTextColor
 import io.legado.app.utils.ColorUtils
 import io.legado.app.utils.GSON
+import io.legado.app.utils.defaultSharedPreferences
 import io.legado.app.utils.fromJsonObject
 import io.legado.app.utils.getPrefString
 import io.legado.app.utils.postEvent
-import io.legado.app.utils.putPrefString
 
 @Keep
 data class NavigationBarConfig(
@@ -108,18 +110,76 @@ data class NavigationBarConfig(
 
         fun loadConfigs(context: Context): MutableList<NavigationBarConfig> {
             val configs = mutableListOf(createDefaultDay(), createDefaultNight())
-            context.getPrefString(PREF_KEY_CUSTOM_CONFIGS)
-                ?.lineSequence()
-                ?.filter { it.isNotBlank() }
-                ?.forEach { json -> runCatching { configs.add(fromJson(json)) } }
+            val stored = context.getPrefString(PREF_KEY_CUSTOM_CONFIGS)
+            var shouldMigrate = false
+            when {
+                stored.isNullOrBlank() -> Unit
+                stored.trimStart().startsWith("[") -> {
+                    configs.addAll(parseConfigArray(stored))
+                }
+                else -> {
+                    parseLegacyConfigObjects(stored)
+                        .mapNotNull { json -> runCatching { fromJson(json) }.getOrNull() }
+                        .also {
+                            configs.addAll(it)
+                            shouldMigrate = it.isNotEmpty()
+                        }
+                }
+            }
+            if (shouldMigrate) {
+                saveConfigs(context, configs)
+            }
             return configs
         }
 
         fun saveConfigs(context: Context, configs: List<NavigationBarConfig>) {
-            context.putPrefString(
-                PREF_KEY_CUSTOM_CONFIGS,
-                configs.filter { !it.isBuiltin }.joinToString("\n") { it.toJson() }
-            )
+            context.defaultSharedPreferences.edit(commit = true) {
+                putString(
+                    PREF_KEY_CUSTOM_CONFIGS,
+                    GSON.toJson(configs.filter { !it.isBuiltin })
+                )
+            }
+        }
+
+        private fun parseConfigArray(stored: String): List<NavigationBarConfig> {
+            val array = runCatching {
+                GSON.fromJson(stored, JsonArray::class.java)
+            }.getOrNull() ?: return emptyList()
+            return array.mapNotNull { element ->
+                runCatching {
+                    GSON.fromJson(element, NavigationBarConfig::class.java)
+                }.getOrNull()
+            }
+        }
+
+        private fun parseLegacyConfigObjects(stored: String): List<String> {
+            val result = mutableListOf<String>()
+            var depth = 0
+            var start = -1
+            var inString = false
+            var escaped = false
+            stored.forEachIndexed { index, char ->
+                if (escaped) {
+                    escaped = false
+                    return@forEachIndexed
+                }
+                when {
+                    char == '\\' && inString -> escaped = true
+                    char == '"' -> inString = !inString
+                    !inString && char == '{' -> {
+                        if (depth == 0) start = index
+                        depth++
+                    }
+                    !inString && char == '}' -> {
+                        depth--
+                        if (depth == 0 && start >= 0) {
+                            result.add(stored.substring(start, index + 1))
+                            start = -1
+                        }
+                    }
+                }
+            }
+            return result
         }
 
         fun activeId(context: Context, isNight: Boolean): String? {
@@ -127,7 +187,9 @@ data class NavigationBarConfig(
         }
 
         fun setActiveId(context: Context, isNight: Boolean, id: String?) {
-            context.putPrefString(if (isNight) PREF_KEY_ACTIVE_NIGHT else PREF_KEY_ACTIVE_DAY, id.orEmpty())
+            context.defaultSharedPreferences.edit(commit = true) {
+                putString(if (isNight) PREF_KEY_ACTIVE_NIGHT else PREF_KEY_ACTIVE_DAY, id.orEmpty())
+            }
         }
 
         fun activeConfig(context: Context, isNight: Boolean): NavigationBarConfig {

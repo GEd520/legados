@@ -7,7 +7,9 @@
     android:padding="10dp"
     android:minHeight="122dp"
     android:gravity="center_vertical"
-    android:orientation="horizontal">
+    android:orientation="horizontal"
+    android:background="@drawable/bg_config_card"
+    android:foreground="?attr/selectableItemBackground">
 
     <!-- 预览卡片 -->
     <FrameLayout
@@ -157,7 +159,8 @@
                 android:textSize="13sp"
                 android:textColor="@color/primaryText"
                 android:background="@drawable/bg_action_button"
-                android:foreground="?attr/selectableItemBackground" />
+                android:foreground="?attr/selectableItemBackground"
+                android:visibility="gone" />
 
             <Space
                 android:layout_width="8dp"
@@ -175,9 +178,7 @@
                 android:textSize="13sp"
                 android:textColor="@color/primaryText"
                 android:background="@drawable/bg_action_button"
-                android:foreground="?attr/selectableItemBackground"
-                android:visibility="gone"
-                tools:visibility="visible" />
+                android:foreground="?attr/selectableItemBackground" />
         </LinearLayout>
 
         <!-- 多选模式下的 CheckBox -->

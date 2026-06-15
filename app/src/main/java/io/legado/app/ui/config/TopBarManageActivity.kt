@@ -2,9 +2,12 @@ package io.legado.app.ui.config
 
 import android.content.Context
 import android.os.Bundle
+import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.Switch
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -18,7 +21,8 @@ import io.legado.app.help.config.AppConfig
 import io.legado.app.help.config.TopBarConfig
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.dialogs.selector
-import io.legado.app.lib.theme.primaryColor
+import io.legado.app.lib.theme.accentColor
+import io.legado.app.ui.widget.number.NumberPickerDialog
 import io.legado.app.ui.widget.recycler.VerticalDivider
 import io.legado.app.utils.*
 import io.legado.app.utils.viewbindingdelegate.viewBinding
@@ -82,19 +86,19 @@ class TopBarManageActivity : BaseActivity<ActivityTopBarManageBinding>() {
     }
 
     private fun updateTabSelection() {
-        val accentColor = primaryColor
+        val activeColor = accentColor
         val ctx = this
         binding.apply {
         val primaryTextColor = ContextCompat.getColor(ctx, R.color.primaryText)
         
-        tvTabDay.setTextColor(if (!isNightMode) accentColor else primaryTextColor)
+        tvTabDay.setTextColor(if (!isNightMode) activeColor else primaryTextColor)
         tabDay.background = if (!isNightMode) {
             ContextCompat.getDrawable(ctx, R.drawable.bg_theme_tab_selected)
         } else {
             null
         }
         
-        tvTabNight.setTextColor(if (isNightMode) accentColor else primaryTextColor)
+        tvTabNight.setTextColor(if (isNightMode) activeColor else primaryTextColor)
         tabNight.background = if (isNightMode) {
             ContextCompat.getDrawable(ctx, R.drawable.bg_theme_tab_selected)
         } else {
@@ -176,7 +180,7 @@ class TopBarManageActivity : BaseActivity<ActivityTopBarManageBinding>() {
 
     private fun editConfig(existing: TopBarConfig?) {
         val isEdit = existing != null
-        val wasActive = isEdit && existing?.id == activeConfigId
+        val wasActive = existing?.id == activeConfigId
         
         val config = existing ?: TopBarConfig(
             id = "custom_${System.currentTimeMillis()}",
@@ -212,37 +216,221 @@ class TopBarManageActivity : BaseActivity<ActivityTopBarManageBinding>() {
     }
 
     private fun showEditDialog(config: TopBarConfig, isEdit: Boolean, onSave: (TopBarConfig) -> Unit) {
-        val context = this
-        val items = mutableListOf<String>()
-        
-        // 构建编辑选项
-        items.add("${getString(R.string.name)}: ${config.name}")
-        items.add("${getString(R.string.top_bar_style)}: ${config.getStyleText()}")
-        if (config.style == "regular") {
-            items.add("${getString(R.string.corner_scale)}: ${config.cornerScale}")
-        }
-        items.add("${getString(R.string.tag_bar_opacity)}: ${config.tagBarAlpha}%")
-        items.add("${getString(R.string.tag_selected_opacity)}: ${config.tagSelectedAlpha}%")
-        
+        val root = buildEditViewClean(config)
         alert(if (isEdit) R.string.edit else R.string.add) {
-            customView {
-                LinearLayout(context).apply {
-                    orientation = LinearLayout.VERTICAL
-                    setPadding(16, 16, 16, 16)
-                    
-                    for (item in items) {
-                        TextView(context).apply {
-                            text = item
-                            textSize = 14f
-                            setPadding(8, 8, 8, 8)
-                        }.also { addView(it) }
-                    }
-                }
-            }
+            customView { root }
             okButton {
+                val name = root.findViewWithTag<EditText>("name")
+                    ?.text
+                    ?.toString()
+                    ?.trim()
+                    .orEmpty()
+                if (name.isBlank()) {
+                    toastOnUi(R.string.input_is_empty)
+                    return@okButton
+                }
+                config.name = name
+                config.wallpaperPath = root.findViewWithTag<EditText>("wallpaperPath")
+                    ?.text
+                    ?.toString()
+                    ?.trim()
+                    ?.takeIf { it.isNotBlank() }
                 onSave(config)
             }
             cancelButton()
+        }
+    }
+
+    private fun buildEditView(config: TopBarConfig): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(8.dp, 8.dp, 8.dp, 8.dp)
+            addView(EditText(context).apply {
+                tag = "name"
+                hint = getString(R.string.name)
+                setText(config.name)
+                setSingleLine(true)
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    48.dp
+                )
+            })
+            addView(optionRow(getString(R.string.top_bar_style), topBarStyleText(config)) {
+                selector(items = listOf("默认顶栏", "常规顶栏")) { _, index ->
+                    config.style = if (index == 1) "regular" else "default"
+                }
+            })
+            addView(optionRow(getString(R.string.corner_scale), String.format(Locale.ROOT, "%.1f", config.cornerScale)) {
+                NumberPickerDialog(this@TopBarManageActivity, isDecimalMode = true)
+                    .setTitle(getString(R.string.corner_scale))
+                    .setMinValue(0)
+                    .setMaxValue(30)
+                    .setValue((config.cornerScale.coerceIn(0f, 3f) * 10).toInt())
+                    .show {
+                        config.cornerScale = (it / 10f).coerceIn(0f, 3f)
+                    }
+            })
+            addView(optionRow(getString(R.string.tag_bar_opacity), "${config.tagBarAlpha}%") {
+                editPercent(getString(R.string.tag_bar_opacity), config.tagBarAlpha) {
+                    config.tagBarAlpha = it
+                }
+            })
+            addView(optionRow(getString(R.string.tag_selected_opacity), "${config.tagSelectedAlpha}%") {
+                editPercent(getString(R.string.tag_selected_opacity), config.tagSelectedAlpha) {
+                    config.tagSelectedAlpha = it
+                }
+            })
+            addView(EditText(context).apply {
+                tag = "wallpaperPath"
+                hint = getString(R.string.wallpaper)
+                setText(config.wallpaperPath.orEmpty())
+                setSingleLine(false)
+                minLines = 2
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    58.dp
+                ).apply { topMargin = 8.dp }
+            })
+            addView(optionRow("${getString(R.string.wallpaper)} ${getString(R.string.opacity)}", "${config.wallpaperAlpha}%") {
+                editPercent("${getString(R.string.wallpaper)} ${getString(R.string.opacity)}", config.wallpaperAlpha) {
+                    config.wallpaperAlpha = it
+                }
+            })
+            addView(switchRow("筛选栏默认展开", config.expandFiltersByDefault) {
+                config.expandFiltersByDefault = !config.expandFiltersByDefault
+            })
+        }
+    }
+
+    private fun buildEditViewClean(config: TopBarConfig): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(8.dp, 8.dp, 8.dp, 8.dp)
+            addView(EditText(context).apply {
+                tag = "name"
+                hint = getString(R.string.name)
+                setText(config.name)
+                setSingleLine(true)
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    48.dp
+                )
+            })
+            addView(optionRow(getString(R.string.top_bar_style), topBarStyleText(config)) {
+                selector(items = listOf(getString(R.string.default_top_bar), getString(R.string.regular_top_bar))) { _, index ->
+                    config.style = if (index == 1) "regular" else "default"
+                }
+            })
+            addView(optionRow(getString(R.string.corner_scale), String.format(Locale.ROOT, "%.1f", config.cornerScale)) {
+                NumberPickerDialog(this@TopBarManageActivity, isDecimalMode = true)
+                    .setTitle(getString(R.string.corner_scale))
+                    .setMinValue(0)
+                    .setMaxValue(30)
+                    .setValue((config.cornerScale.coerceIn(0f, 3f) * 10).toInt())
+                    .show {
+                        config.cornerScale = (it / 10f).coerceIn(0f, 3f)
+                    }
+            })
+            addView(optionRow(getString(R.string.tag_bar_opacity), "${config.tagBarAlpha}%") {
+                editPercent(getString(R.string.tag_bar_opacity), config.tagBarAlpha) {
+                    config.tagBarAlpha = it
+                }
+            })
+            addView(optionRow(getString(R.string.tag_selected_opacity), "${config.tagSelectedAlpha}%") {
+                editPercent(getString(R.string.tag_selected_opacity), config.tagSelectedAlpha) {
+                    config.tagSelectedAlpha = it
+                }
+            })
+            addView(EditText(context).apply {
+                tag = "wallpaperPath"
+                hint = getString(R.string.wallpaper)
+                setText(config.wallpaperPath.orEmpty())
+                setSingleLine(false)
+                minLines = 2
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    58.dp
+                ).apply { topMargin = 8.dp }
+            })
+            addView(optionRow("${getString(R.string.wallpaper)} ${getString(R.string.opacity)}", "${config.wallpaperAlpha}%") {
+                editPercent("${getString(R.string.wallpaper)} ${getString(R.string.opacity)}", config.wallpaperAlpha) {
+                    config.wallpaperAlpha = it
+                }
+            })
+            addView(switchRow(getString(R.string.expand_filters_by_default), config.expandFiltersByDefault) {
+                config.expandFiltersByDefault = !config.expandFiltersByDefault
+            })
+        }
+    }
+
+    private fun optionRow(title: String, value: String, onClick: () -> Unit): View {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(14.dp, 0, 14.dp, 0)
+            background = ContextCompat.getDrawable(context, R.drawable.bg_config_card)
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                46.dp
+            ).apply { topMargin = 8.dp }
+            addView(TextView(context).apply {
+                text = title
+                textSize = 15f
+                setTextColor(ContextCompat.getColor(context, R.color.primaryText))
+                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            })
+            addView(TextView(context).apply {
+                text = value
+                textSize = 13f
+                setTextColor(ContextCompat.getColor(context, R.color.secondaryText))
+            })
+            setOnClickListener { onClick() }
+        }
+    }
+
+    private fun switchRow(title: String, checked: Boolean, onClick: () -> Unit): View {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(14.dp, 0, 8.dp, 0)
+            background = ContextCompat.getDrawable(context, R.drawable.bg_config_card)
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                46.dp
+            ).apply { topMargin = 8.dp }
+            addView(TextView(context).apply {
+                text = title
+                textSize = 15f
+                setTextColor(ContextCompat.getColor(context, R.color.primaryText))
+                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            })
+            addView(Switch(context).apply {
+                isChecked = checked
+                isClickable = false
+            })
+            setOnClickListener {
+                onClick()
+                (getChildAt(1) as? Switch)?.isChecked = !(getChildAt(1) as Switch).isChecked
+            }
+        }
+    }
+
+    private fun editPercent(title: String, value: Int, onValue: (Int) -> Unit) {
+        NumberPickerDialog(this)
+            .setTitle(title)
+            .setMinValue(0)
+            .setMaxValue(100)
+            .setValue(value.coerceIn(0, 100))
+            .show { onValue(it) }
+    }
+
+    private val Int.dp: Int get() = (this * resources.displayMetrics.density).toInt()
+
+    private fun topBarStyleText(config: TopBarConfig): String {
+        return if (config.style == "regular") {
+            getString(R.string.regular_top_bar)
+        } else {
+            getString(R.string.default_top_bar)
         }
     }
 
@@ -340,7 +528,7 @@ class TopBarManageActivity : BaseActivity<ActivityTopBarManageBinding>() {
                 val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
                 val dateStr = dateFormat.format(Date(item.updatedAt))
                 
-                var infoText = item.getStyleText()
+                var infoText = topBarStyleText(item)
                 if (item.style == "regular") {
                     infoText += " · ${getString(R.string.corner_scale)} ${item.cornerScale}"
                     val wp = item.wallpaperPath
@@ -360,11 +548,9 @@ class TopBarManageActivity : BaseActivity<ActivityTopBarManageBinding>() {
                 
                 // 应用按钮
                 tvApply.text = if (isActive) getString(R.string.applied) else getString(R.string.apply)
-                if (isActive) {
-                    tvApply.setTextColor(ContextCompat.getColor(context, R.color.error))
-                } else {
-                    tvApply.setTextColor(ContextCompat.getColor(context, R.color.primaryText))
-                }
+                tvApply.setTextColor(
+                    if (isActive) accentColor else ContextCompat.getColor(context, R.color.primaryText)
+                )
                 
                 // 编辑按钮 (内置配置不显示)
                 tvEdit.visibility = if (item.isBuiltin) View.GONE else View.VISIBLE

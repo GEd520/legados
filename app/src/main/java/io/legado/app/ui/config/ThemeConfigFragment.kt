@@ -140,7 +140,7 @@ class ThemeConfigFragment : PreferenceFragment(),
             val iconRes = if (AppConfig.isNightTheme) {
                 R.drawable.ic_daytime  // 夜间模式时显示日间图标（点击切换到日间）
             } else {
-                R.drawable.ic_nighttime  // 日间模式时显示夜间图标（点击切换到夜间）
+                R.drawable.ic_moon  // 日间模式时显示夜间图标（点击切换到夜间）
             }
             themeModeItem.setIcon(iconRes)
             // 设置提示文本
@@ -229,7 +229,7 @@ class ThemeConfigFragment : PreferenceFragment(),
 
             PreferKey.bgImage -> selectBgAction(false)
             PreferKey.bgImageN -> selectBgAction(true)
-            "themeList" -> ThemeListDialog().show(childFragmentManager, "themeList")
+            "themeList" -> startActivity<ThemeManageActivity>()
             "saveDayTheme",
             "saveNightTheme" -> alertSaveTheme(key)
 
