@@ -1,0 +1,115 @@
+version: '1.0'
+name: legado-auto-build
+displayName: 'Legado Android 自动打包'
+
+# 触发条件
+triggers:
+  push:
+    branches:
+      include:
+        - main
+        - master
+    tags:
+      include:
+        - 'v*'
+  pull_request:
+    branches:
+      include:
+        - main
+        - master
+
+# 流水线变量
+variables:
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.caching=true"
+  JAVA_VERSION: "17"
+
+# 定义流水线阶段
+stages:
+  - name: build
+    displayName: '构建阶段'
+  - name: artifact
+    displayName: '制品收集阶段'
+
+# 构建任务
+jobs:
+  # 正式版构建
+  - job: build_appS
+    displayName: '构建正式版（appS）'
+    stage: build
+    image: gradle:8.5-jdk17
+    steps:
+      - step: build@gradle
+        name: gradle_build
+        displayName: 'Gradle 构建'
+        gradleVersion: '8.5'
+        jdkVersion: '17'
+        commands:
+          - chmod +x gradlew
+          - ./gradlew assembleAppSRelease --parallel --build-cache --no-daemon
+    artifacts:
+      - name: appS_apk
+        path:
+          - app/build/outputs/apk/appS/release/*.apk
+
+  # 测试版构建
+  - job: build_appMax
+    displayName: '构建测试版（appMax）'
+    stage: build
+    image: gradle:8.5-jdk17
+    steps:
+      - step: build@gradle
+        name: gradle_build
+        displayName: 'Gradle 构建'
+        gradleVersion: '8.5'
+        jdkVersion: '17'
+        commands:
+          - chmod +x gradlew
+          - ./gradlew assembleAppMaxRelease --parallel --build-cache --no-daemon
+    artifacts:
+      - name: appMax_apk
+        path:
+          - app/build/outputs/apk/appMax/release/*.apk
+
+  # 兼容版构建
+  - job: build_appLegacy
+    displayName: '构建兼容版（appLegacy）'
+    stage: build
+    image: gradle:8.5-jdk17
+    steps:
+      - step: build@gradle
+        name: gradle_build
+        displayName: 'Gradle 构建'
+        gradleVersion: '8.5'
+        jdkVersion: '17'
+        commands:
+          - chmod +x gradlew
+          - ./gradlew assembleAppLegacyRelease --parallel --build-cache --no-daemon
+    artifacts:
+      - name: appLegacy_apk
+        path:
+          - app/build/outputs/apk/appLegacy/release/*.apk
+
+  # 收集所有构建产物
+  - job: collect_artifacts
+    displayName: '收集所有 APK'
+    stage: artifact
+    dependsOn:
+      - build_appS
+      - build_appMax
+      - build_appLegacy
+    image: alpine:latest
+    steps:
+      - step: shell@script
+        name: collect_apks
+        displayName: '收集 APK 文件'
+        script:
+          - mkdir -p all_apks
+          - cp app/build/outputs/apk/appS/release/*.apk all_apks/ || true
+          - cp app/build/outputs/apk/appMax/release/*.apk all_apks/ || true
+          - cp app/build/outputs/apk/appLegacy/release/*.apk all_apks/ || true
+          - ls -la all_apks/
+          - echo "✅ 所有 APK 已收集完成"
+    artifacts:
+      - name: all_apks
+        path:
+          - all_apks/*.apk
