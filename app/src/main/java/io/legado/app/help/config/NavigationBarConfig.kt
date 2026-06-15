@@ -243,11 +243,7 @@ data class NavigationBarConfig(
         fun resolveBottomColor(baseColor: Int, config: NavigationBarConfig): Int {
             val alpha = config.opacity.coerceIn(0, 100) / 100f
             if (config.isBuiltin) return ColorUtils.withAlpha(baseColor, 1f)
-            return when (config.effectMode) {
-                EFFECT_SOLID -> ColorUtils.withAlpha(baseColor, alpha)
-                EFFECT_FROSTED -> ColorUtils.withAlpha(baseColor, (alpha * 0.88f).coerceIn(0f, 1f))
-                else -> ColorUtils.withAlpha(baseColor, (alpha * 0.72f).coerceIn(0f, 1f))
-            }
+            return ColorUtils.withAlpha(baseColor, alpha)
         }
 
         fun applyToMenu(menu: Menu, context: Context, isNight: Boolean): Boolean {

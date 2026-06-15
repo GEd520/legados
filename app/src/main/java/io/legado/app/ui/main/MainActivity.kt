@@ -320,7 +320,15 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
             if (standard) bottomNavigationInset else 0
         )
         bottomNavigationView.alpha = 1f
-        bottomNavigationView.elevation = if (floating) 12.dpToPx().toFloat() else 0f
+        bottomNavigationView.elevation = if (floating) {
+            when (config.effectMode) {
+                NavigationBarConfig.EFFECT_SOLID -> 8.dpToPx().toFloat()
+                NavigationBarConfig.EFFECT_FROSTED -> 14.dpToPx().toFloat()
+                else -> 12.dpToPx().toFloat()
+            }
+        } else {
+            0f
+        }
         bottomNavigationView.setBackgroundColor(Color.TRANSPARENT)
         bottomNavigationView.background = createBottomNavigationShellDrawable(config, bgColor)
     }
@@ -334,13 +342,43 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
         val strokeColor = config.borderColor?.let {
             ColorUtils.withAlpha(it, config.borderAlpha.coerceIn(0, 100) / 100f)
         }
-        return GradientDrawable().apply {
+        val drawable = if (!standard && config.effectMode != NavigationBarConfig.EFFECT_SOLID) {
+            val colors = bottomNavigationMaterialColors(bgColor, config.effectMode)
+            GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, colors)
+        } else {
+            GradientDrawable().apply {
+                setColor(bgColor)
+            }
+        }
+        return drawable.apply {
             shape = GradientDrawable.RECTANGLE
             cornerRadius = radius
-            setColor(bgColor)
             setStroke(
                 if (!standard && strokeColor != null) 1.dpToPx() else 0,
                 strokeColor ?: Color.TRANSPARENT
+            )
+        }
+    }
+
+    private fun bottomNavigationMaterialColors(bgColor: Int, effectMode: String): IntArray {
+        val alpha = Color.alpha(bgColor) / 255f
+        val rgb = Color.rgb(Color.red(bgColor), Color.green(bgColor), Color.blue(bgColor))
+        return if (effectMode == NavigationBarConfig.EFFECT_FROSTED) {
+            intArrayOf(
+                ColorUtils.withAlpha(rgb, (alpha * 1.00f).coerceIn(0f, 1f)),
+                ColorUtils.withAlpha(rgb, (alpha * 0.92f).coerceIn(0f, 1f)),
+                ColorUtils.withAlpha(rgb, (alpha * 0.84f).coerceIn(0f, 1f))
+            )
+        } else {
+            val highlight = if (ColorUtils.isColorLight(rgb)) Color.WHITE else Color.rgb(34, 38, 46)
+            intArrayOf(
+                ColorUtils.blendColors(
+                    ColorUtils.withAlpha(rgb, (alpha * 0.82f).coerceIn(0f, 1f)),
+                    ColorUtils.withAlpha(highlight, (alpha * 0.18f).coerceIn(0f, 1f)),
+                    0.35f
+                ),
+                ColorUtils.withAlpha(rgb, (alpha * 0.62f).coerceIn(0f, 1f)),
+                ColorUtils.withAlpha(rgb, (alpha * 0.48f).coerceIn(0f, 1f))
             )
         }
     }
