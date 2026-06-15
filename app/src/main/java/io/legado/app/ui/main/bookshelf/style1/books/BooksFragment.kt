@@ -184,6 +184,7 @@ class BooksFragment() : BaseFragment(R.layout.fragment_books),
     }
 
     fun updateMainBottomPadding(bottomPadding: Int) {
+        if (view == null) return
         binding.rvBookshelf.clipToPadding = false
         binding.rvBookshelf.updatePadding(bottom = bottomPadding)
     }
@@ -199,7 +200,13 @@ class BooksFragment() : BaseFragment(R.layout.fragment_books),
     }
 
     fun upBookSort(sort: Int) {
+        if (view == null) {
+            arguments?.putInt("bookSort", sort)
+            bookSort = sort
+            return
+        }
         binding.root.post {
+            if (view == null) return@post
             arguments?.putInt("bookSort", sort)
             bookSort = sort
             upRecyclerData()
@@ -208,6 +215,7 @@ class BooksFragment() : BaseFragment(R.layout.fragment_books),
 
     fun setEnableRefresh(enable: Boolean) {
         enableRefresh = enable
+        if (view == null) return
         binding.refreshLayout.isEnabled = enable
     }
 
@@ -278,6 +286,7 @@ class BooksFragment() : BaseFragment(R.layout.fragment_books),
     }
 
     fun gotoTop() {
+        if (view == null) return
         if (AppConfig.isEInkMode) {
             binding.rvBookshelf.scrollToPosition(0)
         } else {
@@ -290,12 +299,12 @@ class BooksFragment() : BaseFragment(R.layout.fragment_books),
     }
 
     override fun onDestroyView() {
-        super.onDestroyView()
         /**
          * 将 RecyclerView 中的视图全部回收到 RecycledViewPool 中
          */
         binding.rvBookshelf.setItemViewCacheSize(0)
         binding.rvBookshelf.adapter = null
+        super.onDestroyView()
     }
 
     override fun open(book: Book) {

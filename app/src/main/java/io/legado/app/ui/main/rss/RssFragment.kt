@@ -162,6 +162,7 @@ class RssFragment() : VMBaseFragment<RssViewModel>(R.layout.fragment_rss), MainF
     }
 
     override fun updateMainBottomPadding(bottomPadding: Int) {
+        if (view == null) return
         binding.recyclerView.clipToPadding = false
         binding.recyclerView.updatePadding(bottom = bottomPadding)
     }
@@ -234,6 +235,7 @@ class RssFragment() : VMBaseFragment<RssViewModel>(R.layout.fragment_rss), MainF
             }.flowOn(IO).collect {
                 adapter.setItems(it)
                 binding.recyclerView.post {
+                    if (view == null) return@post
                     binding.recyclerView.refreshSystemScrollBar()
                 }
             }

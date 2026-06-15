@@ -153,6 +153,7 @@ class ExploreFragment() : VMBaseFragment<ExploreViewModel>(R.layout.fragment_exp
     }
 
     override fun updateMainBottomPadding(bottomPadding: Int) {
+        if (view == null) return
         binding.rvFind.clipToPadding = false
         binding.rvFind.updatePadding(bottom = bottomPadding)
     }
@@ -239,6 +240,7 @@ class ExploreFragment() : VMBaseFragment<ExploreViewModel>(R.layout.fragment_exp
                 // 改名称这类“同一源内容变化”会被误判成相同，导致发现页不刷新。
                 adapter.setItems(it, diffItemCallBack)
                 binding.rvFind.post {
+                    if (view == null) return@post
                     binding.rvFind.refreshSystemScrollBar()
                 }
                 delay(500)

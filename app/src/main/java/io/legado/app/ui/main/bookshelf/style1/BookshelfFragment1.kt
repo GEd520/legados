@@ -137,8 +137,11 @@ class BookshelfFragment1() : BaseBookshelfFragment(R.layout.fragment_bookshelf1)
     }
 
     override fun updateMainBottomPadding(bottomPadding: Int) {
+        if (view == null) return
         fragmentMap.values.forEach {
-            it.updateMainBottomPadding(bottomPadding)
+            if (it.view != null) {
+                it.updateMainBottomPadding(bottomPadding)
+            }
         }
     }
 

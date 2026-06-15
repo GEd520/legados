@@ -249,13 +249,15 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
         val layoutParams = bottomNav.layoutParams as? FrameLayout.LayoutParams
         val navHeight = bottomNav.height.takeIf { it > 0 } ?: bottomNav.minimumHeight
         val bottomMargin = layoutParams?.bottomMargin ?: 0
-        return navHeight + bottomMargin + 8.dpToPx()
+        return navHeight + bottomMargin
     }
 
     private fun refreshMainContentBottomPadding() {
         val bottomPadding = mainContentBottomPadding()
         fragmentMap.values.forEach { fragment ->
-            (fragment as? MainFragmentInterface)?.updateMainBottomPadding(bottomPadding)
+            if (fragment.view != null) {
+                (fragment as? MainFragmentInterface)?.updateMainBottomPadding(bottomPadding)
+            }
         }
     }
 
@@ -300,17 +302,17 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
     private fun applyBottomNavigationShell(config: NavigationBarConfig, bgColor: Int) = binding.run {
         val floating = config.layoutMode == NavigationBarConfig.LAYOUT_FLOATING
         val standard = config.layoutMode == NavigationBarConfig.LAYOUT_STANDARD
-        val horizontalMargin = if (floating) 14.dpToPx() else 0
+        val horizontalMargin = if (floating) 20.dpToPx() else 0
         val topMargin = 0
-        val bottomMargin = if (floating) 12.dpToPx() + bottomNavigationInset else 0
+        val bottomMargin = if (floating) 10.dpToPx() + bottomNavigationInset else 0
         bottomNavigationView.layoutParams = (bottomNavigationView.layoutParams as FrameLayout.LayoutParams).apply {
             width = ViewGroup.LayoutParams.MATCH_PARENT
             height = ViewGroup.LayoutParams.WRAP_CONTENT
             gravity = Gravity.BOTTOM
             setMargins(horizontalMargin, topMargin, horizontalMargin, bottomMargin)
         }
-        bottomNavigationView.minimumHeight = if (floating) 42.dpToPx() else 50.dpToPx()
-        bottomNavigationView.itemIconSize = if (floating) 20.dpToPx() else 22.dpToPx()
+        bottomNavigationView.minimumHeight = if (floating) 48.dpToPx() else 50.dpToPx()
+        bottomNavigationView.itemIconSize = if (floating) 23.dpToPx() else 22.dpToPx()
         bottomNavigationView.setPadding(
             if (floating) 6.dpToPx() else 0,
             0,
@@ -318,7 +320,7 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
             if (standard) bottomNavigationInset else 0
         )
         bottomNavigationView.alpha = 1f
-        bottomNavigationView.elevation = if (floating) elevation else 0f
+        bottomNavigationView.elevation = if (floating) 12.dpToPx().toFloat() else 0f
         bottomNavigationView.setBackgroundColor(Color.TRANSPARENT)
         bottomNavigationView.background = createBottomNavigationShellDrawable(config, bgColor)
     }
@@ -327,8 +329,7 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
         val standard = config.layoutMode == NavigationBarConfig.LAYOUT_STANDARD
         val radius = when {
             standard -> 0f
-            config.effectMode == NavigationBarConfig.EFFECT_FROSTED -> 21f.dpToPx()
-            else -> 20f.dpToPx()
+            else -> 24f.dpToPx()
         }
         val strokeColor = config.borderColor?.let {
             ColorUtils.withAlpha(it, config.borderAlpha.coerceIn(0, 100) / 100f)

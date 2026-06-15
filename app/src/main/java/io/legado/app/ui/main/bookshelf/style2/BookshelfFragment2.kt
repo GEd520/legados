@@ -139,6 +139,7 @@ class BookshelfFragment2() : BaseBookshelfFragment(R.layout.fragment_bookshelf2)
     }
 
     override fun updateMainBottomPadding(bottomPadding: Int) {
+        if (view == null) return
         binding.rvBookshelf.clipToPadding = false
         binding.rvBookshelf.updatePadding(bottom = bottomPadding)
     }

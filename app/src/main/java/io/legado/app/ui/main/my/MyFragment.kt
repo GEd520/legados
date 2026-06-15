@@ -80,6 +80,7 @@ class MyFragment() : BaseFragment(R.layout.fragment_my_config), MainFragmentInte
     }
 
     override fun updateMainBottomPadding(bottomPadding: Int) {
+        if (view == null) return
         (childFragmentManager.findFragmentByTag("prefFragment") as? MyPreferenceFragment)
             ?.updateMainBottomPadding(bottomPadding)
     }
@@ -136,6 +137,7 @@ class MyFragment() : BaseFragment(R.layout.fragment_my_config), MainFragmentInte
         }
 
         fun updateMainBottomPadding(bottomPadding: Int) {
+            if (view == null) return
             listView.clipToPadding = false
             listView.updatePadding(bottom = bottomPadding)
         }
