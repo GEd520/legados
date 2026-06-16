@@ -189,6 +189,7 @@ class TitleBar @JvmOverloads constructor(
                 setBackgroundColor(context.primaryColor)
                 elevation = context.elevation
             }
+            applyTopBarConfig()
 
             stateListAnimator = null
         }

@@ -33,6 +33,7 @@ import io.legado.app.ui.book.read.config.ReadAloudActivity
 import io.legado.app.ui.widget.ReadAloudMiniBarController
 import io.legado.app.ui.widget.ReadAloudMiniBarHost
 import io.legado.app.ui.widget.TitleBar
+import io.legado.app.ui.widget.applyTopBarConfig
 import io.legado.app.ui.debuglog.DebugFloatingBallManager
 import io.legado.app.ui.debuglog.DebugLogPanelDialog
 import io.legado.app.utils.ColorUtils
@@ -109,6 +110,11 @@ abstract class BaseActivity<VB : ViewBinding>(
         observeLiveBus()    // 模板方法：子类覆写 observeLiveBus() 注册事件订阅，自动在 onCreate 中调用
         observeEvent<Int>(EventBus.ALOUD_STATE) {
             refreshReadAloudMiniBar()
+        }
+        observeEvent<Boolean>(EventBus.TOP_BAR_CHANGED) {
+            if (it == AppConfig.isNightTheme) {
+                refreshTitleBars()
+            }
         }
         onActivityCreated(savedInstanceState)
     }
@@ -250,6 +256,21 @@ abstract class BaseActivity<VB : ViewBinding>(
 
     protected fun refreshReadAloudMiniBar() {
         readAloudMiniBarController?.refresh()
+    }
+
+    private fun refreshTitleBars() {
+        findViewById<ViewGroup>(android.R.id.content)?.refreshTitleBars()
+    }
+
+    private fun View.refreshTitleBars() {
+        if (this is TitleBar) {
+            applyTopBarConfig()
+        }
+        if (this is ViewGroup) {
+            for (index in 0 until childCount) {
+                getChildAt(index).refreshTitleBars()
+            }
+        }
     }
 
     protected fun hideReadAloudMiniBar() {

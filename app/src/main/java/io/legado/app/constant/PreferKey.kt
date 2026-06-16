@@ -211,6 +211,8 @@ object PreferKey {
 
     const val dThemeName = "durThemeName"
     const val dNThemeName = "durThemeNameNight"
+    const val topBarPackageDay = "topBarPackageDay"
+    const val topBarPackageNight = "topBarPackageNight"
 
     const val cPrimary = "colorPrimary"
     const val cAccent = "colorAccent"
