@@ -36,4 +36,7 @@
     <dimen name="fastscroll_scrollbar_padding_end">6dp</dimen>
 
     <dimen name="fixed_height_bottom_padding">8dp</dimen>
+
+    <!-- Shared modern UI shape tokens -->
+    <dimen name="ui_panel_radius">10dp</dimen>
 </resources>

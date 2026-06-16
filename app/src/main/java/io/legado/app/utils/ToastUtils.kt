@@ -3,12 +3,9 @@
 package io.legado.app.utils
 
 import android.annotation.SuppressLint
-import android.content.res.ColorStateList
 import android.content.Context
 import android.widget.Toast
-import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
-import io.legado.app.R
 import io.legado.app.BuildConfig
 import io.legado.app.databinding.ViewToastBinding
 import io.legado.app.data.repository.debug.DebugEventCenter
@@ -18,7 +15,8 @@ import io.legado.app.model.debug.DebugEvent
 import io.legado.app.model.debug.DebugLevel
 import io.legado.app.model.debug.ToastContext
 import io.legado.app.help.LifecycleHelp
-import io.legado.app.lib.theme.ThemeStore
+import io.legado.app.lib.theme.backgroundColor
+import io.legado.app.lib.theme.getPrimaryTextColor
 import io.legado.app.utils.runOnUI
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
@@ -41,9 +39,12 @@ fun Context.toastOnUi(message: CharSequence?, duration: Int = Toast.LENGTH_SHORT
         kotlin.runCatching {
             toast?.cancel()
             toast = Toast(this)
+            val bgColor = backgroundColor
+            val isLight = ColorUtils.isColorLight(bgColor)
             ViewToastBinding.inflate(layoutInflater).run {
                 toast?.view = root
-                applyToastStyle(this@toastOnUi)
+                cvToast.setCardBackgroundColor(bgColor)
+                tvText.setTextColor(getPrimaryTextColor(isLight))
                 tvText.text = message
             }
             toast?.duration = duration
@@ -142,9 +143,12 @@ fun Context.toastOnUi(message: CharSequence?, context: ToastContext, duration: I
         kotlin.runCatching {
             toast?.cancel()
             toast = Toast(this)
+            val bgColor = backgroundColor
+            val isLight = ColorUtils.isColorLight(bgColor)
             ViewToastBinding.inflate(layoutInflater).run {
                 toast?.view = root
-                applyToastStyle(this@toastOnUi)
+                cvToast.setCardBackgroundColor(bgColor)
+                tvText.setTextColor(getPrimaryTextColor(isLight))
                 tvText.text = message
             }
             toast?.duration = duration
@@ -162,9 +166,3 @@ fun Context.longToastOnUi(message: CharSequence?, context: ToastContext) {
 fun Fragment.toastOnUi(message: CharSequence, context: ToastContext) = requireActivity().toastOnUi(message, context)
 
 fun Fragment.longToast(message: CharSequence, context: ToastContext) = requireContext().longToastOnUi(message, context)
-
-private fun ViewToastBinding.applyToastStyle(context: Context) {
-    cvToast.setCardBackgroundColor(ContextCompat.getColor(context, R.color.background_card))
-    tvText.setTextColor(ThemeStore.textColorPrimary(context))
-    vToastAccent.backgroundTintList = ColorStateList.valueOf(ThemeStore.accentColor(context))
-}
