@@ -786,7 +786,7 @@
     <string name="toc_updateing">更新目录中</string>
     <string name="media_button_on_exit_title">全程响应耳机按键</string>
     <string name="media_button_on_exit_summary">即使退出软件也响应耳机按键</string>
-    <string name="contributors">开发人员</string>
+    <string name="contributors">维护人员</string>
     <string name="contact">联系我们</string>
     <string name="license">开源许可</string>
     <string name="other">其它</string>
@@ -852,7 +852,7 @@
     <string name="alipay_red_envelope_qr_code">支付宝红包二维码</string>
     <string name="alipay_payment_qr_code">支付宝收款二维码</string>
     <string name="qq_collection_qr_code">QQ 收款二维码</string>
-    <string name="contributors_summary">gedoor、Invinciblelee 和 Xwite 等，详情请在 GitHub 中查看</string>
+    <string name="contributors_summary">当前维护人员：GEd520，详情请在GitHub 中查看</string>
     <string name="clear_cache_summary">清除已下载书籍和字体缓存</string>
     <string name="default_cover">默认封面</string>
     <string name="restore_ignore">恢复忽略列表</string>
