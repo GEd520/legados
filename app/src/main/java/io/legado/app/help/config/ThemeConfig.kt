@@ -507,7 +507,7 @@ object ThemeConfig {
                     .primaryColor(ColorUtils.withAlpha(primary, 1f))
                     .accentColor(ColorUtils.withAlpha(accent, 1f))
                     .backgroundColor(ColorUtils.withAlpha(background, 1f))
-                    .bottomBackground(navBarStyle.bottomBackground)
+                    .bottomBackground(ColorUtils.withAlpha(bBackground, 1f))
                     .transparentNavBar(navBarStyle.transparentNavBar)
                     .apply()
             }
@@ -537,7 +537,7 @@ object ThemeConfig {
                     .primaryColor(ColorUtils.withAlpha(primary, 1f))
                     .accentColor(ColorUtils.withAlpha(accent, 1f))
                     .backgroundColor(ColorUtils.withAlpha(background, 1f))
-                    .bottomBackground(navBarStyle.bottomBackground)
+                    .bottomBackground(ColorUtils.withAlpha(bBackground, 1f))
                     .transparentNavBar(navBarStyle.transparentNavBar)
                     .apply()
             }
