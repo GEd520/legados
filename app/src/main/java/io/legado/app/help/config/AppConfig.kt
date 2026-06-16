@@ -716,6 +716,10 @@ object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
             appCtx.putPrefString("searchScope", value)
         }
 
+    // 显示搜索进度，默认关闭
+    val showSearchProgress: Boolean
+        get() = appCtx.getPrefBoolean(PreferKey.showSearchProgress, false)
+
     var searchGroup: String
         get() = appCtx.getPrefString("searchGroup") ?: ""
         set(value) {

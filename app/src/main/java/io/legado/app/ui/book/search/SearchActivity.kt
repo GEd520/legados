@@ -29,6 +29,7 @@ import io.legado.app.data.entities.BookSourcePart
 import io.legado.app.data.entities.SearchBook
 import io.legado.app.data.entities.SearchKeyword
 import io.legado.app.databinding.ActivityBookSearchBinding
+import io.legado.app.help.config.AppConfig
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.theme.Selector
 import io.legado.app.lib.theme.accentColor
@@ -91,6 +92,7 @@ class SearchActivity : VMBaseActivity<ActivityBookSearchBinding, SearchViewModel
     private var historyFlowJob: Job? = null
     private var booksFlowJob: Job? = null
     private var precisionSearchMenuItem: MenuItem? = null
+    private var showSearchProgressMenuItem: MenuItem? = null
     private var isManualStopSearch = false
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
@@ -112,6 +114,8 @@ class SearchActivity : VMBaseActivity<ActivityBookSearchBinding, SearchViewModel
         this.menu = menu
         precisionSearchMenuItem = menu.findItem(R.id.menu_precision_search)
         precisionSearchMenuItem?.isChecked = getPrefBoolean(PreferKey.precisionSearch)
+        showSearchProgressMenuItem = menu.findItem(R.id.menu_show_search_progress)
+        showSearchProgressMenuItem?.isChecked = AppConfig.showSearchProgress
         return super.onCompatCreateOptionsMenu(menu)
     }
 
@@ -177,6 +181,14 @@ class SearchActivity : VMBaseActivity<ActivityBookSearchBinding, SearchViewModel
                 searchView.query?.toString()?.trim()?.let {
                     searchView.setQuery(it, true)
                 }
+            }
+
+            R.id.menu_show_search_progress -> {
+                putPrefBoolean(
+                    PreferKey.showSearchProgress,
+                    !AppConfig.showSearchProgress
+                )
+                showSearchProgressMenuItem?.isChecked = AppConfig.showSearchProgress
             }
 
             R.id.menu_search_scope -> alertSearchScope()
@@ -319,7 +331,7 @@ class SearchActivity : VMBaseActivity<ActivityBookSearchBinding, SearchViewModel
             adapter.setItems(it)
         }
         viewModel.searchProgressLiveData.observe(this) { progress ->
-            if (progress.isNullOrEmpty()) {
+            if (!AppConfig.showSearchProgress || progress.isNullOrEmpty()) {
                 binding.tvSearchProgress.gone()
             } else {
                 binding.tvSearchProgress.text = progress
