@@ -140,9 +140,9 @@ android {
         variant.outputs.configureEach { output ->
             def flavorName = variant.flavorName
             def flavorLabel = [
-                    appS     : "正式版",
+                    appS     : "共存版",
                     appMax   : "测试版",
-                    appLegacy: "兼容版"
+                    appLegacy: "覆盖版"
             ][flavorName] ?: flavorName
             def flavorSuffix = [
                     appS     : "releaseS",
