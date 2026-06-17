@@ -281,9 +281,9 @@ class ReadMangaActivity : VMBaseActivity<ActivityMangaBinding, ReadMangaViewMode
                     binding.flLoading.isGone = true
                     loadMoreView.visible()
                     binding.mangaMenu.upBookView()
-                    binding.mangaMenu.upSeekBar(
-                        ReadManga.durChapterPos, ReadManga.curMangaChapter!!.imageCount
-                    )
+                    val pageCount = ReadManga.curMangaChapter?.imageCount
+                        ?: list.filterIsInstance<MangaPage>().size
+                    binding.mangaMenu.upSeekBar(ReadManga.durChapterPos, pageCount)
                 }
 
                 if (curFinish) {
