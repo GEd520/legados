@@ -168,6 +168,7 @@ class ExploreFragment() : VMBaseFragment<ExploreViewModel>(R.layout.fragment_exp
     override fun updateMainBottomPadding(bottomPadding: Int) {
         if (view == null) return
         binding.rvFind.clipToPadding = false
+        binding.rvFind.scrollBarStyle = View.SCROLLBARS_INSIDE_OVERLAY
         binding.rvFind.updatePadding(bottom = bottomPadding)
     }
 

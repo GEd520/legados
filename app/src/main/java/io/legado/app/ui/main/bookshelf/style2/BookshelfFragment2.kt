@@ -143,7 +143,9 @@ class BookshelfFragment2() : BaseBookshelfFragment(R.layout.fragment_bookshelf2)
     override fun updateMainBottomPadding(bottomPadding: Int) {
         if (view == null) return
         binding.rvBookshelf.clipToPadding = false
+        binding.rvBookshelf.scrollBarStyle = View.SCROLLBARS_INSIDE_OVERLAY
         binding.rvBookshelf.updatePadding(bottom = bottomPadding)
+        binding.rvBookshelf.refreshFastScrollerLayout()
     }
 
     private fun upFastScrollerBar() {

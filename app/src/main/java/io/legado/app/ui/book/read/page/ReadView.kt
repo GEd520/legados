@@ -660,6 +660,20 @@ class ReadView(context: Context, attrs: AttributeSet) :
         curPage.setProgress(pageFactory.curPage)
     }
 
+    fun saveScrollProgress() {
+        if (!isScroll) return
+        val (chapterIndex, line) = curPage.getReadAloudPos() ?: return
+        val chapterPosition = line.chapterPosition
+        if (ReadBook.durChapterIndex == chapterIndex &&
+            ReadBook.durChapterPos == chapterPosition
+        ) {
+            return
+        }
+        ReadBook.durChapterIndex = chapterIndex
+        ReadBook.durChapterPos = chapterPosition
+        ReadBook.saveRead(true)
+    }
+
     /**
      * 更新滑动距离
      */

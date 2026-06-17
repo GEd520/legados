@@ -561,18 +561,13 @@ object ReadManga : CoroutineScope by MainScope() {
         }.onError {
             AppLog.put("拉取阅读进度失败", it)
         }.onSuccess { progress ->
-            if (progress == null || progress.durChapterIndex < book.durChapterIndex ||
-                (progress.durChapterIndex == book.durChapterIndex
-                        && progress.durChapterPos < book.durChapterPos)
-            ) {
+            if (progress == null || progress.isOlderThan(book)) {
                 // 服务器没有进度或者进度比服务器快，上传现有进度
                 Coroutine.async {
                     AppWebDav.uploadBookProgress(BookProgress(book), uploadSuccessAction)
                     book.update()
                 }
-            } else if (progress.durChapterIndex > book.durChapterIndex ||
-                progress.durChapterPos > book.durChapterPos
-            ) {
+            } else if (progress.isNewerThan(book)) {
                 // 进度比服务器慢，执行传入动作
                 newProgressAction?.invoke(progress)
             } else {

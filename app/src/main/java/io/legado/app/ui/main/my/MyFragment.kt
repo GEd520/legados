@@ -150,6 +150,7 @@ class MyFragment() : BaseFragment(R.layout.fragment_my_config), MainFragmentInte
         fun updateMainBottomPadding(bottomPadding: Int) {
             if (view == null) return
             listView.clipToPadding = false
+            listView.scrollBarStyle = View.SCROLLBARS_INSIDE_OVERLAY
             listView.updatePadding(bottom = bottomPadding)
         }
 

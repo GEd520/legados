@@ -96,6 +96,12 @@ open class FastScrollRecyclerView : RecyclerView {
         mFastScroller.setFastScrollStateChangeListener(fastScrollStateChangeListener)
     }
 
+    fun refreshFastScrollerLayout() {
+        (mFastScroller.parent as? ViewGroup)?.let {
+            mFastScroller.setLayoutParams(it)
+        }
+    }
+
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         mFastScroller.attachRecyclerView(this)

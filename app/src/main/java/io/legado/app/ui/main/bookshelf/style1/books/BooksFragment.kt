@@ -186,7 +186,9 @@ class BooksFragment() : BaseFragment(R.layout.fragment_books),
     fun updateMainBottomPadding(bottomPadding: Int) {
         if (view == null) return
         binding.rvBookshelf.clipToPadding = false
+        binding.rvBookshelf.scrollBarStyle = View.SCROLLBARS_INSIDE_OVERLAY
         binding.rvBookshelf.updatePadding(bottom = bottomPadding)
+        binding.rvBookshelf.refreshFastScrollerLayout()
     }
 
     private fun upFastScrollerBar() {

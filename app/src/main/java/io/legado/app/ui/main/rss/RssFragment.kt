@@ -178,6 +178,7 @@ class RssFragment() : VMBaseFragment<RssViewModel>(R.layout.fragment_rss), MainF
     override fun updateMainBottomPadding(bottomPadding: Int) {
         if (view == null) return
         binding.recyclerView.clipToPadding = false
+        binding.recyclerView.scrollBarStyle = View.SCROLLBARS_INSIDE_OVERLAY
         binding.recyclerView.updatePadding(bottom = bottomPadding)
     }
 

@@ -33,6 +33,7 @@ class ScrollPageDelegate(readView: ReadView) : PageDelegate(readView) {
     }
 
     override fun onAnimStop() {
+        readView.saveScrollProgress()
         readView.onScrollAnimStop()
     }
 
@@ -147,6 +148,7 @@ class ScrollPageDelegate(readView: ReadView) : PageDelegate(readView) {
         }
         if (noAnim) {
             curPage.scroll(calcNextPageOffset())
+            readView.saveScrollProgress()
             return
         }
         readView.setStartPoint(0f, 0f, false)
@@ -160,6 +162,7 @@ class ScrollPageDelegate(readView: ReadView) : PageDelegate(readView) {
         }
         if (noAnim) {
             curPage.scroll(calcPrevPageOffset())
+            readView.saveScrollProgress()
             return
         }
         readView.setStartPoint(0f, 0f, false)

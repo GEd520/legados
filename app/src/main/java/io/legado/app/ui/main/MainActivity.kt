@@ -5,9 +5,12 @@ package io.legado.app.ui.main
 import android.os.Bundle
 import android.os.Build
 import android.text.format.DateUtils
+import android.graphics.Outline
 import android.view.Gravity
 import android.view.MenuItem
+import android.view.View
 import android.view.ViewGroup
+import android.view.ViewOutlineProvider
 import android.graphics.Color
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
@@ -345,6 +348,7 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
         bottomNavigationView.setBackgroundColor(Color.TRANSPARENT)
         bottomNavigationView.background = Color.TRANSPARENT.toDrawable()
         val liquid = !standard && config.effectMode != NavigationBarConfig.EFFECT_SOLID
+        applyBottomNavigationGlassOutline(bottomNavigationGlass, if (floating) 24f.dpToPx() else 0f)
         if (liquid) {
             bottomNavigationGlassView.visible()
             setupBottomLiquidGlass(bottomNavigationGlassView, config, if (floating) 24f.dpToPx() else 0f)
@@ -359,6 +363,19 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
         }
     }
 
+    private fun applyBottomNavigationGlassOutline(view: View, cornerRadius: Float) {
+        view.clipToOutline = cornerRadius > 0f
+        view.outlineProvider = if (cornerRadius > 0f) {
+            object : ViewOutlineProvider() {
+                override fun getOutline(view: View, outline: Outline) {
+                    outline.setRoundRect(0, 0, view.width, view.height, cornerRadius)
+                }
+            }
+        } else {
+            ViewOutlineProvider.BOUNDS
+        }
+    }
+
     private fun setupBottomLiquidGlass(
         liquidGlassView: StableLiquidGlassView,
         config: NavigationBarConfig,
@@ -368,11 +385,11 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
         val frosted = config.effectMode == NavigationBarConfig.EFFECT_FROSTED
         liquidGlassView.bind(binding.contentContainer)
         liquidGlassView.setCornerRadius(cornerRadius)
-        liquidGlassView.setRefractionHeight(if (frosted) 12f.dpToPx() else (18f + level * 14f).dpToPx())
-        liquidGlassView.setRefractionOffset(if (frosted) 36f.dpToPx() else (54f + level * 24f).dpToPx())
-        liquidGlassView.setBlurRadius(if (frosted) 14f + level * 18f else 0.01f + level * 2f)
-        liquidGlassView.setDispersion(if (frosted) 0.08f else 0.38f + level * 0.34f)
-        liquidGlassView.setTintAlpha(if (frosted) 0.06f + level * 0.10f else 0.015f + level * 0.035f)
+        liquidGlassView.setRefractionHeight(if (frosted) 10f.dpToPx() else (14f + level * 10f).dpToPx())
+        liquidGlassView.setRefractionOffset(if (frosted) 30f.dpToPx() else (42f + level * 18f).dpToPx())
+        liquidGlassView.setBlurRadius(if (frosted) 22f + level * 20f else 8f + level * 14f)
+        liquidGlassView.setDispersion(if (frosted) 0.06f else 0.24f + level * 0.24f)
+        liquidGlassView.setTintAlpha(if (frosted) 0.08f + level * 0.12f else 0.025f + level * 0.045f)
         liquidGlassView.setTintColorRed(1f)
         liquidGlassView.setTintColorGreen(1f)
         liquidGlassView.setTintColorBlue(1f)
@@ -393,21 +410,25 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
         val fallbackBoost = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) 0.08f else 0f
         val frosted = effectMode == NavigationBarConfig.EFFECT_FROSTED
         val startAlpha = if (frosted) {
-            (0.24f + glassLevel * 0.22f + fallbackBoost).coerceIn(0f, 0.58f)
+            (0.26f + glassLevel * 0.24f + fallbackBoost).coerceIn(0f, 0.62f)
         } else {
-            (0.18f + glassLevel * 0.16f + fallbackBoost).coerceIn(0f, 0.44f)
+            (0.10f + glassLevel * 0.10f + fallbackBoost * 0.55f).coerceIn(0f, 0.28f)
         }
         val centerAlpha = if (frosted) {
-            (0.18f + glassLevel * 0.18f + fallbackBoost * 0.65f).coerceIn(0f, 0.44f)
+            (0.20f + glassLevel * 0.18f + fallbackBoost * 0.65f).coerceIn(0f, 0.48f)
         } else {
-            (0.10f + glassLevel * 0.12f + fallbackBoost * 0.65f).coerceIn(0f, 0.32f)
+            (0.05f + glassLevel * 0.07f + fallbackBoost * 0.35f).coerceIn(0f, 0.20f)
         }
         val endAlpha = if (frosted) {
-            (0.14f + glassLevel * 0.14f + fallbackBoost * 0.45f).coerceIn(0f, 0.36f)
+            (0.16f + glassLevel * 0.15f + fallbackBoost * 0.45f).coerceIn(0f, 0.40f)
         } else {
-            (0.08f + glassLevel * 0.10f + fallbackBoost * 0.45f).coerceIn(0f, 0.26f)
+            (0.04f + glassLevel * 0.06f + fallbackBoost * 0.30f).coerceIn(0f, 0.16f)
         }
-        val strokeAlpha = (0.18f + glassLevel * 0.16f).coerceIn(0f, 0.42f)
+        val strokeAlpha = if (frosted) {
+            (0.20f + glassLevel * 0.16f).coerceIn(0f, 0.44f)
+        } else {
+            (0.22f + glassLevel * 0.18f).coerceIn(0f, 0.46f)
+        }
         return GradientDrawable(
             GradientDrawable.Orientation.TOP_BOTTOM,
             intArrayOf(
