@@ -1800,4 +1800,6 @@
     <string name="import_failed">Import failed</string>
     <string name="clipboard_empty">Clipboard is empty</string>
     <string name="apply">Apply</string>
+    <string name="image_crop_failed">Image crop failed: %1$s</string>
+    <string name="image_crop_hint">Move or pinch the image, then confirm</string>
 </resources>

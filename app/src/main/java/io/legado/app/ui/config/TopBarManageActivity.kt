@@ -29,15 +29,18 @@ import io.legado.app.lib.dialogs.selector
 import io.legado.app.lib.theme.accentColor
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.ui.file.HandleFileContract
+import io.legado.app.ui.image.ImageCropContract
 import io.legado.app.ui.widget.number.NumberPickerDialog
 import io.legado.app.ui.widget.recycler.VerticalDivider
 import io.legado.app.ui.widget.applyTopBarConfig
+import io.legado.app.utils.ImageCropHelper
 import io.legado.app.utils.externalFiles
 import io.legado.app.utils.getClipText
 import io.legado.app.utils.getFile
 import io.legado.app.utils.getPrefBoolean
 import io.legado.app.utils.postEvent
 import io.legado.app.utils.putPrefBoolean
+import io.legado.app.utils.share
 import io.legado.app.utils.toastOnUi
 import io.legado.app.utils.viewbindingdelegate.viewBinding
 import kotlinx.coroutines.Dispatchers
@@ -59,6 +62,7 @@ class TopBarManageActivity : BaseActivity<ActivityTopBarManageBinding>(), ColorP
     private var editingEntry: TopBarConfig.Entry? = null
     private var pendingConfig: TopBarConfig.Config? = null
     private var editingDialog: LinearLayout? = null
+    private var pendingWallpaperCropRequest: ImageCropHelper.Request? = null
 
     private val dateFormat by lazy { SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()) }
 
@@ -71,7 +75,18 @@ class TopBarManageActivity : BaseActivity<ActivityTopBarManageBinding>(), ColorP
     }
 
     private val selectWallpaper = registerForActivityResult(HandleFileContract()) {
-        it.uri?.let(::selectWallpaper)
+        it.uri?.let(::startWallpaperCrop)
+    }
+
+    private val cropWallpaper = registerForActivityResult(ImageCropContract()) { result ->
+        pendingWallpaperCropRequest = null
+        if (result.isNullOrBlank()) return@registerForActivityResult
+        if (File(result).exists()) {
+            pendingConfig?.wallpaperPath = result
+            refreshEditDialog()
+        } else {
+            toastOnUi(getString(R.string.image_crop_failed, getString(R.string.error_decode_bitmap)))
+        }
     }
 
     companion object {
@@ -79,6 +94,7 @@ class TopBarManageActivity : BaseActivity<ActivityTopBarManageBinding>(), ColorP
         private const val COLOR_BACKGROUND = 5101
         private const val COLOR_TAG_BAR = 5102
         private const val COLOR_TAG_SELECTED = 5103
+        private const val REQUEST_WALLPAPER = 5104
     }
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
@@ -159,7 +175,11 @@ class TopBarManageActivity : BaseActivity<ActivityTopBarManageBinding>(), ColorP
     private fun showAddOptions() {
         selector(
             getString(R.string.add_top_bar_config),
-            listOf(getString(R.string.manual_config), getString(R.string.top_bar_import_zip))
+            listOf(
+                getString(R.string.manual_config),
+                getString(R.string.top_bar_import_zip),
+                getString(R.string.top_bar_import_clipboard)
+            )
         ) { _, index ->
             when (index) {
                 0 -> showEditDialog(null)
@@ -168,6 +188,7 @@ class TopBarManageActivity : BaseActivity<ActivityTopBarManageBinding>(), ColorP
                     title = getString(R.string.top_bar_import_zip)
                     allowExtensions = arrayOf("zip")
                 }
+                2 -> importFromClipboard()
             }
         }
     }
@@ -230,7 +251,7 @@ class TopBarManageActivity : BaseActivity<ActivityTopBarManageBinding>(), ColorP
                     }
                 })
                 val backgroundColor = config.backgroundColor ?: TopBarConfig.defaultBackgroundColor(config.isNightMode)
-                addView(optionRow(getString(R.string.top_bar_background_color), colorLabel(backgroundColor), backgroundColor) {
+                addView(optionRow(getString(R.string.top_bar_background_color), colorLabel(config.backgroundColor), backgroundColor) {
                     showColorOptions(COLOR_BACKGROUND, backgroundColor)
                 })
                 addView(optionRow(getString(R.string.wallpaper), wallpaperLabel(config.wallpaperPath)) {
@@ -241,21 +262,9 @@ class TopBarManageActivity : BaseActivity<ActivityTopBarManageBinding>(), ColorP
                         config.wallpaperAlpha = it
                     }
                 })
-                addView(optionRow(getString(R.string.top_bar_filter_default), filterDefaultLabel(config.expandFiltersByDefault)) {
-                    selector(
-                        getString(R.string.top_bar_filter_default),
-                        listOf(
-                            getString(R.string.top_bar_filter_default_collapsed),
-                            getString(R.string.top_bar_filter_default_expanded)
-                        )
-                    ) { _, index ->
-                        config.expandFiltersByDefault = index == 1
-                        refreshEditDialog()
-                    }
-                })
             }
             val tagBarColor = config.tagBarColor ?: defaultTagBarColor()
-            addView(optionRow(getString(R.string.top_bar_tag_bar_color), colorLabel(tagBarColor), tagBarColor) {
+            addView(optionRow(getString(R.string.top_bar_tag_bar_color), colorLabel(config.tagBarColor), tagBarColor) {
                 showColorOptions(COLOR_TAG_BAR, tagBarColor)
             })
             addView(optionRow(getString(R.string.tag_bar_opacity), "${config.tagBarAlpha}%") {
@@ -264,7 +273,7 @@ class TopBarManageActivity : BaseActivity<ActivityTopBarManageBinding>(), ColorP
                 }
             })
             val selectedColor = config.tagSelectedColor ?: defaultSelectedColor()
-            addView(optionRow(getString(R.string.top_bar_tag_selected_color), colorLabel(selectedColor), selectedColor) {
+            addView(optionRow(getString(R.string.top_bar_tag_selected_color), colorLabel(config.tagSelectedColor), selectedColor) {
                 showColorOptions(COLOR_TAG_SELECTED, selectedColor)
             })
             addView(optionRow(getString(R.string.tag_selected_opacity), "${config.tagSelectedAlpha}%") {
@@ -340,22 +349,20 @@ class TopBarManageActivity : BaseActivity<ActivityTopBarManageBinding>(), ColorP
         }
     }
 
-    private fun selectWallpaper(uri: Uri) {
-        kotlin.runCatching {
-            val suffix = uri.lastPathSegment?.substringAfterLast('.', "jpg") ?: "jpg"
-            val file = externalFiles
-                .getFile("topBarWallpapers")
-                .apply { mkdirs() }
-                .getFile("top_bar_${System.currentTimeMillis()}.$suffix")
-            contentResolver.openInputStream(uri)?.use { input ->
-                FileOutputStream(file).use { output -> input.copyTo(output) }
-            } ?: throw IllegalArgumentException(getString(R.string.file_not_exist))
-            pendingConfig?.wallpaperPath = file.absolutePath
-        }.onSuccess {
-            refreshEditDialog()
-        }.onFailure {
-            toastOnUi(it.localizedMessage)
-        }
+    private fun startWallpaperCrop(uri: Uri) {
+        val metrics = resources.displayMetrics
+        val request = ImageCropHelper.buildRequest(
+            context = this,
+            sourceUri = uri,
+            requestCode = REQUEST_WALLPAPER,
+            aspectWidth = metrics.widthPixels.coerceAtLeast(1),
+            aspectHeight = (220 * metrics.density).toInt().coerceAtLeast(1),
+            dirName = "topBarWallpapers",
+            prefix = "top_bar",
+            targetWidth = 1600
+        )
+        pendingWallpaperCropRequest = request
+        cropWallpaper.launch(request.params)
     }
 
     private fun showPercentPicker(title: String, value: Int, apply: (Int) -> Unit) {
@@ -542,6 +549,7 @@ class TopBarManageActivity : BaseActivity<ActivityTopBarManageBinding>(), ColorP
             if (entry.dirName != TopBarConfig.DEFAULT_DIR_NAME) {
                 add(Action.EDIT)
                 add(Action.EXPORT)
+                add(Action.SHARE_JSON)
                 if (entry.dirName != TopBarConfig.activeDirName(entry.config.isNightMode)) {
                     add(Action.DELETE)
                 }
@@ -554,6 +562,7 @@ class TopBarManageActivity : BaseActivity<ActivityTopBarManageBinding>(), ColorP
                 Action.APPLY -> applyPackage(entry)
                 Action.EDIT -> showEditDialog(entry)
                 Action.EXPORT -> exportPackage(entry)
+                Action.SHARE_JSON -> share(entry.config.toJson(), getString(R.string.share_top_bar_config))
                 Action.DELETE -> deletePackage(entry)
                 Action.IMPORT_CLIPBOARD -> importFromClipboard()
             }
@@ -561,8 +570,11 @@ class TopBarManageActivity : BaseActivity<ActivityTopBarManageBinding>(), ColorP
     }
 
     private fun colorLabel(color: Int?): String {
-        return color?.let { "#${Integer.toHexString(it).takeLast(6).uppercase(Locale.ROOT)}" }
-            ?: getString(R.string.top_bar_follow_theme)
+        return when {
+            color == null -> getString(R.string.top_bar_follow_theme)
+            color == primaryColor -> getString(R.string.top_bar_primary_color)
+            else -> "#${Integer.toHexString(color).takeLast(6).uppercase(Locale.ROOT)}"
+        }
     }
 
     private fun cornerScaleLabel(value: Float?): String {
@@ -614,6 +626,7 @@ class TopBarManageActivity : BaseActivity<ActivityTopBarManageBinding>(), ColorP
         APPLY(R.string.apply),
         EDIT(R.string.edit),
         EXPORT(R.string.export_str),
+        SHARE_JSON(R.string.share_top_bar_config),
         DELETE(R.string.delete),
         IMPORT_CLIPBOARD(R.string.top_bar_import_clipboard)
     }

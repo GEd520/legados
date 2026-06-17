@@ -1626,4 +1626,6 @@
     <string name="import_failed">导入失败</string>
     <string name="clipboard_empty">剪贴板为空</string>
     <string name="apply">应用</string>
+    <string name="image_crop_failed">&#22270;&#29255;&#35009;&#21098;&#22833;&#36133;&#65306;%1$s</string>
+    <string name="image_crop_hint">&#25302;&#21160;&#25110;&#21452;&#25351;&#32553;&#25918;&#22270;&#29255;&#21518;&#30830;&#35748;&#35009;&#21098;</string>
 </resources>

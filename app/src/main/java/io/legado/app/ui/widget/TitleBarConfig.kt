@@ -1,12 +1,15 @@
 package io.legado.app.ui.widget
 
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
+import android.graphics.BitmapShader
 import android.graphics.Canvas
 import android.graphics.ColorFilter
+import android.graphics.Matrix
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.PixelFormat
-import android.graphics.Rect
+import android.graphics.RectF
+import android.graphics.Shader
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
 import android.graphics.drawable.Drawable
@@ -18,6 +21,7 @@ import io.legado.app.help.config.AppConfig
 import io.legado.app.help.config.TopBarConfig
 import io.legado.app.lib.theme.elevation
 import io.legado.app.lib.theme.primaryColor
+import io.legado.app.utils.BitmapUtils
 import java.io.File
 
 fun TitleBar.applyTopBarConfig() {
@@ -33,10 +37,11 @@ fun TitleBar.applyTopBarConfig() {
     } else {
         0f
     }
-    val shape = GradientDrawable().apply {
-        setColor(backgroundColor)
-        cornerRadius = radius
-    }
+    val shape = regularBackground(
+        backgroundColor,
+        radius,
+        if (config.style == TopBarConfig.STYLE_REGULAR) config.wallpaperAlpha else 100
+    )
     val wallpaper = TopBarConfig.currentWallpaperFile(context, AppConfig.isNightTheme)
         ?.takeIf { config.style == TopBarConfig.STYLE_REGULAR }
         ?.let { file -> bitmapLayer(file, config.wallpaperAlpha) }
@@ -51,6 +56,22 @@ fun TitleBar.applyTopBarConfig() {
         context.elevation
     }
     applyTopBarChildConfig(config)
+}
+
+private fun regularBackground(color: Int, radius: Float, alphaPercent: Int): Drawable {
+    return GradientDrawable().apply {
+        setColor(TopBarConfig.withOpacity(color, alphaPercent))
+        cornerRadii = if (radius > 0f) {
+            floatArrayOf(
+                0f, 0f,
+                0f, 0f,
+                radius, radius,
+                radius, radius
+            )
+        } else {
+            null
+        }
+    }
 }
 
 private fun TitleBar.applyTopBarChildConfig(config: TopBarConfig.Config) {
@@ -70,27 +91,62 @@ private fun TitleBar.applyTopBarChildConfig(config: TopBarConfig.Config) {
 }
 
 private fun TitleBar.bitmapLayer(file: File, alphaPercent: Int): Drawable? {
-    val bitmap = BitmapFactory.decodeFile(file.absolutePath) ?: return null
+    val bitmap = kotlin.runCatching {
+        BitmapUtils.decodeBitmap(
+            file.absolutePath,
+            resources.displayMetrics.widthPixels.coerceAtLeast(1),
+            height.takeIf { it > 0 } ?: (56 * resources.displayMetrics.density).toInt()
+        )
+    }.getOrNull() ?: return null
     return TopBarWallpaperDrawable(
         bitmap = bitmap,
-        alpha = (alphaPercent.coerceIn(0, 100) * 255 / 100).coerceIn(0, 255)
+        radius = context.resources.getDimension(R.dimen.ui_panel_radius) *
+            TopBarConfig.resolveCornerScale(TopBarConfig.currentConfig(context, AppConfig.isNightTheme))
+                .coerceIn(0f, 3f),
+        alphaPercent = alphaPercent
     )
 }
 
 private class TopBarWallpaperDrawable(
     private val bitmap: Bitmap,
-    alpha: Int
+    private val radius: Float,
+    alphaPercent: Int
 ) : Drawable() {
 
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
-        this.alpha = alpha
+        shader = BitmapShader(bitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+        alpha = (alphaPercent.coerceIn(0, 100) * 255 / 100).coerceIn(0, 255)
     }
+    private val rect = RectF()
+    private val matrix = Matrix()
+    private val path = Path()
 
     override fun draw(canvas: Canvas) {
         val bounds = bounds
-        if (bounds.isEmpty) return
-        val src = centerCropSrcRect(bitmap.width, bitmap.height, bounds.width(), bounds.height())
-        canvas.drawBitmap(bitmap, src, bounds, paint)
+        if (bounds.isEmpty || bitmap.width <= 0 || bitmap.height <= 0) return
+        rect.set(bounds)
+        val scale = maxOf(
+            bounds.width() / bitmap.width.toFloat(),
+            bounds.height() / bitmap.height.toFloat()
+        )
+        val dx = bounds.left + (bounds.width() - bitmap.width * scale) / 2f
+        val dy = bounds.top + (bounds.height() - bitmap.height * scale) / 2f
+        matrix.reset()
+        matrix.setScale(scale, scale)
+        matrix.postTranslate(dx, dy)
+        paint.shader?.setLocalMatrix(matrix)
+        path.reset()
+        path.addRoundRect(
+            rect,
+            floatArrayOf(
+                0f, 0f,
+                0f, 0f,
+                radius, radius,
+                radius, radius
+            ),
+            Path.Direction.CW
+        )
+        canvas.drawPath(path, paint)
     }
 
     override fun setAlpha(alpha: Int) {
@@ -111,26 +167,4 @@ private class TopBarWallpaperDrawable(
     override fun getIntrinsicWidth(): Int = -1
 
     override fun getIntrinsicHeight(): Int = -1
-
-    private fun centerCropSrcRect(
-        bitmapWidth: Int,
-        bitmapHeight: Int,
-        targetWidth: Int,
-        targetHeight: Int
-    ): Rect {
-        if (targetWidth <= 0 || targetHeight <= 0) {
-            return Rect(0, 0, bitmapWidth, bitmapHeight)
-        }
-        val bitmapRatio = bitmapWidth.toFloat() / bitmapHeight.toFloat()
-        val targetRatio = targetWidth.toFloat() / targetHeight.toFloat()
-        return if (bitmapRatio > targetRatio) {
-            val scaledWidth = (bitmapHeight * targetRatio).toInt().coerceAtLeast(1)
-            val left = ((bitmapWidth - scaledWidth) / 2).coerceAtLeast(0)
-            Rect(left, 0, (left + scaledWidth).coerceAtMost(bitmapWidth), bitmapHeight)
-        } else {
-            val scaledHeight = (bitmapWidth / targetRatio).toInt().coerceAtLeast(1)
-            val top = ((bitmapHeight - scaledHeight) / 2).coerceAtLeast(0)
-            Rect(0, top, bitmapWidth, (top + scaledHeight).coerceAtMost(bitmapHeight))
-        }
-    }
 }

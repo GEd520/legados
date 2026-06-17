@@ -42,6 +42,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".ui.image.ImageCropActivity"
+            android:launchMode="standard"
+            android:screenOrientation="behind" />
         <!-- 图标1 -->
         <activity
             android:name=".ui.welcome.Launcher1"

@@ -938,6 +938,26 @@ class PhotoView @JvmOverloads constructor(
         mTranslateY = 0
     }
 
+    fun getDisplayMatrixCopy(): Matrix = Matrix(mSynthesisMatrix)
+
+    fun fitInsideRect(targetRect: RectF) {
+        if (!hasDrawable || !isKnowSize || targetRect.isEmpty) return
+        initBase()
+        val scaleX = targetRect.width() / mImgRect.width()
+        val scaleY = targetRect.height() / mImgRect.height()
+        val scale = minOf(scaleX, scaleY)
+        mAnimMatrix.reset()
+        mAnimMatrix.postScale(scale, scale, mImgRect.centerX(), mImgRect.centerY())
+        executeTranslate()
+        val rect = RectF(mImgRect)
+        mSynthesisMatrix.mapRect(rect)
+        mAnimMatrix.postTranslate(
+            targetRect.centerX() - rect.centerX(),
+            targetRect.centerY() - rect.centerY()
+        )
+        executeTranslate()
+    }
+
     interface ClipCalculate {
         fun calculateTop(): Float
     }
