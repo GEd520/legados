@@ -34,6 +34,8 @@ import io.legado.app.utils.sendToClip
 import io.legado.app.utils.share
 import io.legado.app.utils.toastOnUi
 import io.legado.app.utils.visible
+import kotlin.math.max
+import kotlin.math.min
 
 /**
  * 文本操作菜单
@@ -76,6 +78,8 @@ class TextActionMenu(private val context: Context, private val callBack: CallBac
     private val hiddenMenuItemIds: Set<Int>
         get() = TextMenuConfig.getHiddenMenuItemIds(context)
 
+    private var lastShowRequest: ShowRequest? = null
+
     init {
         @SuppressLint("InflateParams")
         contentView = binding.root
@@ -84,6 +88,7 @@ class TextActionMenu(private val context: Context, private val callBack: CallBac
         isTouchable = true      // 可触摸
         isOutsideTouchable = false  // 点击外部不关闭
         isFocusable = false     // 不获取焦点
+        elevation = dp(8).toFloat()
 
         // 设置适配器
         binding.recyclerView.adapter = adapter
@@ -108,12 +113,14 @@ class TextActionMenu(private val context: Context, private val callBack: CallBac
                 adapter.setItems(moreMenuItems)
                 binding.recyclerView.gone()
                 binding.recyclerViewMore.visible()
+                updatePopupPosition()
             } else {
                 // 返回主菜单项
                 binding.ivMenuMore.setImageResource(R.drawable.ic_more_vert)
                 binding.recyclerViewMore.gone()
                 adapter.setItems(visibleMenuItems)
                 binding.recyclerView.visible()
+                updatePopupPosition()
             }
         }
         
@@ -210,75 +217,121 @@ class TextActionMenu(private val context: Context, private val callBack: CallBac
         endX: Int,
         endBottomY: Int
     ) {
+        lastShowRequest = ShowRequest(
+            view = view,
+            windowHeight = windowHeight,
+            startX = startX,
+            startTopY = startTopY,
+            startBottomY = startBottomY,
+            endX = endX,
+            endBottomY = endBottomY
+        )
         upMenu()
-        if (expandTextMenu) {
-            // 展开模式：菜单显示在屏幕底部
-            when {
-                startTopY > 500 -> {
-                    // 起始点上方空间充足，在起始点上方显示
-                    showAtLocation(
-                        view,
-                        Gravity.BOTTOM or Gravity.START,
-                        startX,
-                        windowHeight - startTopY
-                    )
-                }
-
-                endBottomY - startBottomY > 500 -> {
-                    // 起始点下方空间充足，在起始点下方显示
-                    showAtLocation(view, Gravity.TOP or Gravity.START, startX, startBottomY)
-                }
-
-                else -> {
-                    // 空间不足，在结束点下方显示
-                    showAtLocation(view, Gravity.TOP or Gravity.START, endX, endBottomY)
-                }
-            }
-        } else {
-            // 折叠模式：需要考虑菜单高度
-            contentView.measure(
-                View.MeasureSpec.UNSPECIFIED,
-                View.MeasureSpec.UNSPECIFIED,
-            )
-            val popupHeight = contentView.measuredHeight
-            when {
-                startBottomY > 500 -> {
-                    // 起始点上方空间充足，在起始点上方显示（需要减去菜单高度）
-                    showAtLocation(
-                        view,
-                        Gravity.TOP or Gravity.START,
-                        startX,
-                        startTopY - popupHeight
-                    )
-                }
-
-                endBottomY - startBottomY > 500 -> {
-                    // 起始点下方空间充足，在起始点下方显示
-                    showAtLocation(
-                        view,
-                        Gravity.TOP or Gravity.START,
-                        startX,
-                        startBottomY
-                    )
-                }
-
-                else -> {
-                    // 空间不足，在结束点下方显示
-                    showAtLocation(
-                        view,
-                        Gravity.TOP or Gravity.START,
-                        endX,
-                        endBottomY
-                    )
-                }
-            }
-        }
+        val position = calculatePopupPosition(lastShowRequest ?: return)
+        showAtLocation(view, Gravity.TOP or Gravity.START, position.x, position.y)
     }
 
     /**
      * 菜单项适配器
      * 用于在RecyclerView中显示菜单项列表
      */
+    private fun updatePopupPosition() {
+        val request = lastShowRequest ?: return
+        if (!isShowing) return
+        contentView.post {
+            val position = calculatePopupPosition(request)
+            update(position.x, position.y, -1, -1)
+        }
+    }
+
+    private fun calculatePopupPosition(request: ShowRequest): PopupPosition {
+        val margin = dp(12)
+        val gap = dp(12)
+        val windowWidth = request.view.rootView.width
+            .takeIf { it > 0 }
+            ?: context.resources.displayMetrics.widthPixels
+        val maxPopupWidth = (windowWidth - margin * 2).coerceAtLeast(dp(160))
+
+        constrainMoreMenuHeight(request, margin, gap)
+        contentView.measure(
+            View.MeasureSpec.makeMeasureSpec(maxPopupWidth, View.MeasureSpec.AT_MOST),
+            View.MeasureSpec.makeMeasureSpec(
+                (request.windowHeight - margin * 2).coerceAtLeast(dp(120)),
+                View.MeasureSpec.AT_MOST
+            )
+        )
+
+        val popupWidth = min(contentView.measuredWidth, maxPopupWidth)
+        val popupHeight = min(
+            contentView.measuredHeight,
+            (request.windowHeight - margin * 2).coerceAtLeast(dp(120))
+        )
+        val anchorX = if (binding.recyclerViewMore.isVisible) {
+            request.startX - dp(4)
+        } else {
+            request.startX
+        }
+        val x = anchorX.coerceIn(
+            margin,
+            (windowWidth - popupWidth - margin).coerceAtLeast(margin)
+        )
+
+        val spaceAbove = (request.startTopY - margin - gap).coerceAtLeast(0)
+        val spaceBelowStart =
+            (request.windowHeight - request.startBottomY - margin - gap).coerceAtLeast(0)
+        val spaceBelowEnd =
+            (request.windowHeight - request.endBottomY - margin - gap).coerceAtLeast(0)
+        val y = when {
+            spaceAbove >= popupHeight -> request.startTopY - popupHeight - gap
+            spaceBelowStart >= popupHeight -> request.startBottomY + gap
+            spaceBelowEnd >= popupHeight -> request.endBottomY + gap
+            spaceAbove >= max(spaceBelowStart, spaceBelowEnd) -> margin
+            spaceBelowStart >= spaceBelowEnd -> request.startBottomY + gap
+            else -> request.endBottomY + gap
+        }.coerceIn(
+            margin,
+            (request.windowHeight - popupHeight - margin).coerceAtLeast(margin)
+        )
+
+        return PopupPosition(x, y)
+    }
+
+    private fun constrainMoreMenuHeight(request: ShowRequest, margin: Int, gap: Int) {
+        if (!binding.recyclerViewMore.isVisible) {
+            binding.recyclerViewMore.layoutParams = binding.recyclerViewMore.layoutParams.apply {
+                height = ViewGroup.LayoutParams.WRAP_CONTENT
+            }
+            return
+        }
+        val maxHeight = max(
+            request.startTopY - margin - gap,
+            max(
+                request.windowHeight - request.startBottomY - margin - gap,
+                request.windowHeight - request.endBottomY - margin - gap
+            )
+        ).coerceAtLeast(dp(160))
+        val contentHeight = (moreMenuItems.size * dp(48)).coerceAtLeast(dp(48))
+        binding.recyclerViewMore.layoutParams = binding.recyclerViewMore.layoutParams.apply {
+            height = min(contentHeight, maxHeight)
+        }
+    }
+
+    private fun dp(value: Int): Int {
+        return (value * context.resources.displayMetrics.density + 0.5f).toInt()
+    }
+
+    private data class PopupPosition(val x: Int, val y: Int)
+
+    private data class ShowRequest(
+        val view: View,
+        val windowHeight: Int,
+        val startX: Int,
+        val startTopY: Int,
+        val startBottomY: Int,
+        val endX: Int,
+        val endBottomY: Int
+    )
+
     inner class Adapter(context: Context) :
         RecyclerAdapter<MenuItemImpl, ItemTextBinding>(context) {
 
@@ -298,6 +351,18 @@ class TextActionMenu(private val context: Context, private val callBack: CallBac
         ) {
             with(binding) {
                 textView.text = item.title
+                textView.gravity = if (this@TextActionMenu.binding.recyclerViewMore.isVisible) {
+                    Gravity.CENTER_VERTICAL or Gravity.START
+                } else {
+                    Gravity.CENTER
+                }
+                textView.layoutParams = textView.layoutParams.apply {
+                    width = if (this@TextActionMenu.binding.recyclerViewMore.isVisible) {
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    } else {
+                        ViewGroup.LayoutParams.WRAP_CONTENT
+                    }
+                }
             }
         }
 
