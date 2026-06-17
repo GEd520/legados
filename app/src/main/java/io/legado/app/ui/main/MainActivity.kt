@@ -376,7 +376,7 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
                 Color.TRANSPARENT,
                 adjustAlpha(
                     if (ColorUtils.isColorLight(glassBase)) Color.WHITE else Color.rgb(90, 110, 136),
-                    opacityFactor * if (config.effectMode == NavigationBarConfig.EFFECT_FROSTED) 0.18f else 0.10f
+                    opacityFactor * if (config.effectMode == NavigationBarConfig.EFFECT_FROSTED) 0.34f else 0.08f
                 ),
                 Color.TRANSPARENT
             )
@@ -386,13 +386,13 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
             colors = intArrayOf(
                 adjustAlpha(
                     getCompatColor(R.color.glass_bar_highlight),
-                    opacityFactor * if (config.effectMode == NavigationBarConfig.EFFECT_FROSTED) 0.58f else 0.92f
+                    opacityFactor * if (config.effectMode == NavigationBarConfig.EFFECT_FROSTED) 0.36f else 1.00f
                 ),
-                adjustAlpha(Color.WHITE, opacityFactor * if (config.effectMode == NavigationBarConfig.EFFECT_FROSTED) 0.08f else 0.16f),
+                adjustAlpha(Color.WHITE, opacityFactor * if (config.effectMode == NavigationBarConfig.EFFECT_FROSTED) 0.06f else 0.20f),
                 Color.TRANSPARENT,
                 adjustAlpha(
                     getCompatColor(R.color.glass_overlay),
-                    opacityFactor * if (config.effectMode == NavigationBarConfig.EFFECT_FROSTED) 0.32f else 0.64f
+                    opacityFactor * if (config.effectMode == NavigationBarConfig.EFFECT_FROSTED) 0.18f else 0.72f
                 )
             )
         )
@@ -403,7 +403,7 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
                 Color.TRANSPARENT,
                 adjustAlpha(
                     if (ColorUtils.isColorLight(glassBase)) Color.rgb(20, 34, 54) else Color.BLACK,
-                    opacityFactor * if (config.effectMode == NavigationBarConfig.EFFECT_FROSTED) 0.10f else 0.16f
+                    opacityFactor * if (config.effectMode == NavigationBarConfig.EFFECT_FROSTED) 0.06f else 0.18f
                 )
             )
         )
@@ -433,9 +433,16 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
     }
 
     private fun glassBaseColor(bgColor: Int, effectMode: String, opacityFactor: Float): Int {
-        val themeGlass = adjustAlpha(getCompatColor(R.color.glass_bar), opacityFactor)
-        val ratio = if (effectMode == NavigationBarConfig.EFFECT_FROSTED) 0.58f else 0.72f
-        return ColorUtils.blendColors(bgColor, themeGlass, ratio)
+        val baseRgb = Color.rgb(Color.red(bgColor), Color.green(bgColor), Color.blue(bgColor))
+        val light = ColorUtils.isColorLight(baseRgb)
+        val materialTint = when (effectMode) {
+            NavigationBarConfig.EFFECT_FROSTED -> if (light) Color.WHITE else Color.rgb(52, 58, 68)
+            else -> getCompatColor(R.color.glass_bar)
+        }
+        val ratio = if (effectMode == NavigationBarConfig.EFFECT_FROSTED) 0.62f else 0.42f
+        val alpha = opacityFactor * if (effectMode == NavigationBarConfig.EFFECT_FROSTED) 0.90f else 0.52f
+        val rgb = ColorUtils.blendColors(baseRgb, materialTint, ratio)
+        return ColorUtils.withAlpha(rgb, alpha.coerceIn(0f, 1f))
     }
 
     private fun roundedGradient(radius: Float, colors: IntArray): GradientDrawable {
@@ -459,25 +466,29 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
             val frost = if (ColorUtils.isColorLight(rgb)) Color.WHITE else Color.rgb(62, 70, 82)
             intArrayOf(
                 ColorUtils.blendColors(
-                    ColorUtils.withAlpha(rgb, (alpha * 0.86f).coerceIn(0f, 1f)),
-                    ColorUtils.withAlpha(frost, 0.18f),
+                    ColorUtils.withAlpha(rgb, (alpha * 0.98f).coerceIn(0f, 1f)),
+                    ColorUtils.withAlpha(frost, (alpha * 0.38f).coerceIn(0f, 1f)),
+                    0.48f
+                ),
+                ColorUtils.blendColors(
+                    ColorUtils.withAlpha(rgb, (alpha * 0.94f).coerceIn(0f, 1f)),
+                    ColorUtils.withAlpha(frost, (alpha * 0.25f).coerceIn(0f, 1f)),
                     0.36f
                 ),
-                ColorUtils.withAlpha(rgb, (alpha * 0.78f).coerceIn(0f, 1f)),
-                ColorUtils.withAlpha(rgb, (alpha * 0.70f).coerceIn(0f, 1f))
+                ColorUtils.withAlpha(rgb, (alpha * 0.86f).coerceIn(0f, 1f))
             )
         } else {
             val highlight = if (ColorUtils.isColorLight(rgb)) Color.WHITE else Color.rgb(56, 74, 96)
             intArrayOf(
                 ColorUtils.blendColors(
-                    ColorUtils.withAlpha(rgb, (alpha * 0.66f).coerceIn(0f, 1f)),
-                    ColorUtils.withAlpha(highlight, 0.28f),
-                    0.52f
+                    ColorUtils.withAlpha(rgb, (alpha * 0.76f).coerceIn(0f, 1f)),
+                    ColorUtils.withAlpha(highlight, 0.34f),
+                    0.58f
                 ),
-                ColorUtils.withAlpha(rgb, (alpha * 0.48f).coerceIn(0f, 1f)),
+                ColorUtils.withAlpha(rgb, (alpha * 0.56f).coerceIn(0f, 1f)),
                 ColorUtils.blendColors(
-                    ColorUtils.withAlpha(rgb, (alpha * 0.34f).coerceIn(0f, 1f)),
-                    ColorUtils.withAlpha(Color.WHITE, 0.08f),
+                    ColorUtils.withAlpha(rgb, (alpha * 0.40f).coerceIn(0f, 1f)),
+                    ColorUtils.withAlpha(Color.WHITE, 0.10f),
                     0.18f
                 )
             )
