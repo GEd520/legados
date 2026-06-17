@@ -23,11 +23,6 @@ data class BookProgress(
     }
 
     fun compareWith(progress: BookProgress): Int {
-        if (durChapterTime > 0 && progress.durChapterTime > 0 &&
-            durChapterTime != progress.durChapterTime
-        ) {
-            return durChapterTime.compareTo(progress.durChapterTime)
-        }
         val chapterCompare = durChapterIndex.compareTo(progress.durChapterIndex)
         if (chapterCompare != 0) {
             return chapterCompare
