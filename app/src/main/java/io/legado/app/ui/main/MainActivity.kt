@@ -8,7 +8,9 @@ import android.view.Gravity
 import android.view.MenuItem
 import android.view.ViewGroup
 import android.graphics.Color
+import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
 import android.widget.FrameLayout
 import androidx.activity.addCallback
 import androidx.activity.viewModels
@@ -333,7 +335,7 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
         bottomNavigationView.background = createBottomNavigationShellDrawable(config, bgColor)
     }
 
-    private fun createBottomNavigationShellDrawable(config: NavigationBarConfig, bgColor: Int): GradientDrawable {
+    private fun createBottomNavigationShellDrawable(config: NavigationBarConfig, bgColor: Int): Drawable {
         val standard = config.layoutMode == NavigationBarConfig.LAYOUT_STANDARD
         val radius = when {
             standard -> 0f
@@ -342,17 +344,13 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
         val strokeColor = config.borderColor?.let {
             ColorUtils.withAlpha(it, config.borderAlpha.coerceIn(0, 100) / 100f)
         }
-        val drawable = if (!standard && config.effectMode != NavigationBarConfig.EFFECT_SOLID) {
-            val colors = bottomNavigationMaterialColors(bgColor, config.effectMode)
-            GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, colors)
-        } else {
-            GradientDrawable().apply {
-                setColor(bgColor)
-            }
+        if (!standard && config.effectMode != NavigationBarConfig.EFFECT_SOLID) {
+            return createBottomNavigationGlassDrawable(config, bgColor, radius, strokeColor)
         }
-        return drawable.apply {
+        return GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             cornerRadius = radius
+            setColor(bgColor)
             setStroke(
                 if (!standard && strokeColor != null) 1.dpToPx() else 0,
                 strokeColor ?: Color.TRANSPARENT
@@ -360,25 +358,128 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
         }
     }
 
+    private fun createBottomNavigationGlassDrawable(
+        config: NavigationBarConfig,
+        bgColor: Int,
+        radius: Float,
+        strokeColor: Int?
+    ): Drawable {
+        val opacityFactor = config.opacity.coerceIn(0, 100) / 100f
+        val glassBase = glassBaseColor(bgColor, config.effectMode, opacityFactor)
+        val body = roundedGradient(
+            radius = radius,
+            colors = bottomNavigationMaterialColors(glassBase, config.effectMode)
+        )
+        val mist = roundedGradient(
+            radius = radius,
+            colors = intArrayOf(
+                Color.TRANSPARENT,
+                adjustAlpha(
+                    if (ColorUtils.isColorLight(glassBase)) Color.WHITE else Color.rgb(90, 110, 136),
+                    opacityFactor * if (config.effectMode == NavigationBarConfig.EFFECT_FROSTED) 0.18f else 0.10f
+                ),
+                Color.TRANSPARENT
+            )
+        )
+        val highlight = roundedGradient(
+            radius = radius,
+            colors = intArrayOf(
+                adjustAlpha(
+                    getCompatColor(R.color.glass_bar_highlight),
+                    opacityFactor * if (config.effectMode == NavigationBarConfig.EFFECT_FROSTED) 0.58f else 0.92f
+                ),
+                adjustAlpha(Color.WHITE, opacityFactor * if (config.effectMode == NavigationBarConfig.EFFECT_FROSTED) 0.08f else 0.16f),
+                Color.TRANSPARENT,
+                adjustAlpha(
+                    getCompatColor(R.color.glass_overlay),
+                    opacityFactor * if (config.effectMode == NavigationBarConfig.EFFECT_FROSTED) 0.32f else 0.64f
+                )
+            )
+        )
+        val bottomShade = roundedGradient(
+            radius = radius,
+            colors = intArrayOf(
+                Color.TRANSPARENT,
+                Color.TRANSPARENT,
+                adjustAlpha(
+                    if (ColorUtils.isColorLight(glassBase)) Color.rgb(20, 34, 54) else Color.BLACK,
+                    opacityFactor * if (config.effectMode == NavigationBarConfig.EFFECT_FROSTED) 0.10f else 0.16f
+                )
+            )
+        )
+        val border = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = radius
+            setColor(Color.TRANSPARENT)
+            setStroke(
+                1.dpToPx(),
+                adjustAlpha(strokeColor ?: getCompatColor(R.color.glass_stroke), opacityFactor)
+            )
+        }
+        val shadow = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = radius
+            setColor(adjustAlpha(getCompatColor(R.color.glass_bar_shadow), opacityFactor))
+        }
+        return LayerDrawable(arrayOf(shadow, body, mist, highlight, bottomShade, border)).apply {
+            val shadowInset = 2.dpToPx()
+            setLayerInset(0, shadowInset, 2.dpToPx(), shadowInset, 0)
+            setLayerInset(1, 0, 0, 0, 1.dpToPx())
+            setLayerInset(2, 2.dpToPx(), 1.dpToPx(), 2.dpToPx(), 3.dpToPx())
+            setLayerInset(3, 1.dpToPx(), 1.dpToPx(), 1.dpToPx(), 2.dpToPx())
+            setLayerInset(4, 1.dpToPx(), 2.dpToPx(), 1.dpToPx(), 1.dpToPx())
+            setLayerInset(5, 0, 0, 0, 1.dpToPx())
+        }
+    }
+
+    private fun glassBaseColor(bgColor: Int, effectMode: String, opacityFactor: Float): Int {
+        val themeGlass = adjustAlpha(getCompatColor(R.color.glass_bar), opacityFactor)
+        val ratio = if (effectMode == NavigationBarConfig.EFFECT_FROSTED) 0.58f else 0.72f
+        return ColorUtils.blendColors(bgColor, themeGlass, ratio)
+    }
+
+    private fun roundedGradient(radius: Float, colors: IntArray): GradientDrawable {
+        return GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, colors).apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = radius
+        }
+    }
+
+    private fun adjustAlpha(color: Int, factor: Float): Int {
+        return ColorUtils.withAlpha(
+            Color.rgb(Color.red(color), Color.green(color), Color.blue(color)),
+            (Color.alpha(color) / 255f * factor).coerceIn(0f, 1f)
+        )
+    }
+
     private fun bottomNavigationMaterialColors(bgColor: Int, effectMode: String): IntArray {
         val alpha = Color.alpha(bgColor) / 255f
         val rgb = Color.rgb(Color.red(bgColor), Color.green(bgColor), Color.blue(bgColor))
         return if (effectMode == NavigationBarConfig.EFFECT_FROSTED) {
-            intArrayOf(
-                ColorUtils.withAlpha(rgb, (alpha * 1.00f).coerceIn(0f, 1f)),
-                ColorUtils.withAlpha(rgb, (alpha * 0.92f).coerceIn(0f, 1f)),
-                ColorUtils.withAlpha(rgb, (alpha * 0.84f).coerceIn(0f, 1f))
-            )
-        } else {
-            val highlight = if (ColorUtils.isColorLight(rgb)) Color.WHITE else Color.rgb(34, 38, 46)
+            val frost = if (ColorUtils.isColorLight(rgb)) Color.WHITE else Color.rgb(62, 70, 82)
             intArrayOf(
                 ColorUtils.blendColors(
-                    ColorUtils.withAlpha(rgb, (alpha * 0.82f).coerceIn(0f, 1f)),
-                    ColorUtils.withAlpha(highlight, (alpha * 0.18f).coerceIn(0f, 1f)),
-                    0.35f
+                    ColorUtils.withAlpha(rgb, (alpha * 0.86f).coerceIn(0f, 1f)),
+                    ColorUtils.withAlpha(frost, 0.18f),
+                    0.36f
                 ),
-                ColorUtils.withAlpha(rgb, (alpha * 0.62f).coerceIn(0f, 1f)),
-                ColorUtils.withAlpha(rgb, (alpha * 0.48f).coerceIn(0f, 1f))
+                ColorUtils.withAlpha(rgb, (alpha * 0.78f).coerceIn(0f, 1f)),
+                ColorUtils.withAlpha(rgb, (alpha * 0.70f).coerceIn(0f, 1f))
+            )
+        } else {
+            val highlight = if (ColorUtils.isColorLight(rgb)) Color.WHITE else Color.rgb(56, 74, 96)
+            intArrayOf(
+                ColorUtils.blendColors(
+                    ColorUtils.withAlpha(rgb, (alpha * 0.66f).coerceIn(0f, 1f)),
+                    ColorUtils.withAlpha(highlight, 0.28f),
+                    0.52f
+                ),
+                ColorUtils.withAlpha(rgb, (alpha * 0.48f).coerceIn(0f, 1f)),
+                ColorUtils.blendColors(
+                    ColorUtils.withAlpha(rgb, (alpha * 0.34f).coerceIn(0f, 1f)),
+                    ColorUtils.withAlpha(Color.WHITE, 0.08f),
+                    0.18f
+                )
             )
         }
     }

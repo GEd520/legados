@@ -11,6 +11,11 @@
     <color name="background_menu">@color/md_grey_800</color>
     <color name="dialog_surface">#1C1C1E</color>
     <color name="background_prefs">#10303030</color>
+    <color name="glass_bar">#A81F242C</color>
+    <color name="glass_bar_shadow">#66000000</color>
+    <color name="glass_bar_highlight">#26FFFFFF</color>
+    <color name="glass_overlay">#18000000</color>
+    <color name="glass_stroke">#4D8EA6C8</color>
 
     <color name="night_mask">#69000000</color>
 
