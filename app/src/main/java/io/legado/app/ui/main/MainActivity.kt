@@ -3,6 +3,7 @@
 package io.legado.app.ui.main
 
 import android.os.Bundle
+import android.os.Build
 import android.text.format.DateUtils
 import android.view.Gravity
 import android.view.MenuItem
@@ -55,6 +56,7 @@ import io.legado.app.ui.main.bookshelf.style2.BookshelfFragment2
 import io.legado.app.ui.main.explore.ExploreFragment
 import io.legado.app.ui.main.my.MyFragment
 import io.legado.app.ui.main.rss.RssFragment
+import io.legado.app.ui.widget.StableLiquidGlassView
 import io.legado.app.ui.widget.dialog.TextDialog
 import io.legado.app.ui.widget.text.BadgeView
 import io.legado.app.utils.isCreated
@@ -228,7 +230,7 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
         if (AppConfig.isEInkMode) {
             bottomNavigationView.setBackgroundResource(R.drawable.bg_eink_border_top)
         }
-        bottomNavigationView.setOnApplyWindowInsetsListenerCompat { view, windowInsets ->
+        bottomNavigationGlass.setOnApplyWindowInsetsListenerCompat { view, windowInsets ->
             bottomNavigationInset = windowInsets.navigationBarHeight
             view.bottomPadding = 0
             refreshBottomNavigationConfig(force = true)
@@ -247,7 +249,7 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
     }
 
     fun mainContentBottomPadding(): Int {
-        val bottomNav = binding.bottomNavigationView
+        val bottomNav = binding.bottomNavigationGlass
         val layoutParams = bottomNav.layoutParams as? FrameLayout.LayoutParams
         val navHeight = bottomNav.height.takeIf { it > 0 } ?: bottomNav.minimumHeight
         val bottomMargin = layoutParams?.bottomMargin ?: 0
@@ -307,12 +309,20 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
         val horizontalMargin = if (floating) 20.dpToPx() else 0
         val topMargin = 0
         val bottomMargin = if (floating) 10.dpToPx() + bottomNavigationInset else 0
-        bottomNavigationView.layoutParams = (bottomNavigationView.layoutParams as FrameLayout.LayoutParams).apply {
+        val shellHeight = if (floating) 48.dpToPx() else 50.dpToPx() + if (standard) bottomNavigationInset else 0
+        bottomNavigationGlass.layoutParams = (bottomNavigationGlass.layoutParams as FrameLayout.LayoutParams).apply {
             width = ViewGroup.LayoutParams.MATCH_PARENT
-            height = ViewGroup.LayoutParams.WRAP_CONTENT
+            height = shellHeight
             gravity = Gravity.BOTTOM
             setMargins(horizontalMargin, topMargin, horizontalMargin, bottomMargin)
         }
+        bottomNavigationView.layoutParams = (bottomNavigationView.layoutParams as FrameLayout.LayoutParams).apply {
+            width = ViewGroup.LayoutParams.MATCH_PARENT
+            height = ViewGroup.LayoutParams.MATCH_PARENT
+            gravity = Gravity.CENTER
+            setMargins(0, 0, 0, 0)
+        }
+        bottomNavigationGlass.minimumHeight = shellHeight
         bottomNavigationView.minimumHeight = if (floating) 48.dpToPx() else 50.dpToPx()
         bottomNavigationView.itemIconSize = if (floating) 23.dpToPx() else 22.dpToPx()
         bottomNavigationView.setPadding(
@@ -322,7 +332,8 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
             if (standard) bottomNavigationInset else 0
         )
         bottomNavigationView.alpha = 1f
-        bottomNavigationView.elevation = if (floating) {
+        bottomNavigationView.elevation = 0f
+        bottomNavigationGlass.elevation = if (floating) {
             when (config.effectMode) {
                 NavigationBarConfig.EFFECT_SOLID -> 8.dpToPx().toFloat()
                 NavigationBarConfig.EFFECT_FROSTED -> 14.dpToPx().toFloat()
@@ -332,7 +343,83 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
             0f
         }
         bottomNavigationView.setBackgroundColor(Color.TRANSPARENT)
-        bottomNavigationView.background = createBottomNavigationShellDrawable(config, bgColor)
+        bottomNavigationView.background = Color.TRANSPARENT.toDrawable()
+        val liquid = !standard && config.effectMode != NavigationBarConfig.EFFECT_SOLID
+        if (liquid) {
+            bottomNavigationGlassView.visible()
+            setupBottomLiquidGlass(bottomNavigationGlassView, config, if (floating) 24f.dpToPx() else 0f)
+            bottomNavigationShellOverlay.background = createLiquidGlassShellDrawable(
+                glassLevel = config.opacity.coerceIn(0, 100) / 100f,
+                cornerRadius = if (floating) 24f.dpToPx() else 0f,
+                effectMode = config.effectMode
+            )
+        } else {
+            bottomNavigationGlassView.invisible()
+            bottomNavigationShellOverlay.background = createBottomNavigationShellDrawable(config, bgColor)
+        }
+    }
+
+    private fun setupBottomLiquidGlass(
+        liquidGlassView: StableLiquidGlassView,
+        config: NavigationBarConfig,
+        cornerRadius: Float
+    ) {
+        val level = config.opacity.coerceIn(0, 100) / 100f
+        val frosted = config.effectMode == NavigationBarConfig.EFFECT_FROSTED
+        liquidGlassView.bind(binding.contentContainer)
+        liquidGlassView.setCornerRadius(cornerRadius)
+        liquidGlassView.setRefractionHeight(if (frosted) 12f.dpToPx() else (18f + level * 14f).dpToPx())
+        liquidGlassView.setRefractionOffset(if (frosted) 36f.dpToPx() else (54f + level * 24f).dpToPx())
+        liquidGlassView.setBlurRadius(if (frosted) 14f + level * 18f else 0.01f + level * 2f)
+        liquidGlassView.setDispersion(if (frosted) 0.08f else 0.38f + level * 0.34f)
+        liquidGlassView.setTintAlpha(if (frosted) 0.06f + level * 0.10f else 0.015f + level * 0.035f)
+        liquidGlassView.setTintColorRed(1f)
+        liquidGlassView.setTintColorGreen(1f)
+        liquidGlassView.setTintColorBlue(1f)
+        liquidGlassView.setDraggableEnabled(false)
+        liquidGlassView.setElasticEnabled(false)
+        liquidGlassView.setTouchEffectEnabled(false)
+        liquidGlassView.invalidate()
+    }
+
+    private fun createLiquidGlassShellDrawable(
+        glassLevel: Float,
+        cornerRadius: Float,
+        effectMode: String
+    ): GradientDrawable {
+        val baseColor = bottomBackground
+        val isLight = ColorUtils.isColorLight(baseColor)
+        val surfaceColor = if (isLight) Color.WHITE else Color.rgb(22, 24, 28)
+        val fallbackBoost = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) 0.08f else 0f
+        val frosted = effectMode == NavigationBarConfig.EFFECT_FROSTED
+        val startAlpha = if (frosted) {
+            (0.24f + glassLevel * 0.22f + fallbackBoost).coerceIn(0f, 0.58f)
+        } else {
+            (0.18f + glassLevel * 0.16f + fallbackBoost).coerceIn(0f, 0.44f)
+        }
+        val centerAlpha = if (frosted) {
+            (0.18f + glassLevel * 0.18f + fallbackBoost * 0.65f).coerceIn(0f, 0.44f)
+        } else {
+            (0.10f + glassLevel * 0.12f + fallbackBoost * 0.65f).coerceIn(0f, 0.32f)
+        }
+        val endAlpha = if (frosted) {
+            (0.14f + glassLevel * 0.14f + fallbackBoost * 0.45f).coerceIn(0f, 0.36f)
+        } else {
+            (0.08f + glassLevel * 0.10f + fallbackBoost * 0.45f).coerceIn(0f, 0.26f)
+        }
+        val strokeAlpha = (0.18f + glassLevel * 0.16f).coerceIn(0f, 0.42f)
+        return GradientDrawable(
+            GradientDrawable.Orientation.TOP_BOTTOM,
+            intArrayOf(
+                ColorUtils.withAlpha(surfaceColor, startAlpha),
+                ColorUtils.withAlpha(surfaceColor, centerAlpha),
+                ColorUtils.withAlpha(surfaceColor, endAlpha)
+            )
+        ).apply {
+            shape = GradientDrawable.RECTANGLE
+            setCornerRadius(cornerRadius)
+            setStroke(1.dpToPx(), ColorUtils.withAlpha(surfaceColor, strokeAlpha))
+        }
     }
 
     private fun createBottomNavigationShellDrawable(config: NavigationBarConfig, bgColor: Int): Drawable {

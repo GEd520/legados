@@ -5,20 +5,50 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <androidx.viewpager.widget.ViewPager
-        android:id="@+id/view_pager_main"
+    <FrameLayout
+        android:id="@+id/content_container"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        tools:ignore="SpeakableTextPresentCheck" />
+        android:layout_height="match_parent">
 
-    <io.legado.app.lib.theme.view.ThemeBottomNavigationVIew
-        android:id="@+id/bottom_navigation_view"
+        <androidx.viewpager.widget.ViewPager
+            android:id="@+id/view_pager_main"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            tools:ignore="SpeakableTextPresentCheck" />
+
+    </FrameLayout>
+
+    <FrameLayout
+        android:id="@+id/bottom_navigation_glass"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
-        android:background="@color/transparent"
-        android:minHeight="48dp"
-        app:itemActiveIndicatorStyle="@color/transparent"
-        app:labelVisibilityMode="unlabeled"
-        app:menu="@menu/main_bnv" />
+        android:clipChildren="false"
+        android:clipToPadding="false">
+
+        <io.legado.app.ui.widget.StableLiquidGlassView
+            android:id="@+id/bottom_navigation_glass_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clickable="false"
+            android:focusable="false" />
+
+        <View
+            android:id="@+id/bottom_navigation_shell_overlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clickable="false"
+            android:focusable="false" />
+
+        <io.legado.app.lib.theme.view.ThemeBottomNavigationVIew
+            android:id="@+id/bottom_navigation_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/transparent"
+            android:minHeight="48dp"
+            app:itemActiveIndicatorStyle="@color/transparent"
+            app:labelVisibilityMode="unlabeled"
+            app:menu="@menu/main_bnv" />
+
+    </FrameLayout>
 </FrameLayout>

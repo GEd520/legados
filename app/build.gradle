@@ -233,6 +233,7 @@ dependencies {
 
     //图像处理库Toolkit
     implementation(libs.renderscript.intrinsics.replacement.toolkit)
+    implementation(libs.liquidglass)
     
     //androidX
     implementation(libs.core.ktx)
