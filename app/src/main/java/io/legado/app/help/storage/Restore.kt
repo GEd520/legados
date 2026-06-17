@@ -104,6 +104,7 @@ object Restore {
     private const val runtimeSourceCacheFileName = "runtimeSourceCache.json"
     private const val bookCacheFolderName = "book_cache"
     private const val bookCacheIndexFileName = "bookCacheIndex.json"
+    private const val bookChapterFileName = "bookChapter.json"
 
     /** 互斥锁，防止并发恢复操作 */
     private val mutex = Mutex()
@@ -232,6 +233,10 @@ object Restore {
         }
 
         // 恢复书源
+        if (bookChapterFileName in selectedSet) {
+            restoreBookChapters(path)
+        }
+
         if ("bookSource.json" in selectedSet) {
             appDb.bookSourceDao.deleteAll()
             fileToListT<BookSource>(path, "bookSource.json")?.let {
@@ -516,6 +521,8 @@ object Restore {
         }
 
         // 恢复书签
+        restoreBookChapters(path)
+
         appDb.bookmarkDao.deleteAll()
         fileToListT<Bookmark>(path, "bookmark.json")?.let {
             appDb.bookmarkDao.insert(*it.toTypedArray())
@@ -818,6 +825,21 @@ object Restore {
         if (caches.isNotEmpty()) {
             appDb.cacheDao.insert(*caches.toTypedArray())
         }
+    }
+
+    private fun restoreBookChapters(path: String) {
+        val chapterFile = File(path, bookChapterFileName)
+        if (!chapterFile.exists()) return
+        val chapters = fileToListT<BookChapter>(path, bookChapterFileName).orEmpty()
+        if (chapters.isEmpty()) return
+        val bookUrls = appDb.bookDao.all.mapTo(hashSetOf()) { it.bookUrl }
+        chapters
+            .filter { it.bookUrl in bookUrls }
+            .groupBy { it.bookUrl }
+            .forEach { (bookUrl, chapterList) ->
+                appDb.bookChapterDao.delByBook(bookUrl)
+                appDb.bookChapterDao.insert(*chapterList.toTypedArray())
+            }
     }
 
     private suspend fun restoreCoverGallery(path: String) {

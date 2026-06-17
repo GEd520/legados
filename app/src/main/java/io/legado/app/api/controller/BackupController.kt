@@ -177,6 +177,7 @@ object BackupController {
             writeListToJson(appDb.bookDao.all, "bookshelf.json", webBackupPath)
             writeListToJson(appDb.bookmarkDao.all, "bookmark.json", webBackupPath)
             writeListToJson(appDb.bookGroupDao.all, "bookGroup.json", webBackupPath)
+            writeListToJson(appDb.bookChapterDao.getAll(), "bookChapter.json", webBackupPath)
             writeListToJson(appDb.bookSourceDao.all, "bookSource.json", webBackupPath)
             writeListToJson(appDb.rssSourceDao.all, "rssSources.json", webBackupPath)
             writeListToJson(appDb.rssStarDao.all, "rssStar.json", webBackupPath)
@@ -185,6 +186,7 @@ object BackupController {
                 .writeText(GSON.toJson(HighlightRuleStore.createBackupData(appCtx)))
             writeListToJson(appDb.readRecordDao.all, "readRecord.json", webBackupPath)
             writeListToJson(appDb.readRecordDao.getAllDetailsList(), "readRecordDetail.json", webBackupPath)
+            writeListToJson(appDb.readRecordDao.getAllSessionsList(), "readRecordSession.json", webBackupPath)
             writeListToJson(appDb.searchKeywordDao.all, "searchHistory.json", webBackupPath)
             writeListToJson(appDb.txtTocRuleDao.all, "txtTocRule.json", webBackupPath)
             writeListToJson(appDb.httpTTSDao.all, "httpTTS.json", webBackupPath)
@@ -322,6 +324,9 @@ object BackupController {
             BackupItemDef("bookGroup.json", "书籍分组", "书架分组信息") {
                 appDb.bookGroupDao.all.size
             },
+            BackupItemDef("bookChapter.json", "章节目录", "书籍章节目录数据") {
+                appDb.bookChapterDao.getAll().size
+            },
             BackupItemDef("bookSource.json", "书源", "网络小说书源") {
                 appDb.bookSourceDao.all.size
             },
@@ -339,6 +344,9 @@ object BackupController {
             },
             BackupItemDef("readRecordDetail.json", "阅读详情", "每本书每天的阅读统计") {
                 appDb.readRecordDao.getDetailsCount()
+            },
+            BackupItemDef("readRecordSession.json", "阅读时间线", "每次阅读会话记录") {
+                appDb.readRecordDao.getSessionsCount()
             },
             BackupItemDef("searchHistory.json", "搜索历史", "搜索关键词历史") {
                 appDb.searchKeywordDao.all.size

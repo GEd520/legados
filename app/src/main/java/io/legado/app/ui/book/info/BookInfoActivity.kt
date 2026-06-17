@@ -98,6 +98,7 @@ import io.legado.app.utils.ColorUtils
 import io.legado.app.utils.ConvertUtils
 import io.legado.app.utils.FileDoc
 import io.legado.app.utils.GSON
+import io.legado.app.utils.LogUtils
 import io.legado.app.utils.StartActivityContract
 import io.legado.app.utils.applyNavigationBarPadding
 import io.legado.app.utils.dpToPx
@@ -851,7 +852,10 @@ class BookInfoActivity :
         }
         tvTocView.setOnClickListener {
             viewModel.getBook()?.let { book ->
-                AppLog.put("[TOC] 点击查看目录: bookUrl=${book.bookUrl}, inBookshelf=${viewModel.inBookshelf}, chapterListData.size=${viewModel.chapterListData.value?.size}")
+                LogUtils.d(
+                    "BookInfoTOC",
+                    "open chapter list: bookUrl=${book.bookUrl}, inBookshelf=${viewModel.inBookshelf}, chapterListData.size=${viewModel.chapterListData.value?.size}"
+                )
                 if (!viewModel.inBookshelf) {
                     viewModel.saveBook(book) { //点击目录会保存book
                         viewModel.saveChapterList {

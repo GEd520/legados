@@ -290,30 +290,49 @@ class BackupConfigFragment : PreferenceFragment(),
      */
     private fun showBackupSelector() {
         val items = BackupSelectorConfig.allItems
-        val titles = items.map { "[${it.group}] ${it.title}" }.toTypedArray()
-        val checkedItems = BooleanArray(items.size) { index ->
-            BackupSelectorConfig.isSelected(items[index].key)
+        val initialChecked = items.associate { item ->
+            item.key to BackupSelectorConfig.isSelected(item.key)
         }
-        
-        alert(R.string.backup_selector) {
-            multiChoiceItems(titles, checkedItems) { _, which, isChecked ->
-                BackupSelectorConfig.setSelected(items[which].key, isChecked)
-            }
-            positiveButton(R.string.select_all) {
-                BackupSelectorConfig.selectAll()
-                showBackupSelector()
-            }
-            negativeButton(R.string.un_select_all) {
-                BackupSelectorConfig.deselectAll()
-                showBackupSelector()
-            }
-            neutralButton(R.string.ok) {
-                BackupSelectorConfig.save()
-            }
-            onDismiss {
-                BackupSelectorConfig.save()
+
+        dismissComposeDialog()
+
+        val activity = requireActivity()
+        val rootView = activity.window.decorView as? ViewGroup ?: return
+        var showDialog by mutableStateOf(true)
+
+        val composeView = ComposeView(activity).apply {
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+            setContent {
+                LegadoTheme {
+                    if (showDialog) {
+                        BackupSelectorDialog(
+                            items = items,
+                            initialChecked = initialChecked,
+                            onApply = { checkedStates ->
+                                items.forEach { item ->
+                                    BackupSelectorConfig.setSelected(
+                                        item.key,
+                                        checkedStates[item.key] ?: true
+                                    )
+                                }
+                                BackupSelectorConfig.save()
+                            },
+                            onDismiss = {
+                                showDialog = false
+                                dismissComposeDialog()
+                            }
+                        )
+                    }
+                }
             }
         }
+
+        val layoutParams = FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT
+        )
+        rootView.addView(composeView, layoutParams)
+        composeDialogView = composeView
     }
 
     /**

@@ -2,6 +2,7 @@ package io.legado.app.help.storage
 
 import android.util.Xml
 import io.legado.app.data.entities.Book
+import io.legado.app.data.entities.BookChapter
 import io.legado.app.data.entities.BookGroup
 import io.legado.app.data.entities.BookSource
 import io.legado.app.data.entities.Bookmark
@@ -16,6 +17,7 @@ import io.legado.app.data.entities.Server
 import io.legado.app.data.entities.TxtTocRule
 import io.legado.app.data.entities.readRecord.ReadRecord
 import io.legado.app.data.entities.readRecord.ReadRecordDetail
+import io.legado.app.data.entities.readRecord.ReadRecordSession
 import io.legado.app.ui.book.read.config.HighlightRuleStore
 import io.legado.app.utils.GSON
 import io.legado.app.utils.isJsonArray
@@ -270,12 +272,14 @@ object BackupFileValidator {
                 "bookshelf.json" -> validateEntityStructure<Book>(jsonText, listOf("name", "author"))
                 "bookmark.json" -> validateEntityStructure<Bookmark>(jsonText, listOf("bookName", "chapterPos"))
                 "bookGroup.json" -> validateEntityStructure<BookGroup>(jsonText, listOf("name"))
+                "bookChapter.json" -> validateEntityStructure<BookChapter>(jsonText, listOf("bookUrl", "title"))
                 "bookSource.json" -> validateEntityStructure<BookSource>(jsonText, listOf("bookSourceUrl", "bookSourceName"))
                 "rssSources.json" -> validateEntityStructure<RssSource>(jsonText, listOf("sourceUrl", "sourceName"))
                 "rssStar.json" -> validateEntityStructure<RssStar>(jsonText, listOf("origin"))
                 "replaceRule.json" -> validateEntityStructure<ReplaceRule>(jsonText, listOf("name"))
                 "readRecord.json" -> validateEntityStructure<ReadRecord>(jsonText, listOf("bookName"))
                 "readRecordDetail.json" -> validateEntityStructure<ReadRecordDetail>(jsonText, listOf("bookName"))
+                "readRecordSession.json" -> validateEntityStructure<ReadRecordSession>(jsonText, listOf("bookName"))
                 "searchHistory.json" -> validateEntityStructure<SearchKeyword>(jsonText, listOf("word"))
                 "txtTocRule.json" -> validateEntityStructure<TxtTocRule>(jsonText, listOf("name"))
                 "httpTTS.json" -> validateEntityStructure<HttpTTS>(jsonText, listOf("name"))

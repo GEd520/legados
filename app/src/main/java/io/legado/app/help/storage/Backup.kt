@@ -116,6 +116,7 @@ object Backup {
     private const val runtimeSourceCacheFileName = "runtimeSourceCache.json"
     private const val bookCacheFolderName = "book_cache"
     private const val bookCacheIndexFileName = "bookCacheIndex.json"
+    private const val bookChapterFileName = "bookChapter.json"
 
     /** 备份临时目录路径，用于存放解压/压缩前的文件 */
     val backupPath: String by lazy {
@@ -137,6 +138,7 @@ object Backup {
             "bookshelf.json",
             "bookmark.json",
             "bookGroup.json",
+            bookChapterFileName,
             "bookSource.json",
             "rssSources.json",
             "rssStar.json",
@@ -427,7 +429,6 @@ object Backup {
      */
     private suspend fun backup(context: Context, path: String?) {
         LogUtils.d(TAG, "开始备份 path:$path")
-        LocalConfig.lastBackup = System.currentTimeMillis()
         val aes = BackupAES()
         FileUtils.delete(backupPath)
 
@@ -442,6 +443,9 @@ object Backup {
         }
         if (selectedFiles.contains("bookGroup.json")) {
             writeListToJson(appDb.bookGroupDao.all, "bookGroup.json", backupPath)
+        }
+        if (selectedFiles.contains(bookChapterFileName)) {
+            writeListToJson(appDb.bookChapterDao.getAll(), bookChapterFileName, backupPath)
         }
         if (selectedFiles.contains("bookSource.json")) {
             writeListToJson(appDb.bookSourceDao.all, "bookSource.json", backupPath)
@@ -639,6 +643,8 @@ object Backup {
             }
 
             // 上传到WebDav云端
+            LocalConfig.lastBackup = System.currentTimeMillis()
+
             try {
                 AppWebDav.backUpWebDav(zipFileName)
             } catch (e: Exception) {
