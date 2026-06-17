@@ -561,6 +561,7 @@ class ThemeManageActivity : BaseActivity<ActivityThemeManageBinding>(),
         val current = ThemeConfig.getDurConfig(this)
         if (current.themeName == config.themeName && current.isNightTheme == config.isNightTheme) {
             ThemeConfig.applyConfig(this, config)
+            recreateAfterThemeApplied()
         }
         toastOnUi(R.string.success)
     }
@@ -591,6 +592,15 @@ class ThemeManageActivity : BaseActivity<ActivityThemeManageBinding>(),
         updateTabSelection()
         adapter.notifyDataSetChanged()
         toastOnUi(getString(R.string.applied_theme_config, config.themeName))
+        recreateAfterThemeApplied()
+    }
+
+    private fun recreateAfterThemeApplied() {
+        binding.root.post {
+            if (!isFinishing && !isDestroyed) {
+                recreate()
+            }
+        }
     }
 
     private fun findThemeIndex(config: ThemeConfig.Config): Int {
