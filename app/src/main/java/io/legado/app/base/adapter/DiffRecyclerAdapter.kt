@@ -1,5 +1,6 @@
 package io.legado.app.base.adapter
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Parcelable
 import android.view.LayoutInflater
@@ -37,6 +38,8 @@ abstract class DiffRecyclerAdapter<ITEM, VB : ViewBinding>(protected val context
 
     private var layoutManager: RecyclerView.LayoutManager? = null
     private var layoutState: Parcelable? = null
+    private var directItems: MutableList<ITEM>? = null
+    private var useDirectList = false
 
     var itemAnimation: ItemAnimation? = null
 
@@ -56,27 +59,41 @@ abstract class DiffRecyclerAdapter<ITEM, VB : ViewBinding>(protected val context
         recyclerView.adapter = this
     }
 
+    @SuppressLint("NotifyDataSetChanged")
     fun setItems(items: List<ITEM>?) {
         kotlin.runCatching {
             if (keepScrollPosition) {
                 layoutState = layoutManager?.onSaveInstanceState()
             }
-            asyncListDiffer.submitList(items?.toMutableList())
+            val newItems = items?.toMutableList() ?: mutableListOf()
+            if (useDirectList || shouldUseDirectList(newItems.size)) {
+                useDirectList = true
+                directItems = newItems
+                notifyDataSetChanged()
+                onCurrentListChanged()
+                if (keepScrollPosition) {
+                    layoutManager?.onRestoreInstanceState(layoutState)
+                    layoutState = null
+                }
+            } else {
+                asyncListDiffer.submitList(newItems)
+            }
         }
     }
 
     fun setItem(position: Int, item: ITEM) {
         kotlin.runCatching {
-            asyncListDiffer.currentList[position] = item
+            (directItems ?: asyncListDiffer.currentList)[position] = item
             notifyItemChanged(position)
         }
     }
 
     fun updateItem(item: ITEM) {
         kotlin.runCatching {
-            val index = asyncListDiffer.currentList.indexOf(item)
+            val items = directItems ?: asyncListDiffer.currentList
+            val index = items.indexOf(item)
             if (index >= 0) {
-                asyncListDiffer.currentList[index] = item
+                items[index] = item
                 notifyItemChanged(index)
             }
         }
@@ -104,13 +121,18 @@ abstract class DiffRecyclerAdapter<ITEM, VB : ViewBinding>(protected val context
         }
     }
 
-    fun isEmpty() = asyncListDiffer.currentList.isEmpty()
+    fun isEmpty() = getItems().isEmpty()
 
-    fun isNotEmpty() = asyncListDiffer.currentList.isNotEmpty()
+    fun isNotEmpty() = getItems().isNotEmpty()
 
-    fun getItem(position: Int): ITEM? = asyncListDiffer.currentList.getOrNull(position)
+    fun getItem(position: Int): ITEM? = getItems().getOrNull(position)
 
-    fun getItems(): List<ITEM> = asyncListDiffer.currentList
+    fun getItems(): List<ITEM> = directItems ?: asyncListDiffer.currentList
+
+    private fun shouldUseDirectList(newSize: Int): Boolean {
+        val oldSize = getItems().size
+        return maxOf(oldSize, newSize) > MAX_DIFF_ITEM_COUNT
+    }
 
     /**
      * grid 模式下使用
@@ -219,5 +241,9 @@ abstract class DiffRecyclerAdapter<ITEM, VB : ViewBinding>(protected val context
      * 注册事件
      */
     abstract fun registerListener(holder: ItemViewHolder, binding: VB)
+
+    companion object {
+        private const val MAX_DIFF_ITEM_COUNT = 2000
+    }
 
 }

@@ -58,7 +58,7 @@
         android:ellipsize="end"
         android:textSize="12sp"
         android:textColor="@color/secondaryText"
-        tools:text="默认顶栏 · 标签透明度 100%" />
+        tools:text="默认顶栏 · 顶栏不透明度 100%" />
 
     <Space
         android:layout_width="0dp"

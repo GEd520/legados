@@ -262,6 +262,18 @@ class TopBarManageActivity : BaseActivity<ActivityTopBarManageBinding>(), ColorP
                         config.wallpaperAlpha = it
                     }
                 })
+                addView(optionRow(getString(R.string.top_bar_filter_default), filterDefaultLabel(config.expandFiltersByDefault)) {
+                    selector(
+                        getString(R.string.top_bar_filter_default),
+                        listOf(
+                            getString(R.string.top_bar_filter_default_collapsed),
+                            getString(R.string.top_bar_filter_default_expanded)
+                        )
+                    ) { _, index ->
+                        config.expandFiltersByDefault = index == 1
+                        refreshEditDialog()
+                    }
+                })
             }
             val tagBarColor = config.tagBarColor ?: defaultTagBarColor()
             addView(optionRow(getString(R.string.top_bar_tag_bar_color), colorLabel(config.tagBarColor), tagBarColor) {
@@ -392,6 +404,7 @@ class TopBarManageActivity : BaseActivity<ActivityTopBarManageBinding>(), ColorP
     private fun showColorOptions(target: Int, color: Int) {
         selector(
             items = listOf(
+                getString(R.string.top_bar_follow_theme),
                 getString(R.string.top_bar_primary_color),
                 getString(R.string.accent_color),
                 getString(R.string.custom)
@@ -401,13 +414,21 @@ class TopBarManageActivity : BaseActivity<ActivityTopBarManageBinding>(), ColorP
             when (index) {
                 0 -> {
                     when (target) {
+                        COLOR_BACKGROUND -> config.backgroundColor = null
+                        COLOR_TAG_BAR -> config.tagBarColor = null
+                        COLOR_TAG_SELECTED -> config.tagSelectedColor = null
+                    }
+                    refreshEditDialog()
+                }
+                1 -> {
+                    when (target) {
                         COLOR_BACKGROUND -> config.backgroundColor = primaryColor
                         COLOR_TAG_BAR -> config.tagBarColor = primaryColor
                         COLOR_TAG_SELECTED -> config.tagSelectedColor = primaryColor
                     }
                     refreshEditDialog()
                 }
-                1 -> {
+                2 -> {
                     when (target) {
                         COLOR_BACKGROUND -> config.backgroundColor = accentColor
                         COLOR_TAG_BAR -> config.tagBarColor = accentColor
@@ -415,7 +436,7 @@ class TopBarManageActivity : BaseActivity<ActivityTopBarManageBinding>(), ColorP
                     }
                     refreshEditDialog()
                 }
-                2 -> showColorPicker(target, color)
+                3 -> showColorPicker(target, color)
             }
         }
     }
@@ -571,7 +592,7 @@ class TopBarManageActivity : BaseActivity<ActivityTopBarManageBinding>(), ColorP
 
     private fun colorLabel(color: Int?): String {
         return when {
-            color == null -> getString(R.string.top_bar_primary_color)
+            color == null -> getString(R.string.top_bar_follow_theme)
             color == accentColor -> getString(R.string.accent_color)
             color == primaryColor -> getString(R.string.top_bar_primary_color)
             else -> "#${Integer.toHexString(color).takeLast(6).uppercase(Locale.ROOT)}"
@@ -606,9 +627,9 @@ class TopBarManageActivity : BaseActivity<ActivityTopBarManageBinding>(), ColorP
         )
     }
 
-    private fun defaultTagBarColor(): Int = primaryColor
+    private fun defaultTagBarColor(): Int = ContextCompat.getColor(this, R.color.background_menu)
 
-    private fun defaultSelectedColor(): Int = ContextCompat.getColor(this, R.color.background_card)
+    private fun defaultSelectedColor(): Int = primaryColor
 
     private fun nextPackageName(): String {
         val base = getString(R.string.custom_top_bar)

@@ -1584,8 +1584,8 @@
     <string name="custom_top_bar">自定义顶栏</string>
     <string name="top_bar_style">顶栏样式</string>
     <string name="corner_scale">圆角倍率</string>
-    <string name="tag_bar_opacity">标签栏透明度</string>
-    <string name="tag_selected_opacity">选中标签透明度</string>
+    <string name="tag_bar_opacity">顶栏不透明度</string>
+    <string name="tag_selected_opacity">选中标签不透明度</string>
     <string name="wallpaper">壁纸</string>
     <string name="default_top_bar">默认顶栏</string>
     <string name="regular_top_bar">常规顶栏</string>
@@ -1594,7 +1594,7 @@
     <string name="top_bar_background_color">顶栏背景色</string>
     <string name="top_bar_tag_bar_color">标签栏颜色</string>
     <string name="top_bar_tag_selected_color">选中标签颜色</string>
-    <string name="top_bar_wallpaper_alpha">壁纸透明度</string>
+    <string name="top_bar_wallpaper_alpha">壁纸不透明度</string>
     <string name="top_bar_filter_default">筛选栏默认状态</string>
     <string name="top_bar_filter_default_collapsed">收起</string>
     <string name="top_bar_filter_default_expanded">展开</string>

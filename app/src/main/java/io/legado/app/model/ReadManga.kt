@@ -281,12 +281,16 @@ object ReadManga : CoroutineScope by MainScope() {
                     1 -> nextMangaChapter = mangaChapter
                 }
 
-                mCallback?.upContent()
+                if (curMangaChapter != null) {
+                    mCallback?.upContent()
+                }
             }
         }
     }
     //构建漫画内容
     private fun buildMangaContent(): MangaContent {
+        val currentChapter = curMangaChapter
+            ?: return MangaContent(0, emptyList(), false, false)
         val items = arrayListOf<BaseMangaPage>()
         var pos = 0
         var curFinish = false
@@ -295,7 +299,7 @@ object ReadManga : CoroutineScope by MainScope() {
             pos += it.pages.size
             items.addAll(it.pages)
         }
-        curMangaChapter?.let {
+        currentChapter.let {
             curFinish = true
             items.addAll(it.pages)
             durChapterPos = if (it.imageCount > 0) {

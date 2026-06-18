@@ -1,5 +1,6 @@
 package io.legado.app.ui.main.bookshelf.style2
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Parcelable
 import android.view.LayoutInflater
@@ -17,6 +18,8 @@ abstract class BaseBooksAdapter<VH : RecyclerView.ViewHolder>(
     private val layoutStates = mutableMapOf<Long, Parcelable?>()
     private var currentGroupId: Long? = null
     private var layoutManager: RecyclerView.LayoutManager? = null
+    private var directItems: MutableList<Any>? = null
+    private var useDirectList = false
     protected val inflater: LayoutInflater = LayoutInflater.from(context)
 
     override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
@@ -120,12 +123,24 @@ abstract class BaseBooksAdapter<VH : RecyclerView.ViewHolder>(
         }
     }
 
+    @SuppressLint("NotifyDataSetChanged")
     fun updateItems(groupId: Long) {
         currentGroupId?.let {
             layoutStates[it] = layoutManager?.onSaveInstanceState()
         }
         currentGroupId = groupId
-        asyncListDiffer.submitList(callBack.getItems())
+        val newItems = callBack.getItems().toMutableList()
+        if (useDirectList || shouldUseDirectList(newItems.size)) {
+            useDirectList = true
+            directItems = newItems
+            notifyDataSetChanged()
+            currentGroupId?.let {
+                layoutManager?.onRestoreInstanceState(layoutStates[it])
+                layoutStates[it] = null
+            }
+        } else {
+            asyncListDiffer.submitList(newItems)
+        }
     }
 
     fun notification(bookUrl: String) {
@@ -139,7 +154,7 @@ abstract class BaseBooksAdapter<VH : RecyclerView.ViewHolder>(
         }
     }
 
-    fun getItems() = asyncListDiffer.currentList
+    fun getItems(): List<Any> = directItems ?: asyncListDiffer.currentList
 
     fun getItem(position: Int) = getItems().getOrNull(position)
 
@@ -162,5 +177,14 @@ abstract class BaseBooksAdapter<VH : RecyclerView.ViewHolder>(
         fun onItemLongClick(item: Any)
         fun isUpdate(bookUrl: String): Boolean
         fun getItems(): List<Any>
+    }
+
+    private fun shouldUseDirectList(newSize: Int): Boolean {
+        val oldSize = getItems().size
+        return maxOf(oldSize, newSize) > MAX_DIFF_ITEM_COUNT
+    }
+
+    companion object {
+        private const val MAX_DIFF_ITEM_COUNT = 2000
     }
 }

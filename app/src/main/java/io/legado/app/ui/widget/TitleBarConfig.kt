@@ -29,7 +29,7 @@ fun TitleBar.applyTopBarConfig() {
     val backgroundColor = if (config.style == TopBarConfig.STYLE_REGULAR) {
         TopBarConfig.resolveBackgroundColor(config)
     } else {
-        config.tagBarColor ?: context.primaryColor
+        context.primaryColor
     }
     val radius = if (config.style == TopBarConfig.STYLE_REGULAR) {
         context.resources.getDimension(R.dimen.ui_panel_radius) *
@@ -37,10 +37,15 @@ fun TitleBar.applyTopBarConfig() {
     } else {
         0f
     }
+    val backgroundAlpha = if (config.style == TopBarConfig.STYLE_REGULAR) {
+        config.wallpaperAlpha
+    } else {
+        config.tagBarAlpha
+    }
     val shape = regularBackground(
         backgroundColor,
         radius,
-        if (config.style == TopBarConfig.STYLE_REGULAR) config.wallpaperAlpha else 100
+        backgroundAlpha
     )
     val wallpaper = TopBarConfig.currentWallpaperFile(context, AppConfig.isNightTheme)
         ?.takeIf { config.style == TopBarConfig.STYLE_REGULAR }
@@ -50,10 +55,10 @@ fun TitleBar.applyTopBarConfig() {
     } else {
         LayerDrawable(arrayOf(shape, wallpaper))
     }
-    elevation = if (config.style == TopBarConfig.STYLE_REGULAR && config.cornerScale != 0f) {
-        0f
-    } else {
-        context.elevation
+    elevation = when {
+        config.style == TopBarConfig.STYLE_REGULAR && config.cornerScale != 0f -> 0f
+        backgroundAlpha < 100 -> 0.1f
+        else -> context.elevation
     }
     applyTopBarChildConfig(config)
 }
@@ -77,8 +82,7 @@ private fun regularBackground(color: Int, radius: Float, alphaPercent: Int): Dra
 private fun TitleBar.applyTopBarChildConfig(config: TopBarConfig.Config) {
     val tagBarColor = config.tagBarColor
         ?: ContextCompat.getColor(context, R.color.background_menu)
-    val selectedColor = config.tagSelectedColor
-        ?: ContextCompat.getColor(context, R.color.background_card)
+    val selectedColor = config.tagSelectedColor ?: context.primaryColor
     findViewById<TabLayout?>(R.id.tab_layout)?.let { tabLayout ->
         tabLayout.setBackgroundColor(TopBarConfig.withOpacity(tagBarColor, config.tagBarAlpha))
         tabLayout.setSelectedTabIndicatorColor(

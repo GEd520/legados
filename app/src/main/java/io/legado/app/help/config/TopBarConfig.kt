@@ -92,7 +92,7 @@ object TopBarConfig {
             name = defaultName(isNight),
             isNightMode = isNight,
             tagBarColor = context.primaryColor,
-            tagSelectedColor = ContextCompat.getColor(context, R.color.background_card),
+            tagSelectedColor = context.primaryColor,
             backgroundColor = defaultBackgroundColor(isNight),
             cornerScale = 1f,
             updatedAt = 0L
