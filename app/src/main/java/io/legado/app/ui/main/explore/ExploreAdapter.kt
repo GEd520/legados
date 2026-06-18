@@ -1192,8 +1192,8 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
     }
 
     private fun applyExploreUseWebLayerType(webView: WebView) {
-        if (webView.layerType != View.LAYER_TYPE_SOFTWARE) {
-            webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+        if (webView.layerType != View.LAYER_TYPE_HARDWARE) {
+            webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
         }
     }
 

@@ -5,7 +5,7 @@
 ### Kotlin版本: 2.3.10 | Rhino版本: 1.8.1 | Compose版本: 2025.04.01 | Compose UI 版本:  1.7.x | Material3 版本: 1.3.x | okhttp版本: 5.3.2
 
 **2026/06/18**
-- 修复部分 Android 16 / WebView 138 设备上发现页 useweb 频闪修复方案可能影响其他 WebView 场景的问题
+- 修复部分 Android 16 / WebView 138 设备上发现页 useweb 频闪修复方案可能影响其他 WebView 场景或导致内存溢出的问题
 - 修复发现页 useweb 内容在底部玻璃导航效果下可能频闪的问题
 - 修复发现页 useweb 的渲染优化被 WebView 复用到书籍详情页后可能导致详情页 useweb 空白的问题
 - 修复正文偏移问题，滚动阅读不再依赖保存时间判断进度，改为按章节序号和章节内位置同步
