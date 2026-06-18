@@ -14,7 +14,9 @@ import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
 import android.graphics.drawable.Drawable
 import android.view.View
+import android.view.ViewGroup
 import androidx.core.content.ContextCompat
+import androidx.core.view.children
 import com.google.android.material.tabs.TabLayout
 import io.legado.app.R
 import io.legado.app.help.config.AppConfig
@@ -26,10 +28,14 @@ import java.io.File
 
 fun TitleBar.applyTopBarConfig() {
     val config = TopBarConfig.currentConfig(context, AppConfig.isNightTheme)
+    applyTopBarConfig(config)
+}
+
+private fun TitleBar.applyTopBarConfig(config: TopBarConfig.Config) {
     val backgroundColor = if (config.style == TopBarConfig.STYLE_REGULAR) {
         TopBarConfig.resolveBackgroundColor(config)
     } else {
-        context.primaryColor
+        config.tagBarColor ?: context.primaryColor
     }
     val radius = if (config.style == TopBarConfig.STYLE_REGULAR) {
         context.resources.getDimension(R.dimen.ui_panel_radius) *
@@ -63,6 +69,27 @@ fun TitleBar.applyTopBarConfig() {
     applyTopBarChildConfig(config)
 }
 
+fun View.refreshTopBarConfigDeep() {
+    val config = TopBarConfig.currentConfig(context, AppConfig.isNightTheme)
+    refreshTopBarConfigDeep(config)
+}
+
+private fun View.refreshTopBarConfigDeep(config: TopBarConfig.Config) {
+    if (this is TitleBar) {
+        applyTopBarConfig(config)
+        return
+    }
+    applyTopBarChildConfig(config)
+    if (this is ViewGroup) {
+        children.forEach { it.refreshTopBarConfigDeep(config) }
+    }
+}
+
+fun View.applyTopBarChildConfig() {
+    val config = TopBarConfig.currentConfig(context, AppConfig.isNightTheme)
+    applyTopBarChildConfig(config)
+}
+
 private fun regularBackground(color: Int, radius: Float, alphaPercent: Int): Drawable {
     return GradientDrawable().apply {
         setColor(TopBarConfig.withOpacity(color, alphaPercent))
@@ -80,18 +107,24 @@ private fun regularBackground(color: Int, radius: Float, alphaPercent: Int): Dra
 }
 
 private fun TitleBar.applyTopBarChildConfig(config: TopBarConfig.Config) {
+    findViewById<TabLayout?>(R.id.tab_layout)?.applyTopBarChildConfig(config)
+    findViewById<View?>(R.id.search_view)?.applyTopBarChildConfig(config)
+}
+
+private fun View.applyTopBarChildConfig(config: TopBarConfig.Config) {
+    if (this !is TabLayout && id != R.id.search_view) return
     val tagBarColor = config.tagBarColor
         ?: ContextCompat.getColor(context, R.color.background_menu)
     val selectedColor = config.tagSelectedColor ?: context.primaryColor
-    findViewById<TabLayout?>(R.id.tab_layout)?.let { tabLayout ->
-        tabLayout.setBackgroundColor(TopBarConfig.withOpacity(tagBarColor, config.tagBarAlpha))
-        tabLayout.setSelectedTabIndicatorColor(
+    if (this is TabLayout && id == R.id.tab_layout) {
+        setBackgroundColor(TopBarConfig.withOpacity(tagBarColor, config.tagBarAlpha))
+        setSelectedTabIndicatorColor(
             TopBarConfig.withOpacity(selectedColor, config.tagSelectedAlpha)
         )
     }
-    findViewById<View?>(R.id.search_view)?.setBackgroundColor(
-        TopBarConfig.withOpacity(tagBarColor, config.tagBarAlpha)
-    )
+    if (id == R.id.search_view) {
+        setBackgroundColor(TopBarConfig.withOpacity(tagBarColor, config.tagBarAlpha))
+    }
 }
 
 private fun TitleBar.bitmapLayer(file: File, alphaPercent: Int): Drawable? {

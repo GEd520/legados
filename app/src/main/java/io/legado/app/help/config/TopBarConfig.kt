@@ -26,6 +26,7 @@ object TopBarConfig {
     const val STYLE_REGULAR = "regular"
 
     private const val packageFileName = "top_bar.json"
+    private const val activeSnapshotDirName = "_active"
     private const val legacyConfigsKey = "customTopBarConfigs"
     private const val legacyActiveDayKey = "activeDayTopBarId"
     private const val legacyActiveNightKey = "activeNightTopBarId"
@@ -112,7 +113,9 @@ object TopBarConfig {
     fun currentSignature(isNight: Boolean): String {
         val dirName = activeDirName(isNight)
         if (dirName == DEFAULT_DIR_NAME) return "$isNight|$DEFAULT_DIR_NAME"
-        val configFile = File(localDir(isNight, dirName), packageFileName)
+        val configFile = File(activeLocalDir(isNight), packageFileName)
+            .takeIf { it.exists() }
+            ?: File(localDir(isNight, dirName), packageFileName)
         return "$isNight|$dirName|${configFile.lastModified()}"
     }
 
@@ -120,7 +123,12 @@ object TopBarConfig {
         migrateLegacyIfNeeded(context)
         val dirName = activeDirName(isNight)
         if (dirName == DEFAULT_DIR_NAME) return defaultEntry(context, isNight)
-        return readEntry(localDir(isNight, dirName)) ?: defaultEntry(context, isNight)
+        readEntry(activeLocalDir(isNight))?.let {
+            return it.copy(dirName = dirName)
+        }
+        val entry = readEntry(localDir(isNight, dirName)) ?: return defaultEntry(context, isNight)
+        runCatching { writeActiveSnapshot(entry) }
+        return readEntry(activeLocalDir(isNight))?.copy(dirName = dirName) ?: entry
     }
 
     fun currentWallpaperFile(context: Context, isNight: Boolean): File? {
@@ -173,6 +181,15 @@ object TopBarConfig {
     }
 
     fun apply(entry: Entry) {
+        if (entry.dirName == DEFAULT_DIR_NAME) {
+            FileUtils.delete(activeLocalDir(entry.config.isNightMode), deleteRootDir = true)
+            appCtx.putPrefString(
+                if (entry.config.isNightMode) activeNightKey else activeDayKey,
+                DEFAULT_DIR_NAME
+            )
+            return
+        }
+        writeActiveSnapshot(entry)
         appCtx.putPrefString(
             if (entry.config.isNightMode) activeNightKey else activeDayKey,
             entry.dirName
@@ -292,11 +309,26 @@ object TopBarConfig {
 
     private fun resetActiveIfNeeded(entry: Entry) {
         if (activeDirName(entry.config.isNightMode) == entry.dirName) {
+            FileUtils.delete(activeLocalDir(entry.config.isNightMode), deleteRootDir = true)
             appCtx.putPrefString(
                 if (entry.config.isNightMode) activeNightKey else activeDayKey,
                 DEFAULT_DIR_NAME
             )
         }
+    }
+
+    private fun writeActiveSnapshot(entry: Entry) {
+        val sourceDir = entry.localDir ?: localDir(entry.config.isNightMode, entry.dirName)
+        val targetDir = activeLocalDir(entry.config.isNightMode)
+        if (targetDir.exists()) {
+            FileUtils.delete(targetDir, deleteRootDir = true)
+        }
+        sourceDir.copyRecursively(targetDir, overwrite = true)
+    }
+
+    private fun activeLocalDir(isNight: Boolean): File {
+        return rootDir.getFile(activeSnapshotDirName)
+            .getFile(if (isNight) "night" else "day")
     }
 
     private fun localDir(isNight: Boolean, dirName: String): File = typeDir(isNight).getFile(dirName)

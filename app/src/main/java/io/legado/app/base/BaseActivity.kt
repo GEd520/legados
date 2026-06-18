@@ -33,7 +33,7 @@ import io.legado.app.ui.book.read.config.ReadAloudActivity
 import io.legado.app.ui.widget.ReadAloudMiniBarController
 import io.legado.app.ui.widget.ReadAloudMiniBarHost
 import io.legado.app.ui.widget.TitleBar
-import io.legado.app.ui.widget.applyTopBarConfig
+import io.legado.app.ui.widget.refreshTopBarConfigDeep
 import io.legado.app.ui.debuglog.DebugFloatingBallManager
 import io.legado.app.ui.debuglog.DebugLogPanelDialog
 import io.legado.app.utils.ColorUtils
@@ -259,18 +259,7 @@ abstract class BaseActivity<VB : ViewBinding>(
     }
 
     private fun refreshTitleBars() {
-        findViewById<ViewGroup>(android.R.id.content)?.refreshTitleBars()
-    }
-
-    private fun View.refreshTitleBars() {
-        if (this is TitleBar) {
-            applyTopBarConfig()
-        }
-        if (this is ViewGroup) {
-            for (index in 0 until childCount) {
-                getChildAt(index).refreshTitleBars()
-            }
-        }
+        findViewById<ViewGroup>(android.R.id.content)?.refreshTopBarConfigDeep()
     }
 
     protected fun hideReadAloudMiniBar() {

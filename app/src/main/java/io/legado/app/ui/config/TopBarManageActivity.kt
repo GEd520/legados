@@ -476,9 +476,7 @@ class TopBarManageActivity : BaseActivity<ActivityTopBarManageBinding>(), ColorP
                     TopBarConfig.addOrUpdate(config.copy(name = name), oldEntry)
                 }
             }.onSuccess {
-                if (oldEntry?.dirName == TopBarConfig.DEFAULT_DIR_NAME ||
-                    it.dirName == TopBarConfig.activeDirName(it.config.isNightMode)
-                ) {
+                if (oldEntry?.dirName == TopBarConfig.activeDirName(it.config.isNightMode)) {
                     TopBarConfig.apply(it)
                     postEvent(EventBus.TOP_BAR_CHANGED, it.config.isNightMode)
                     binding.titleBar.applyTopBarConfig()
