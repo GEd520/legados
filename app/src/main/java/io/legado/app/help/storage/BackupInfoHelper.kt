@@ -8,6 +8,7 @@ import io.legado.app.help.config.ReadBookConfig
 import io.legado.app.help.config.ThemeConfig
 import io.legado.app.data.repository.CoverGalleryRepository
 import io.legado.app.model.BookCover
+import io.legado.app.model.upload.DirectLinkUploadRepository
 import splitties.init.appCtx
 import java.io.File
 
@@ -82,6 +83,9 @@ object BackupInfoHelper {
     )
 
     private fun isFileSelected(fileName: String): Boolean {
+        if (fileName == DirectLinkUpload.ruleFileName) {
+            return BackupSelectorConfig.isSelected("directLinkRule")
+        }
         val key = BackupSelectorConfig.allItems.find { it.fileName == fileName }?.key
             ?: return true
         return BackupSelectorConfig.isSelected(key)
@@ -180,10 +184,7 @@ object BackupInfoHelper {
 
         run {
             val fileName = DirectLinkUpload.ruleFileName
-            val config = DirectLinkUpload.getConfig()
-            val size = if (config != null) {
-                io.legado.app.utils.GSON.toJson(config).length.toLong()
-            } else 0L
+            val size = DirectLinkUploadRepository().createBackupJsonSync()?.length?.toLong() ?: 0L
             val selected = isFileSelected(fileName)
             totalSize += size
             if (selected) selectedSize += size

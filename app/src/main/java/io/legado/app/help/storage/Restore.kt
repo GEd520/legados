@@ -46,9 +46,9 @@ import io.legado.app.help.config.ThemeConfig
 import io.legado.app.model.VideoPlay.VIDEO_PREF_NAME
 import io.legado.app.model.BookCover
 import io.legado.app.model.localBook.LocalBook
+import io.legado.app.model.upload.DirectLinkUploadRepository
 import io.legado.app.data.repository.CoverGalleryRepository
 import io.legado.app.ui.book.read.config.HighlightRuleStore
-import io.legado.app.utils.ACache
 import io.legado.app.utils.FileUtils
 import io.legado.app.utils.GSON
 import io.legado.app.utils.LogUtils
@@ -105,6 +105,7 @@ object Restore {
     private const val bookCacheFolderName = "book_cache"
     private const val bookCacheIndexFileName = "bookCacheIndex.json"
     private const val bookChapterFileName = "bookChapter.json"
+    private const val legacyDirectLinkRuleFileName = "directLinkRule.json"
 
     /** 互斥锁，防止并发恢复操作 */
     private val mutex = Mutex()
@@ -355,10 +356,9 @@ object Restore {
         }
 
         // 恢复直链上传配置
-        if (DirectLinkUpload.ruleFileName in selectedSet) {
-            File(path, DirectLinkUpload.ruleFileName).takeIf { it.exists() }?.runCatching {
-                val json = readText()
-                ACache.get(cacheDir = false).put(DirectLinkUpload.ruleFileName, json)
+        if (DirectLinkUpload.ruleFileName in selectedSet || legacyDirectLinkRuleFileName in selectedSet) {
+            getDirectLinkRuleBackupFile(path)?.runCatching {
+                DirectLinkUploadRepository().restoreBackupJson(readText())
             }?.onFailure { AppLog.put("恢复直链上传出错\n${it.localizedMessage}", it) }
         }
 
@@ -645,11 +645,8 @@ object Restore {
 
         // 恢复直链上传配置
         DirectLinkUpload.delConfig()
-        File(path, DirectLinkUpload.ruleFileName).takeIf {
-            it.exists()
-        }?.runCatching {
-            val json = readText()
-            ACache.get(cacheDir = false).put(DirectLinkUpload.ruleFileName, json)
+        getDirectLinkRuleBackupFile(path)?.runCatching {
+            DirectLinkUploadRepository().restoreBackupJson(readText())
         }?.onFailure {
             AppLog.put("恢复直链上传出错\n${it.localizedMessage}", it)
         }
@@ -1392,6 +1389,11 @@ object Restore {
         allBooks.filter { it.name == cacheIndex.bookName }.firstOrNull()?.let { return it }
         
         return null
+    }
+
+    private fun getDirectLinkRuleBackupFile(path: String): File? {
+        return File(path, DirectLinkUpload.ruleFileName).takeIf { it.exists() }
+            ?: File(path, legacyDirectLinkRuleFileName).takeIf { it.exists() }
     }
 
 }

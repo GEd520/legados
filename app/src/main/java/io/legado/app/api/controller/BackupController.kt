@@ -13,6 +13,7 @@ import io.legado.app.help.storage.Backup
 import io.legado.app.help.storage.BackupAES
 import io.legado.app.help.storage.BookCacheSelectorConfig
 import io.legado.app.model.BookCover
+import io.legado.app.model.upload.DirectLinkUploadRepository
 import io.legado.app.model.VideoPlay.VIDEO_PREF_NAME
 import io.legado.app.ui.book.read.config.HighlightRuleStore
 import io.legado.app.utils.FileUtils
@@ -220,9 +221,9 @@ object BackupController {
             }
 
             // 导出直链上传配置
-            DirectLinkUpload.getConfig()?.let {
+            DirectLinkUploadRepository().createBackupJson()?.let {
                 FileUtils.createFileIfNotExist(webBackupPath + File.separator + DirectLinkUpload.ruleFileName)
-                    .writeText(GSON.toJson(it))
+                    .writeText(it)
             }
 
             // 导出封面规则配置

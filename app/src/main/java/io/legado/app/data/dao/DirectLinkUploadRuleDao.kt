@@ -48,6 +48,9 @@ interface DirectLinkUploadRuleDao {
     @Query("SELECT * FROM direct_link_upload_rules ORDER BY isDefault DESC, sortOrder ASC, createTime DESC")
     suspend fun getAll(): List<DirectLinkUploadRule>
 
+    @Query("SELECT * FROM direct_link_upload_rules ORDER BY isDefault DESC, sortOrder ASC, createTime DESC")
+    fun getAllSync(): List<DirectLinkUploadRule>
+
     /**
      * 根据ID获取规则（一次性）
      * 
@@ -64,6 +67,9 @@ interface DirectLinkUploadRuleDao {
      */
     @Query("SELECT COUNT(*) FROM direct_link_upload_rules")
     suspend fun getCount(): Int
+
+    @Query("SELECT COUNT(*) FROM direct_link_upload_rules")
+    fun getCountSync(): Int
 
     /**
      * 插入规则（支持批量）

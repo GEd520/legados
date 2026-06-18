@@ -16,6 +16,7 @@ import io.legado.app.help.config.ReadBookConfig
 import io.legado.app.help.config.ThemeConfig
 import io.legado.app.help.coroutine.Coroutine
 import io.legado.app.model.BookCover
+import io.legado.app.model.upload.DirectLinkUploadRepository
 import io.legado.app.help.storage.BackupSelectorConfig
 import io.legado.app.utils.FileUtils
 import io.legado.app.utils.GSON
@@ -529,9 +530,9 @@ object Backup {
 
         // 导出直链上传配置
         if (selectedFiles.contains(DirectLinkUpload.ruleFileName)) {
-            DirectLinkUpload.getConfig()?.let {
+            DirectLinkUploadRepository().createBackupJson()?.let {
                 FileUtils.createFileIfNotExist(backupPath + File.separator + DirectLinkUpload.ruleFileName)
-                    .writeText(GSON.toJson(it))
+                    .writeText(it)
             }
         }
 

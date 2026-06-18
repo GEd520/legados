@@ -4,6 +4,7 @@ import io.legado.app.utils.FileUtils
 import io.legado.app.utils.GSON
 import io.legado.app.utils.fromJsonObject
 import io.legado.app.data.repository.CoverGalleryRepository
+import io.legado.app.help.DirectLinkUpload
 import splitties.init.appCtx
 
 @Suppress("ConstPropertyName")
@@ -85,7 +86,9 @@ object BackupSelectorConfig {
     }
 
     fun getSelectedFileNames(): List<String> {
-        return allItems.filter { isSelected(it.key) }.map { it.fileName }
+        return allItems.filter { isSelected(it.key) }.map {
+            if (it.key == "directLinkRule") DirectLinkUpload.ruleFileName else it.fileName
+        }
     }
 
     fun isAllSelected(): Boolean {

@@ -5,6 +5,9 @@ import io.legado.app.data.entities.DirectLinkUploadRule
 import io.legado.app.data.entities.UploadHistory
 import io.legado.app.data.entities.UploadHistoryWithRule
 import io.legado.app.help.DirectLinkUpload
+import io.legado.app.utils.GSON
+import io.legado.app.utils.fromJsonArray
+import io.legado.app.utils.fromJsonObject
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -18,6 +21,11 @@ class DirectLinkUploadRepository {
     // 数据访问对象
     private val ruleDao = appDb.directLinkUploadRuleDao
     private val historyDao = appDb.uploadHistoryDao
+
+    data class BackupData(
+        val version: Int = 1,
+        val rules: List<DirectLinkUploadRule> = emptyList()
+    )
 
     /**
      * 获取所有规则（响应式）
@@ -230,6 +238,77 @@ class DirectLinkUploadRepository {
         
         // 批量插入
         ruleDao.insert(*defaultRules.toTypedArray())
+    }
+
+    suspend fun createBackupJson(): String? {
+        migrateFromOldConfig()
+        val rules = ruleDao.getAll()
+        if (rules.isEmpty()) return null
+        return GSON.toJson(BackupData(rules = rules))
+    }
+
+    fun createBackupJsonSync(): String? {
+        val rules = ruleDao.getAllSync()
+        if (rules.isNotEmpty()) return GSON.toJson(BackupData(rules = rules))
+        val oldRule = DirectLinkUpload.getConfig() ?: return null
+        return GSON.toJson(
+            BackupData(
+                rules = listOf(
+                    DirectLinkUploadRule(
+                        uploadUrl = oldRule.uploadUrl,
+                        downloadUrlRule = oldRule.downloadUrlRule,
+                        summary = oldRule.summary,
+                        compress = oldRule.compress,
+                        isDefault = true
+                    )
+                )
+            )
+        )
+    }
+
+    suspend fun getBackupRuleCount(): Int {
+        migrateFromOldConfig()
+        return ruleDao.getCount()
+    }
+
+    suspend fun restoreBackupJson(json: String) {
+        val rules = parseBackupRules(json)
+        if (rules.isEmpty()) return
+        ruleDao.deleteAll()
+        ruleDao.insert(*ensureDefaultRule(rules).toTypedArray())
+        DirectLinkUpload.delConfig()
+    }
+
+    private fun parseBackupRules(json: String): List<DirectLinkUploadRule> {
+        GSON.fromJsonObject<BackupData>(json).getOrNull()
+            ?.rules
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { return it }
+
+        GSON.fromJsonArray<DirectLinkUploadRule>(json).getOrNull()
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { return it }
+
+        GSON.fromJsonObject<DirectLinkUpload.Rule>(json).getOrNull()?.let { oldRule ->
+            return listOf(
+                DirectLinkUploadRule(
+                    uploadUrl = oldRule.uploadUrl,
+                    downloadUrlRule = oldRule.downloadUrlRule,
+                    summary = oldRule.summary,
+                    compress = oldRule.compress,
+                    isDefault = true
+                )
+            )
+        }
+
+        return emptyList()
+    }
+
+    private fun ensureDefaultRule(rules: List<DirectLinkUploadRule>): List<DirectLinkUploadRule> {
+        if (rules.any { it.isDefault }) return rules
+        return rules.mapIndexed { index, rule ->
+            if (index == 0) rule.copy(isDefault = true) else rule
+        }
     }
 }
 
