@@ -392,8 +392,8 @@ class TopBarManageActivity : BaseActivity<ActivityTopBarManageBinding>(), ColorP
     private fun showColorOptions(target: Int, color: Int) {
         selector(
             items = listOf(
-                getString(R.string.top_bar_follow_theme),
                 getString(R.string.top_bar_primary_color),
+                getString(R.string.accent_color),
                 getString(R.string.custom)
             )
         ) { _, index ->
@@ -401,17 +401,17 @@ class TopBarManageActivity : BaseActivity<ActivityTopBarManageBinding>(), ColorP
             when (index) {
                 0 -> {
                     when (target) {
-                        COLOR_BACKGROUND -> config.backgroundColor = null
-                        COLOR_TAG_BAR -> config.tagBarColor = null
-                        COLOR_TAG_SELECTED -> config.tagSelectedColor = null
+                        COLOR_BACKGROUND -> config.backgroundColor = primaryColor
+                        COLOR_TAG_BAR -> config.tagBarColor = primaryColor
+                        COLOR_TAG_SELECTED -> config.tagSelectedColor = primaryColor
                     }
                     refreshEditDialog()
                 }
                 1 -> {
                     when (target) {
-                        COLOR_BACKGROUND -> config.backgroundColor = primaryColor
-                        COLOR_TAG_BAR -> config.tagBarColor = primaryColor
-                        COLOR_TAG_SELECTED -> config.tagSelectedColor = primaryColor
+                        COLOR_BACKGROUND -> config.backgroundColor = accentColor
+                        COLOR_TAG_BAR -> config.tagBarColor = accentColor
+                        COLOR_TAG_SELECTED -> config.tagSelectedColor = accentColor
                     }
                     refreshEditDialog()
                 }
@@ -571,7 +571,8 @@ class TopBarManageActivity : BaseActivity<ActivityTopBarManageBinding>(), ColorP
 
     private fun colorLabel(color: Int?): String {
         return when {
-            color == null -> getString(R.string.top_bar_follow_theme)
+            color == null -> getString(R.string.top_bar_primary_color)
+            color == accentColor -> getString(R.string.accent_color)
             color == primaryColor -> getString(R.string.top_bar_primary_color)
             else -> "#${Integer.toHexString(color).takeLast(6).uppercase(Locale.ROOT)}"
         }
@@ -605,7 +606,7 @@ class TopBarManageActivity : BaseActivity<ActivityTopBarManageBinding>(), ColorP
         )
     }
 
-    private fun defaultTagBarColor(): Int = ContextCompat.getColor(this, R.color.background_menu)
+    private fun defaultTagBarColor(): Int = primaryColor
 
     private fun defaultSelectedColor(): Int = ContextCompat.getColor(this, R.color.background_card)
 
