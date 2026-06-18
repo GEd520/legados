@@ -468,27 +468,35 @@ class BackupConfigFragment : PreferenceFragment(),
     private fun restoreWebDav(name: String) {
         waitDialog.setText("下载备份文件...")
         waitDialog.show()
-        val task = Coroutine.async {
-            AppWebDav.downloadAndUnzipBackup(name)
-        }.onSuccess {
-            if (AppConfig.restoreShowSelector) {
-                showRestoreSelectorFromPath(Backup.backupPath)
-            } else {
-                waitDialog.setText("恢复中…")
-                val restoreTask = Coroutine.async {
-                    Restore.restoreLocked(Backup.backupPath)
-                }.onFinally {
-                    waitDialog.dismiss()
+        val task = if (AppConfig.restoreShowSelector) {
+            Coroutine.async {
+                val restorePath = Backup.restorePath
+                Backup.withStorageLock {
+                    AppWebDav.downloadAndUnzipBackupLocked(name)
+                    FileUtils.delete(restorePath)
+                    FileUtils.copy(Backup.backupPath, restorePath)
                 }
-                waitDialog.setOnCancelListener {
-                    restoreTask.cancel()
+                restorePath
+            }.onSuccess { restorePath ->
+                showRestoreSelectorFromPath(restorePath)
+            }
+        } else {
+            Coroutine.async {
+                Backup.withStorageLock {
+                    AppWebDav.downloadAndUnzipBackupLocked(name)
+                    withContext(Main) {
+                        waitDialog.setText("恢复中…")
+                    }
+                    Restore.restorePreparedBackup(Backup.backupPath)
                 }
+            }.onSuccess {
+                waitDialog.dismiss()
             }
         }.onError {
-            AppLog.put("WebDav恢复出错\n${it.localizedMessage}", it)
-            appCtx.toastOnUi("WebDav恢复出错\n${it.localizedMessage}")
-            waitDialog.dismiss()
-        }
+                AppLog.put("WebDav恢复出错\n${it.localizedMessage}", it)
+                appCtx.toastOnUi("WebDav恢复出错\n${it.localizedMessage}")
+                waitDialog.dismiss()
+            }
         waitDialog.setOnCancelListener {
             task.cancel()
         }
@@ -513,7 +521,7 @@ class BackupConfigFragment : PreferenceFragment(),
         lifecycleScope.launch {
             try {
                 // 解压到临时目录
-                val tempPath = Backup.backupPath
+                val tempPath = Backup.restorePath
                 FileUtils.delete(tempPath)
 
                 withContext(IO) {

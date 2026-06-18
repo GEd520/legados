@@ -127,11 +127,22 @@ object Backup {
     /** 临时ZIP文件路径，备份完成后会删除 */
     val zipFilePath = "${appCtx.externalFiles.absolutePath}${File.separator}tmp_backup.zip"
 
+    /** 选择性恢复预览目录，避免弹出选择框期间占用备份临时目录 */
+    val restorePath: String by lazy {
+        appCtx.filesDir.getFile("restore").createFolderIfNotExist().absolutePath
+    }
+
     private const val TAG = "Backup"
     private const val READ_BG_DIR = "bg"
 
-    /** 互斥锁，防止并发备份操作 */
+    /** 互斥锁，防止备份和恢复共用临时目录时互相覆盖 */
     private val mutex = Mutex()
+
+    internal suspend fun <T> withStorageLock(block: suspend () -> T): T {
+        return mutex.withLock {
+            block()
+        }
+    }
 
     /** 备份文件名列表，定义所有需要备份的文件 */
     private val backupFileNames by lazy {
@@ -382,7 +393,7 @@ object Backup {
     fun autoBack(context: Context) {
         if (shouldBackup()) {
             Coroutine.async {
-                mutex.withLock {
+                withStorageLock {
                     if (shouldBackup()) {
                         val backupZipFileName = getNowZipFileName()
                         if (!AppWebDav.hasBackUp(backupZipFileName)) {
@@ -406,7 +417,7 @@ object Backup {
      * @param path 备份目标路径，可为null（使用默认路径）
      */
     suspend fun backupLocked(context: Context, path: String?) {
-        mutex.withLock {
+        withStorageLock {
             withContext(IO) {
                 backup(context, path)
             }
@@ -673,16 +684,12 @@ object Backup {
     private suspend fun writeListToJson(list: List<Any>, fileName: String, path: String) {
         currentCoroutineContext().ensureActive()
         withContext(IO) {
-            if (list.isNotEmpty()) {
-                LogUtils.d(TAG, "阅读备份 $fileName 列表大小 ${list.size}")
-                val file = FileUtils.createFileIfNotExist(path + File.separator + fileName)
-                file.outputStream().buffered().use {
-                    GSON.writeToOutputStream(it, list)
-                }
-                LogUtils.d(TAG, "阅读备份 $fileName 写入大小 ${file.length()}")
-            } else {
-                LogUtils.d(TAG, "阅读备份 $fileName 列表为空")
+            LogUtils.d(TAG, "阅读备份 $fileName 列表大小 ${list.size}")
+            val file = FileUtils.createFileIfNotExist(path + File.separator + fileName)
+            file.outputStream().buffered().use {
+                GSON.writeToOutputStream(it, list)
             }
+            LogUtils.d(TAG, "阅读备份 $fileName 写入大小 ${file.length()}")
         }
     }
 
@@ -783,7 +790,7 @@ object Backup {
             bookCacheIndexList.add(BookCacheIndex(
                 bookUrl = book.bookUrl,
                 bookName = book.name,
-                author = book.author ?: "",
+                author = book.author,
                 folderName = folderName,
                 chapters = chapterCacheInfos.sortedBy { it.index }
             ))
@@ -864,6 +871,7 @@ object Backup {
      */
     fun clearCache() {
         FileUtils.delete(backupPath)
+        FileUtils.delete(restorePath)
         FileUtils.delete(zipFilePath)
     }
 }

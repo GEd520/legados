@@ -71,8 +71,6 @@ import io.legado.app.utils.postEvent
 import io.legado.app.utils.toastOnUi
 import kotlinx.coroutines.Dispatchers.Main
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import splitties.init.appCtx
 import java.io.File
@@ -107,9 +105,6 @@ object Restore {
     private const val bookChapterFileName = "bookChapter.json"
     private const val legacyDirectLinkRuleFileName = "directLinkRule.json"
 
-    /** 互斥锁，防止并发恢复操作 */
-    private val mutex = Mutex()
-
     private const val TAG = "Restore"
     private val themeRestorePrefKeys = arrayOf(
         PreferKey.dThemeName,
@@ -139,25 +134,28 @@ object Restore {
      */
     suspend fun restore(context: Context, uri: Uri) {
         LogUtils.d(TAG, "开始恢复备份 uri:$uri")
+        var restoreStarted = false
         kotlin.runCatching {
-            FileUtils.delete(Backup.backupPath)
-            if (uri.isContentScheme()) {
-                DocumentFile.fromSingleUri(context, uri)!!.openInputStream()!!.use {
-                    ZipUtils.unZipToPath(it, Backup.backupPath)
+            Backup.withStorageLock {
+                FileUtils.delete(Backup.backupPath)
+                if (uri.isContentScheme()) {
+                    DocumentFile.fromSingleUri(context, uri)!!.openInputStream()!!.use {
+                        ZipUtils.unZipToPath(it, Backup.backupPath)
+                    }
+                } else {
+                    ZipUtils.unZipToPath(File(uri.path!!), Backup.backupPath)
                 }
-            } else {
-                ZipUtils.unZipToPath(File(uri.path!!), Backup.backupPath)
+                restoreStarted = true
+                restore(Backup.backupPath)
+                LocalConfig.lastBackup = System.currentTimeMillis()
             }
         }.onFailure {
-            AppLog.put("复制解压文件出错\n${it.localizedMessage}", it)
-            return
-        }
-        kotlin.runCatching {
-            restoreLocked(Backup.backupPath)
-            LocalConfig.lastBackup = System.currentTimeMillis()
-        }.onFailure {
-            appCtx.toastOnUi("恢复备份出错\n${it.localizedMessage}")
-            AppLog.put("恢复备份出错\n${it.localizedMessage}", it)
+            if (restoreStarted) {
+                appCtx.toastOnUi("恢复备份出错\n${it.localizedMessage}")
+                AppLog.put("恢复备份出错\n${it.localizedMessage}", it)
+            } else {
+                AppLog.put("复制解压文件出错\n${it.localizedMessage}", it)
+            }
         }
     }
 
@@ -168,9 +166,16 @@ object Restore {
      * @param path 备份文件解压后的目录路径
      */
     suspend fun restoreLocked(path: String) {
-        mutex.withLock {
+        Backup.withStorageLock {
             restore(path)
         }
+    }
+
+    /**
+     * 调用方必须已经持有 Backup.withStorageLock。
+     */
+    internal suspend fun restorePreparedBackup(path: String) {
+        restore(path)
     }
 
     /**
@@ -183,7 +188,7 @@ object Restore {
      */
     suspend fun restoreSelected(context: Context, path: String, selectedFiles: List<String>) {
         LogUtils.d(TAG, "开始选择性恢复备份 path:$path, files:${selectedFiles.joinToString()}")
-        mutex.withLock {
+        Backup.withStorageLock {
             try {
                 restoreSelectedFiles(path, selectedFiles)
                 LocalConfig.lastBackup = System.currentTimeMillis()
@@ -347,11 +352,13 @@ object Restore {
 
         // 恢复服务器配置
         if ("servers.json" in selectedSet) {
-            appDb.serverDao.deleteAll()
             File(path, "servers.json").takeIf { it.exists() }?.runCatching {
                 var json = readText()
                 if (!json.isJsonArray()) { json = aes.decryptStr(json) }
-                GSON.fromJsonArray<Server>(json).getOrNull()?.let { appDb.serverDao.insert(*it.toTypedArray()) }
+                GSON.fromJsonArray<Server>(json).getOrThrow().let {
+                    appDb.serverDao.deleteAll()
+                    appDb.serverDao.insert(*it.toTypedArray())
+                }
             }?.onFailure { AppLog.put("恢复服务器配置出错\n${it.localizedMessage}", it) }
         }
 
@@ -628,7 +635,6 @@ object Restore {
         }
 
         // 恢复服务器配置（需要解密）
-        appDb.serverDao.deleteAll()
         File(path, "servers.json").takeIf {
             it.exists()
         }?.runCatching {
@@ -636,7 +642,8 @@ object Restore {
             if (!json.isJsonArray()) {
                 json = aes.decryptStr(json)
             }
-            GSON.fromJsonArray<Server>(json).getOrNull()?.let {
+            GSON.fromJsonArray<Server>(json).getOrThrow().let {
+                appDb.serverDao.deleteAll()
                 appDb.serverDao.insert(*it.toTypedArray())
             }
         }?.onFailure {
@@ -1382,7 +1389,7 @@ object Restore {
         val normalizedAuthor = cacheIndex.author.trim()
         allBooks.filter { 
             it.name == cacheIndex.bookName && 
-            (it.author?.trim() ?: "") == normalizedAuthor 
+            it.author.trim() == normalizedAuthor
         }.firstOrNull()?.let { return it }
         
         // 最后按书名模糊匹配（作者可能为空或不一致）

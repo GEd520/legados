@@ -162,6 +162,10 @@ object BackupFileValidator {
                 return validateJsonObjectFile(fileName, jsonText)
             }
 
+            if (fileName == "servers.json" && !jsonText.isJsonArray()) {
+                return validateEncryptedServersFile(fileName, jsonText)
+            }
+
             if (!jsonText.isJsonArray()) {
                 return ValidationResult(
                     fileName = fileName,
@@ -187,6 +191,38 @@ object BackupFileValidator {
                 state = ValidationState.ERROR,
                 message = "JSON 解析失败",
                 details = "解析 $fileName 时出错: ${e.message}",
+                exception = e
+            )
+        }
+    }
+
+    private fun validateEncryptedServersFile(fileName: String, jsonText: String): ValidationResult {
+        return try {
+            val json = BackupAES().decryptStr(jsonText)
+            if (!json.isJsonArray()) {
+                return ValidationResult(
+                    fileName = fileName,
+                    state = ValidationState.ERROR,
+                    message = "服务器配置格式错误",
+                    details = "$fileName 解密后不是有效的 JSON 数组格式"
+                )
+            }
+            val structureResult = validateDataStructure(fileName, json)
+            if (structureResult.state == ValidationState.ERROR) {
+                structureResult
+            } else {
+                ValidationResult(
+                    fileName = fileName,
+                    state = ValidationState.VALID,
+                    message = "格式正确"
+                )
+            }
+        } catch (e: Exception) {
+            ValidationResult(
+                fileName = fileName,
+                state = ValidationState.ERROR,
+                message = "服务器配置解密失败",
+                details = "请确认本地密码与备份时一致: ${e.message}",
                 exception = e
             )
         }
@@ -308,7 +344,7 @@ object BackupFileValidator {
             if (jsonArray.length() == 0) {
                 return ValidationResult(
                     fileName = "",
-                    state = ValidationState.WARNING,
+                    state = ValidationState.VALID,
                     message = "数据为空",
                     details = "JSON 数组为空，没有数据需要验证"
                 )

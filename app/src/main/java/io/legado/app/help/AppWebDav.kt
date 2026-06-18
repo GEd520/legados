@@ -187,6 +187,13 @@ object AppWebDav {
      */
     @Throws(WebDavException::class)
     suspend fun downloadAndUnzipBackup(name: String) {
+        Backup.withStorageLock {
+            downloadAndUnzipBackupLocked(name)
+        }
+    }
+
+    @Throws(WebDavException::class)
+    suspend fun downloadAndUnzipBackupLocked(name: String) {
         authorization?.let {
             val webDav = WebDav(rootWebDavUrl + name, it)
             webDav.downloadTo(Backup.zipFilePath, true)
@@ -208,8 +215,10 @@ object AppWebDav {
      */
     @Throws(WebDavException::class)
     suspend fun restoreWebDav(name: String) {
-        downloadAndUnzipBackup(name)
-        Restore.restoreLocked(Backup.backupPath)
+        Backup.withStorageLock {
+            downloadAndUnzipBackupLocked(name)
+            Restore.restorePreparedBackup(Backup.backupPath)
+        }
     }
 
     /**
