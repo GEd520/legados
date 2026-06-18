@@ -196,6 +196,7 @@ object WebViewPool {
             outlineProvider = null
             clipToOutline = false
             webChromeClient = null
+            setLayerType(View.LAYER_TYPE_NONE, null)
             clearFormData() //清除表单数据
             clearMatches() //清除查找匹配项
             clearDisappearingChildren() //清除消失中的子视图

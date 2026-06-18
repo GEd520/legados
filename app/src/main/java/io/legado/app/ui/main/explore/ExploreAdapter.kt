@@ -61,6 +61,7 @@ import io.legado.app.help.webView.WebViewPool.scheduleInlineContentFit
 import io.legado.app.help.source.clearExploreKindsCache
 import io.legado.app.help.source.exploreKinds
 import io.legado.app.lib.theme.accentColor
+import io.legado.app.lib.theme.backgroundColor
 import io.legado.app.ui.association.OnLineImportActivity
 import io.legado.app.ui.login.SourceLoginActivity
 import io.legado.app.ui.login.SourceLoginJsExtensions
@@ -918,6 +919,8 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         val cachedHeight = exploreWebViewHeightCache[pageLayoutKey]?.takeIf { it > 1 }
         val loadingHeight = 120.dpToPx()
         prepareForInlineContent(webView, cachedHeight ?: loadingHeight)
+        webView.setBackgroundColor(context.backgroundColor)
+        applyExploreUseWebLayerType(webView)
         val loadingIndicator = createLoadingIndicator(container)
         container.addView(loadingIndicator)
         webView.invisible()
@@ -934,6 +937,7 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
             if (height > 1) {
                 exploreWebViewHeightCache.put(pageLayoutKey, height)
             }
+            applyExploreUseWebLayerType(webView)
             container.requestLayout()
         }
         webView.addJavascriptInterface(WebCacheManager, nameCache)
@@ -1164,9 +1168,10 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
      * @return 包装后的完整 HTML
      */
     private fun wrapExploreUseWebHtml(html: String, source: BookSource?, pageJs: String): String {
+        val pageBackground = "#%06X".format(0xFFFFFF and context.backgroundColor)
         val inlineStyle = """
             <style>
-            html,body{background:transparent;}
+            html,body{background:$pageBackground !important;}
             </style>
         """.trimIndent()
         val injection = buildString {
@@ -1184,6 +1189,12 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
         }
         val safeInjection = Regex("(?i)</script>").replace(injection, "<\\\\/script>")
         return "$inlineStyle\n<script>\n$safeInjection\n</script>\n$html"
+    }
+
+    private fun applyExploreUseWebLayerType(webView: WebView) {
+        if (webView.layerType != View.LAYER_TYPE_SOFTWARE) {
+            webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+        }
     }
 
     /**
@@ -1336,11 +1347,13 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
                 webView,
                 WebViewPool.currentInlineContentGeneration(webView),
                 afterLayout = {
+                    applyExploreUseWebLayerType(webView)
                     container.requestLayout()
                 }
             )
             webView.postDelayed({
                 WebViewPool.scheduleInlineContentFit(webView, {
+                    applyExploreUseWebLayerType(webView)
                     container.requestLayout()
                 }, longArrayOf(120L, 360L))
             }, 100)
@@ -1497,6 +1510,7 @@ class ExploreAdapter(context: Context, val callBack: CallBack) :
             if (height > 1) {
                 exploreWebViewHeightCache.put(pageLayoutKey, height)
             }
+            applyExploreUseWebLayerType(webView)
             loadingIndicator.gone()
             webView.visible()
             container.requestLayout()
