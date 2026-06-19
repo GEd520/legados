@@ -164,7 +164,7 @@ private fun AchievementContent(
         item {
             MetricGrid(
                 metrics = listOf(
-                    AchievementMetric("阅读总时长", formatReadDuration(state.totalReadTime), Icons.Default.Schedule),
+                    AchievementMetric("阅读总时长", formatHeroDuration(state.totalReadTime), Icons.Default.Schedule),
                     AchievementMetric("读过书籍", "${state.latestRecords.size} 本", Icons.Default.MenuBook),
                     AchievementMetric("活跃天数", "${activeDates.size} 天", Icons.Default.CalendarMonth),
                     AchievementMetric("最长连续", "${longestStreak} 天", Icons.Default.LocalFireDepartment)
@@ -333,7 +333,7 @@ private fun AchievementHeroCard(
                 ) {
                     QuietHeroStat(
                         label = "总时长",
-                        value = formatReadDuration(totalReadTime),
+                        value = formatHeroDuration(totalReadTime),
                         modifier = Modifier.weight(1f)
                     )
                     QuietHeroStat(
@@ -711,6 +711,18 @@ private fun calculateAchievementLevel(totalReadTime: Long): AchievementLevel {
     }
     val nextHint = "距离 Lv.${level + 1} 还差 ${(nextLevelHours - totalHours).coerceAtLeast(0)} 小时"
     return AchievementLevel(level, title, caption, progress, nextHint)
+}
+
+private fun formatHeroDuration(durationMs: Long): String {
+    val totalMinutes = durationMs / 60_000L
+    val hours = totalMinutes / 60L
+    val minutes = totalMinutes % 60L
+    return when {
+        hours > 0 && minutes > 0 -> "${hours}h${minutes}m"
+        hours > 0 -> "${hours}h"
+        minutes > 0 -> "${minutes}分钟"
+        else -> "0分钟"
+    }
 }
 
 private fun calculateLongestStreak(activeDates: Set<LocalDate>): Int {
