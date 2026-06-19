@@ -4,12 +4,14 @@ import android.app.Application
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.pm.ActivityInfo
 import android.content.pm.ApplicationInfo
 import android.content.res.Configuration
 import android.os.Build
 import com.github.liuyueyi.quick.transfer.constants.TransType
+import com.bumptech.glide.Glide
 import com.jeremyliao.liveeventbus.LiveEventBus
 import com.jeremyliao.liveeventbus.logger.DefaultLogger
 import com.script.rhino.ReadOnlyJavaObject
@@ -31,6 +33,7 @@ import io.legado.app.data.entities.rule.ContentRule
 import io.legado.app.data.entities.rule.ExploreRule
 import io.legado.app.data.entities.rule.SearchRule
 import io.legado.app.help.AppFreezeMonitor
+import io.legado.app.help.CacheManager
 import io.legado.app.help.AppWebDav
 import io.legado.app.help.CrashHandler
 import io.legado.app.help.DefaultData
@@ -50,7 +53,11 @@ import io.legado.app.help.http.okHttpClient
 import io.legado.app.help.rhino.NativeBaseSource
 import io.legado.app.help.source.SourceHelp
 import io.legado.app.help.storage.Backup
+import io.legado.app.help.webView.WebViewPool
 import io.legado.app.model.BookCover
+import io.legado.app.model.ImageProvider
+import io.legado.app.ui.book.read.page.entities.TextLine
+import io.legado.app.ui.widget.image.CoverImageView
 import io.legado.app.utils.ChineseUtils
 import io.legado.app.utils.LogUtils
 import io.legado.app.utils.defaultSharedPreferences
@@ -126,6 +133,37 @@ class App : Application() {
             if (AppConfig.syncBookProgress) {
                 AppWebDav.downloadAllBookProgress()
             }
+        }
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        trimAppMemory(level)
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onLowMemory() {
+        super.onLowMemory()
+        trimAppMemory(ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL)
+        runCatching {
+            Glide.get(this).clearMemory()
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun trimAppMemory(level: Int) {
+        WebViewPool.trimMemory()
+        CacheManager.trimMemory(level)
+        ImageProvider.trimMemory(level)
+        CoverImageView.trimMemory(level)
+        if (level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND
+            || level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW
+            || level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL
+        ) {
+            TextLine.clearBgBitmapCache()
+        }
+        runCatching {
+            Glide.get(this).trimMemory(level)
         }
     }
 

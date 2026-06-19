@@ -1,6 +1,7 @@
 package io.legado.app.ui.widget.image
 
 import android.annotation.SuppressLint
+import android.content.ComponentCallbacks2
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -67,9 +68,23 @@ class CoverImageView @JvmOverloads constructor(
     attrs: AttributeSet? = null
 ) : AppCompatImageView(context, attrs) {
     companion object {
-        private val nameBitmapCache by lazy { LruCache<String, Bitmap>(33) }
+        private const val NAME_BITMAP_CACHE_BYTES = 6 * 1024 * 1024
+        private const val HTML_COVER_CACHE_BYTES = 12 * 1024 * 1024
+        private val nameBitmapCache by lazy {
+            object : LruCache<String, Bitmap>(NAME_BITMAP_CACHE_BYTES) {
+                override fun sizeOf(key: String, value: Bitmap): Int {
+                    return value.byteCount.coerceAtLeast(1)
+                }
+            }
+        }
         private val needNameBitmap by lazy { LruCache<String, Boolean>(99) }
-        private val htmlCoverCache by lazy { LruCache<String, Bitmap>(50) }
+        private val htmlCoverCache by lazy {
+            object : LruCache<String, Bitmap>(HTML_COVER_CACHE_BYTES) {
+                override fun sizeOf(key: String, value: Bitmap): Int {
+                    return value.byteCount.coerceAtLeast(1)
+                }
+            }
+        }
 
         /**
          * 清除HTML封面缓存
@@ -79,6 +94,22 @@ class CoverImageView @JvmOverloads constructor(
          */
         fun clearHtmlCoverCache() {
             htmlCoverCache.evictAll()
+        }
+
+        @Suppress("DEPRECATION")
+        fun trimMemory(level: Int) {
+            if (level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND
+                || level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW
+                || level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL
+            ) {
+                nameBitmapCache.evictAll()
+                htmlCoverCache.evictAll()
+            } else if (level == ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN
+                || level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE
+            ) {
+                nameBitmapCache.trimToSize(nameBitmapCache.maxSize() / 2)
+                htmlCoverCache.trimToSize(htmlCoverCache.maxSize() / 2)
+            }
         }
     }
     private var viewWidth: Float = 0f

@@ -12,6 +12,9 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import io.legado.app.R
 import io.legado.app.help.config.AppConfig
+import io.legado.app.help.webView.WebJsExtensions.Companion.nameCache
+import io.legado.app.help.webView.WebJsExtensions.Companion.nameJava
+import io.legado.app.help.webView.WebJsExtensions.Companion.nameSource
 import io.legado.app.ui.rss.read.VisibleWebView
 import io.legado.app.utils.setDarkeningAllowed
 import kotlinx.coroutines.CoroutineScope
@@ -85,7 +88,7 @@ object WebViewPool {
     // 是否需要初始化清理定时器
     private var needInitialize = true
     // 池子总容量（闲置+使用），根据线程数动态计算，最小为 5
-    private val CACHED_WEB_VIEW_MAX_NUM = max(AppConfig.threadCount / 10, 5)
+    private val CACHED_WEB_VIEW_MAX_NUM = max(AppConfig.threadCount / 10, 1).coerceAtMost(3)
     // 闲置5分钟后销毁
     private const val IDLE_TIME_OUT: Long = 5 * 60 * 1000
     // 最后一个闲置30分钟后销毁（保留一个备用）
@@ -182,6 +185,7 @@ object WebViewPool {
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
             stopLoading()
+            removeSourceJavascriptInterfaces()
             clearFocus() //清除焦点
             setOnLongClickListener(null)
             // 清除触摸监听器，避免内存泄漏和错误回调
@@ -197,6 +201,8 @@ object WebViewPool {
             clipToOutline = false
             webChromeClient = null
             setLayerType(View.LAYER_TYPE_NONE, null)
+            clearHistory()
+            clearCache(false)
             clearFormData() //清除表单数据
             clearMatches() //清除查找匹配项
             clearDisappearingChildren() //清除消失中的子视图
@@ -250,6 +256,24 @@ object WebViewPool {
      * @param webView 目标 WebView
      * @param initialHeight 初始高度（像素），默认为屏幕高度的 35%
      */
+    @Synchronized
+    fun trimMemory() {
+        val toRemove = idlePool.toList()
+        idlePool.clear()
+        toRemove.forEach { pooled ->
+            try {
+                pooled.realWebView.destroy()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+        if (idlePool.isEmpty()) {
+            needInitialize = true
+            cleanupJob?.cancel()
+            cleanupJob = null
+        }
+    }
+
     fun prepareForInlineContent(webView: WebView, initialHeight: Int = 0) {
         // 递增代次，使之前的回调失效
         nextInlineContentGeneration(webView)
@@ -502,6 +526,12 @@ object WebViewPool {
      * 
      * @return 包装后的 WebView 对象
      */
+    private fun WebView.removeSourceJavascriptInterfaces() {
+        removeJavascriptInterface(nameCache)
+        removeJavascriptInterface(nameSource)
+        removeJavascriptInterface(nameJava)
+    }
+
     private fun createNewWebView(): PooledWebView {
         val webView = VisibleWebView(MutableContextWrapper(appCtx))
         preInitWebView(webView)

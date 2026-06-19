@@ -1,5 +1,6 @@
 package io.legado.app.help
 
+import android.content.ComponentCallbacks2
 import android.webkit.JavascriptInterface
 import androidx.annotation.Keep
 import androidx.collection.LruCache
@@ -44,12 +45,35 @@ object AppCacheManager {
         }
     }
 
+    fun clearMemory() {
+        queryTTFMap.evictAll()
+        memoryLruCache.evictAll()
+    }
+
 }
 
 
 @Keep
 @Suppress("unused")
 object CacheManager {
+
+    @Suppress("DEPRECATION")
+    fun trimMemory(level: Int) {
+        if (level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND
+            || level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW
+            || level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL
+        ) {
+            clearMemory()
+        } else if (level == ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN
+            || level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE
+        ) {
+            memoryLruCache.trimToSize(memoryLruCache.maxSize() / 2)
+        }
+    }
+
+    fun clearMemory() {
+        AppCacheManager.clearMemory()
+    }
 
     /**
      * saveTime 单位为秒

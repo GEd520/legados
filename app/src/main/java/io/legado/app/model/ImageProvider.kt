@@ -2,6 +2,7 @@ package io.legado.app.model
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.content.ComponentCallbacks2
 import android.util.Size
 import androidx.collection.LruCache
 import com.bumptech.glide.Glide
@@ -288,6 +289,21 @@ object ImageProvider {
      */
     fun clear() {
         bitmapLruCache.evictAll()
+    }
+
+    @Suppress("DEPRECATION")
+    fun trimMemory(level: Int) {
+        if (level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND
+            || level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW
+            || level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL
+        ) {
+            clear()
+            gifFileCache.clear()
+        } else if (level == ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN
+            || level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE
+        ) {
+            bitmapLruCache.trimToSize(bitmapLruCache.maxSize() / 2)
+        }
     }
 
 }
