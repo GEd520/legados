@@ -1,6 +1,5 @@
 package io.legado.app.ui.book.read.config
 
-import android.graphics.Bitmap
 import android.graphics.BitmapShader
 import android.graphics.Canvas
 import android.graphics.Matrix
@@ -102,16 +101,10 @@ class BgImageSpan(
                     canvas.restore()
                 }
                 else -> {
-                    val tileBitmap = if (scale != 1f) {
-                        val sw = (bitmap.width * scale).toInt().coerceAtLeast(1)
-                        val sh = (bitmap.height * scale).toInt().coerceAtLeast(1)
-                        Bitmap.createScaledBitmap(bitmap, sw, sh, true)
-                    } else {
-                        bitmap
-                    }
-                    val shader = BitmapShader(tileBitmap, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT)
+                    val shader = BitmapShader(bitmap, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT)
                     val matrix = Matrix()
-                    matrix.setTranslate(x, top.toFloat())
+                    matrix.setScale(scale, scale)
+                    matrix.postTranslate(x, top.toFloat())
                     shader.setLocalMatrix(matrix)
                     bgPaint.shader = shader
                     canvas.drawRect(x, top.toFloat(), x + width, bottom.toFloat(), bgPaint)

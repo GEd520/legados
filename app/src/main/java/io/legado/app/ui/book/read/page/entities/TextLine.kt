@@ -643,16 +643,10 @@ data class TextLine(
                 canvas.restore()
             }
             else -> {
-                val tileBitmap = if (scale != 1f) {
-                    val sw = (bitmap.width * scale).toInt().coerceAtLeast(1)
-                    val sh = (bitmap.height * scale).toInt().coerceAtLeast(1)
-                    getScaledBitmap("${bgImage}_s${scale}", bitmap, sw, sh)
-                } else {
-                    bitmap
-                }
-                val shader = BitmapShader(tileBitmap, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT)
+                val shader = BitmapShader(bitmap, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT)
                 val matrix = android.graphics.Matrix()
-                matrix.setTranslate(startX, top)
+                matrix.setScale(scale, scale)
+                matrix.postTranslate(startX, top)
                 shader.setLocalMatrix(matrix)
                 paint.shader = shader
                 canvas.drawRect(startX, top, endX, bottom, paint)
@@ -701,8 +695,11 @@ data class TextLine(
         private val searchRadius = 5.dpToPx().toFloat()
         private val searchPadding = 1.dpToPx().toFloat()
         private val einkUnderlineWidth = 1.dpToPx().toFloat()
-        private val bgBitmapCache = android.util.LruCache<String, Bitmap>(16 * 1024 * 1024)
-        private val bgScaledBitmapCache = android.util.LruCache<String, Bitmap>(8 * 1024 * 1024)
+        private val bgBitmapCache = object : android.util.LruCache<String, Bitmap>(16 * 1024 * 1024) {
+            override fun sizeOf(key: String, value: Bitmap): Int {
+                return value.byteCount.coerceAtLeast(1)
+            }
+        }
         private val bgSampleWidth by lazy {
             appCtx.resources.displayMetrics.widthPixels
         }
@@ -718,28 +715,15 @@ data class TextLine(
             return bitmap
         }
 
-        private fun getScaledBitmap(path: String, source: Bitmap, width: Int, height: Int): Bitmap {
-            if (width <= 0 || height <= 0) return source
-            val key = "${path}_${width}_${height}"
-            bgScaledBitmapCache.get(key)?.let { return it }
-            val scaled = Bitmap.createScaledBitmap(source, width, height, true)
-            bgScaledBitmapCache.put(key, scaled)
-            return scaled
-        }
-
         private fun loadBgBitmap(path: String): Bitmap? {
             return try {
                 val ctx = appCtx
                 if (path.startsWith("assets://")) {
                     val assetPath = path.removePrefix("assets://")
-                    ctx.assets.open(assetPath).use { input ->
-                        decodeSampledBitmap(input)
-                    }
+                    decodeSampledBitmap { ctx.assets.open(assetPath) }
                 } else if (path.startsWith("content://")) {
                     val uri = android.net.Uri.parse(path)
-                    ctx.contentResolver.openInputStream(uri)?.use { input ->
-                        decodeSampledBitmap(input)
-                    }
+                    decodeSampledBitmap { ctx.contentResolver.openInputStream(uri) }
                 } else {
                     val file = java.io.File(path)
                     if (file.exists()) {
@@ -747,26 +731,29 @@ data class TextLine(
                     } else {
                         val assetPath = if (path.startsWith("bg/")) path else "bg/$path"
                         kotlin.runCatching {
-                            ctx.assets.open(assetPath).use { input ->
-                                decodeSampledBitmap(input)
-                            }
+                            decodeSampledBitmap { ctx.assets.open(assetPath) }
                         }.getOrNull()
                     }
                 }
+            } catch (e: OutOfMemoryError) {
+                clearBgBitmapCache()
+                null
             } catch (e: Exception) {
                 null
             }
         }
 
-        private fun decodeSampledBitmap(input: java.io.InputStream): Bitmap? {
-            val buffered = if (input.markSupported()) input else java.io.BufferedInputStream(input)
+        private fun decodeSampledBitmap(openInputStream: () -> java.io.InputStream?): Bitmap? {
             val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            buffered.mark(buffered.available())
-            BitmapFactory.decodeStream(buffered, null, options)
+            openInputStream()?.use { input ->
+                BitmapFactory.decodeStream(input, null, options)
+            } ?: return null
+            if (options.outWidth <= 0 || options.outHeight <= 0) return null
             options.inSampleSize = calculateInSampleSize(options, bgSampleWidth, bgSampleHeight)
             options.inJustDecodeBounds = false
-            buffered.reset()
-            return BitmapFactory.decodeStream(buffered, null, options)
+            return openInputStream()?.use { input ->
+                BitmapFactory.decodeStream(input, null, options)
+            }
         }
 
         private fun decodeSampledBitmapFile(path: String): Bitmap? {
@@ -796,7 +783,6 @@ data class TextLine(
 
         fun clearBgBitmapCache() {
             bgBitmapCache.evictAll()
-            bgScaledBitmapCache.evictAll()
         }
 
         fun copyBgImageToInternal(context: android.content.Context, sourcePath: String): String? {
