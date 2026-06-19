@@ -353,6 +353,11 @@
             android:hardwareAccelerated="true"
             android:exported="true" />
         <activity
+            android:name=".ui.book.readRecord.ReadAchievementActivity"
+            android:configChanges="orientation|screenSize"
+            android:hardwareAccelerated="true"
+            android:exported="false" />
+        <activity
             android:name=".ui.book.readRecord.BookReadRecordActivity"
             android:configChanges="orientation|screenSize"
             android:hardwareAccelerated="true"

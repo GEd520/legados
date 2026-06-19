@@ -1,6 +1,7 @@
 package io.legado.app.ui.book.readRecord.components
 
 import android.graphics.Bitmap
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -53,7 +54,8 @@ fun SummaryCard(
     totalReadTime: Long,
     bookCount: Int,
     latestRecords: List<ReadRecord>,
-    viewModel: ReadRecordViewModel
+    viewModel: ReadRecordViewModel,
+    onClick: (() -> Unit)? = null
 ) {
     val hours = totalReadTime / (1000 * 60 * 60)
     val minutes = (totalReadTime / (1000 * 60)) % 60
@@ -76,6 +78,13 @@ fun SummaryCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 12.dp)
+            .then(
+                if (onClick != null) {
+                    Modifier.clickable(onClick = onClick)
+                } else {
+                    Modifier
+                }
+            )
             .shadow(if (isDarkBackground) 0.dp else 8.dp, shape, clip = false),
         shape = shape,
         color = cardColor,

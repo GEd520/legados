@@ -40,6 +40,7 @@ import io.legado.app.ui.book.readRecord.components.SummaryCard
 import io.legado.app.ui.widget.components.swipe.SwipeActionContainer
 import io.legado.app.ui.widget.components.swipe.rememberSwipeDeleteAction
 import io.legado.app.utils.formatReadDuration
+import io.legado.app.utils.startActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -56,6 +57,7 @@ fun ReadRecordScreen(
     onBookClick: (String, String) -> Unit
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
 
     val state by viewModel.uiState.collectAsState()
     val displayMode by viewModel.displayMode.collectAsState()
@@ -337,7 +339,8 @@ fun ReadRecordScreen(
                             totalReadTime = state.totalReadTime,
                             bookCount = state.latestRecords.size,
                             latestRecords = state.latestRecords,
-                            viewModel = viewModel
+                            viewModel = viewModel,
+                            onClick = { context.startActivity<ReadAchievementActivity>() }
                         )
                     }
 
