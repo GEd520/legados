@@ -24,6 +24,7 @@ class ReadRecordRepository(
 ) {
     companion object {
         const val CURRENT_REPAIR_VERSION = 4
+        private const val IMPORT_BATCH_SIZE = 500
     }
 
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).apply {
@@ -35,6 +36,31 @@ class ReadRecordRepository(
         val bookName: String,
         val bookAuthor: String
     )
+
+    private data class DetailIdentity(
+        val deviceId: String,
+        val bookName: String,
+        val bookAuthor: String,
+        val date: String
+    )
+
+    private data class SessionIdentity(
+        val deviceId: String,
+        val bookName: String,
+        val bookAuthor: String,
+        val startTime: Long,
+        val endTime: Long,
+        val words: Long
+    )
+
+    private data class ReadRecordAggregate(
+        var detailReadTime: Long = 0L,
+        var sessionReadTime: Long = 0L,
+        var lastRead: Long = 0L
+    ) {
+        val readTime: Long
+            get() = max(detailReadTime, sessionReadTime)
+    }
 
     private fun getCurrentDeviceId(): String = currentDeviceIdProvider()
 
@@ -544,23 +570,12 @@ class ReadRecordRepository(
     }
 
     suspend fun rebuildAggregateRecordsFromHistory() {
-        val identities = linkedSetOf<RecordIdentity>()
-        dao.getAllDetailsList().forEach {
-            identities += RecordIdentity(it.deviceId, it.bookName, it.bookAuthor)
-        }
-        dao.getAllSessionsList().forEach {
-            identities += RecordIdentity(it.deviceId, it.bookName, it.bookAuthor)
-        }
-        identities.forEach { identity ->
-            val current = dao.getReadRecord(identity.deviceId, identity.bookName, identity.bookAuthor)
-            updateReadRecordTotal(
-                identity.deviceId,
-                identity.bookName,
-                identity.bookAuthor,
-                minimumReadTime = current?.readTime ?: 0L,
-                minimumLastRead = current?.lastRead ?: 0L
-            )
-        }
+        val rebuiltRecords = buildAggregateRecords(
+            records = dao.all.filter(::isValidRecord),
+            details = dao.getAllDetailsList().filter(::isValidDetail),
+            sessions = dao.getAllSessionsList().filter(::isValidSession)
+        )
+        insertRecordsInBatches(rebuiltRecords)
     }
 
     suspend fun normalizeDuplicateDeviceRecords() {
@@ -648,8 +663,13 @@ class ReadRecordRepository(
     suspend fun importRecords(
         records: List<ReadRecord>,
         details: List<ReadRecordDetail> = emptyList(),
-        sessions: List<ReadRecordSession> = emptyList()
+        sessions: List<ReadRecordSession> = emptyList(),
+        databaseCleared: Boolean = false
     ) {
+        if (databaseCleared) {
+            importRecordsIntoClearedTables(records, details, sessions)
+            return
+        }
         records.forEach { record ->
             importSingleRecord(record)
         }
@@ -713,6 +733,76 @@ class ReadRecordRepository(
         }
     }
 
+    private suspend fun importRecordsIntoClearedTables(
+        records: List<ReadRecord>,
+        details: List<ReadRecordDetail>,
+        sessions: List<ReadRecordSession>
+    ) {
+        val normalizedRecords = prepareImportedRecords(records)
+        val normalizedDetails = prepareImportedDetails(details)
+        val normalizedSessions = prepareImportedSessions(sessions)
+
+        insertDetailsInBatches(normalizedDetails)
+        insertSessionsInBatches(normalizedSessions)
+        insertRecordsInBatches(
+            buildAggregateRecords(normalizedRecords, normalizedDetails, normalizedSessions)
+        )
+    }
+
+    private fun prepareImportedRecords(records: List<ReadRecord>): List<ReadRecord> {
+        val prepared = linkedMapOf<RecordIdentity, ReadRecord>()
+        records.asSequence()
+            .map { normalizeRecord(it).copy(deviceId = getCurrentDeviceId()) }
+            .filter(::isValidRecord)
+            .forEach { record ->
+                val identity = RecordIdentity(record.deviceId, record.bookName, record.bookAuthor)
+                val existing = prepared[identity]
+                if (existing == null || existing.readTime < record.readTime) {
+                    prepared[identity] = record
+                }
+            }
+        return prepared.values.toList()
+    }
+
+    private fun prepareImportedDetails(details: List<ReadRecordDetail>): List<ReadRecordDetail> {
+        val prepared = linkedMapOf<DetailIdentity, ReadRecordDetail>()
+        details.asSequence()
+            .map { normalizeDetail(it).copy(deviceId = getCurrentDeviceId()) }
+            .filter(::isValidDetail)
+            .forEach { detail ->
+                val identity = DetailIdentity(
+                    detail.deviceId,
+                    detail.bookName,
+                    detail.bookAuthor,
+                    detail.date
+                )
+                val existing = prepared[identity]
+                if (existing == null || existing.readTime < detail.readTime) {
+                    prepared[identity] = detail
+                }
+            }
+        return prepared.values.toList()
+    }
+
+    private fun prepareImportedSessions(sessions: List<ReadRecordSession>): List<ReadRecordSession> {
+        val prepared = linkedMapOf<SessionIdentity, ReadRecordSession>()
+        sessions.asSequence()
+            .map { normalizeSession(it).copy(id = 0, deviceId = getCurrentDeviceId()) }
+            .filter(::isValidSession)
+            .forEach { session ->
+                val identity = SessionIdentity(
+                    session.deviceId,
+                    session.bookName,
+                    session.bookAuthor,
+                    session.startTime,
+                    session.endTime,
+                    session.words
+                )
+                prepared.putIfAbsent(identity, session)
+            }
+        return prepared.values.toList()
+    }
+
     private suspend fun rebuildImportedBookTotals(
         records: List<ReadRecord>,
         details: List<ReadRecordDetail>,
@@ -731,6 +821,66 @@ class ReadRecordRepository(
                 minimumReadTime = current?.readTime ?: 0L,
                 minimumLastRead = current?.lastRead ?: 0L
             )
+        }
+    }
+
+    private fun buildAggregateRecords(
+        records: List<ReadRecord>,
+        details: List<ReadRecordDetail>,
+        sessions: List<ReadRecordSession>
+    ): List<ReadRecord> {
+        val historyAggregates = linkedMapOf<RecordIdentity, ReadRecordAggregate>()
+        details.forEach { detail ->
+            val identity = RecordIdentity(detail.deviceId, detail.bookName, detail.bookAuthor)
+            val aggregate = historyAggregates.getOrPut(identity) { ReadRecordAggregate() }
+            aggregate.detailReadTime += detail.readTime.coerceAtLeast(0L)
+            aggregate.lastRead = max(aggregate.lastRead, detail.lastReadTime)
+        }
+        sessions.forEach { session ->
+            val identity = RecordIdentity(session.deviceId, session.bookName, session.bookAuthor)
+            val aggregate = historyAggregates.getOrPut(identity) { ReadRecordAggregate() }
+            aggregate.sessionReadTime += (session.endTime - session.startTime).coerceAtLeast(0L)
+            aggregate.lastRead = max(aggregate.lastRead, session.endTime)
+        }
+
+        val recordsByIdentity = records.associateBy {
+            RecordIdentity(it.deviceId, it.bookName, it.bookAuthor)
+        }
+        val identities = linkedSetOf<RecordIdentity>()
+        identities.addAll(recordsByIdentity.keys)
+        identities.addAll(historyAggregates.keys)
+
+        return identities.map { identity ->
+            val record = recordsByIdentity[identity]
+            val aggregate = historyAggregates[identity]
+            val readTime = max(record?.readTime ?: 0L, aggregate?.readTime ?: 0L)
+            val lastRead = max(record?.lastRead ?: 0L, aggregate?.lastRead ?: 0L)
+            (record ?: ReadRecord(
+                deviceId = identity.deviceId,
+                bookName = identity.bookName,
+                bookAuthor = identity.bookAuthor
+            )).copy(
+                readTime = readTime,
+                lastRead = lastRead
+            )
+        }
+    }
+
+    private suspend fun insertRecordsInBatches(records: List<ReadRecord>) {
+        records.chunked(IMPORT_BATCH_SIZE).forEach { batch ->
+            dao.insert(*batch.toTypedArray())
+        }
+    }
+
+    private suspend fun insertDetailsInBatches(details: List<ReadRecordDetail>) {
+        details.chunked(IMPORT_BATCH_SIZE).forEach { batch ->
+            dao.insertDetails(batch)
+        }
+    }
+
+    private suspend fun insertSessionsInBatches(sessions: List<ReadRecordSession>) {
+        sessions.chunked(IMPORT_BATCH_SIZE).forEach { batch ->
+            dao.insertSessions(batch)
         }
     }
 }

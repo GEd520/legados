@@ -76,6 +76,35 @@ class ReadRecordRepositoryTest {
     }
 
     @Test
+    fun importFreshRestoreDeduplicatesAndKeepsTimelineAsAlternativeHistory() = runBlocking {
+        val dao = FakeReadRecordDao()
+        val repository = ReadRecordRepository(dao) { CURRENT_DEVICE_ID }
+
+        repository.importRecords(
+            records = listOf(
+                ReadRecord("remote-a", " Bulk Book ", " Author ", 100L, 200L),
+                ReadRecord("remote-b", "Bulk Book", "Author", 200L, 250L)
+            ),
+            details = listOf(
+                ReadRecordDetail("remote-a", " Bulk Book ", " Author ", "2026-05-02", 120L, 0L, 100L, 300L),
+                ReadRecordDetail("remote-b", "Bulk Book", "Author", "2026-05-02", 250L, 0L, 100L, 500L)
+            ),
+            sessions = listOf(
+                ReadRecordSession(7L, "remote-a", " Bulk Book ", " Author ", 100L, 400L, 10L),
+                ReadRecordSession(8L, "remote-b", "Bulk Book", "Author", 100L, 400L, 10L)
+            ),
+            databaseCleared = true
+        )
+
+        val record = dao.getReadRecord(CURRENT_DEVICE_ID, "Bulk Book", "Author")
+        assertNotNull(record)
+        assertEquals(300L, record?.readTime)
+        assertEquals(500L, record?.lastRead)
+        assertEquals(1, dao.getDetailsCount())
+        assertEquals(1, dao.getSessionsCount())
+    }
+
+    @Test
     fun mergeReadRecordIntoAccumulatesReadTime() = runBlocking {
         val dao = FakeReadRecordDao()
         val repository = ReadRecordRepository(dao) { CURRENT_DEVICE_ID }
@@ -317,6 +346,10 @@ class ReadRecordRepositoryTest {
             details.add(detail.copy())
         }
 
+        override suspend fun insertDetails(details: List<ReadRecordDetail>) {
+            details.forEach { insertDetail(it) }
+        }
+
         override suspend fun insertSession(session: ReadRecordSession) {
             val stored = if (session.id == 0L) {
                 session.copy(id = nextSessionId++)
@@ -325,6 +358,10 @@ class ReadRecordRepositoryTest {
             }
             sessions.removeAll { it.id == stored.id }
             sessions.add(stored)
+        }
+
+        override suspend fun insertSessions(sessions: List<ReadRecordSession>) {
+            sessions.forEach { insertSession(it) }
         }
 
         override suspend fun update(vararg record: ReadRecord) {

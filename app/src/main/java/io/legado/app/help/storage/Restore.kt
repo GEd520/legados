@@ -343,7 +343,12 @@ object Restore {
             val readRecordSessions = if ("readRecordSession.json" in selectedSet) fileToListT<ReadRecordSession>(path, "readRecordSession.json").orEmpty() else emptyList()
             if (readRecords.isNotEmpty() || readRecordDetails.isNotEmpty() || readRecordSessions.isNotEmpty()) {
                 ReadRecordRepository(appDb.readRecordDao).apply {
-                    importRecords(readRecords, readRecordDetails, readRecordSessions)
+                    importRecords(
+                        readRecords,
+                        readRecordDetails,
+                        readRecordSessions,
+                        databaseCleared = true
+                    )
                     repairRecords { bookName -> appDb.bookDao.getBookByName(bookName)?.author?.trim()?.ifBlank { null } }
                 }
                 appCtx.putPrefInt(PreferKey.readRecordRepairVersion, ReadRecordRepository.CURRENT_REPAIR_VERSION)
@@ -622,7 +627,8 @@ object Restore {
                 importRecords(
                     readRecords,
                     readRecordDetails,
-                    readRecordSessions
+                    readRecordSessions,
+                    databaseCleared = true
                 )
                 repairRecords { bookName ->
                     appDb.bookDao.getBookByName(bookName)?.author?.trim()?.ifBlank { null }
