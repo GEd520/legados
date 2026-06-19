@@ -48,6 +48,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -276,10 +278,10 @@ private fun AchievementHeroCard(
                 }
                 Surface(
                     shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.64f),
+                    color = adaptiveIconContainerColor(MaterialTheme.colorScheme.primary),
                     border = BorderStroke(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.24f)
+                        color = adaptiveIconContainerBorderColor(MaterialTheme.colorScheme.primary)
                     )
                 ) {
                     Column(
@@ -312,8 +314,8 @@ private fun AchievementHeroCard(
                         .fillMaxWidth()
                         .height(7.dp)
                         .clip(RoundedCornerShape(7.dp)),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.62f)
+                    color = achievementAccentColor(),
+                    trackColor = achievementTrackColor()
                 )
                 Text(
                     text = level.nextHint,
@@ -325,7 +327,7 @@ private fun AchievementHeroCard(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.34f)
+                color = achievementInsetColor()
             ) {
                 Row(
                     modifier = Modifier.padding(vertical = 12.dp),
@@ -416,7 +418,7 @@ private fun CompactMetric(
     ) {
         Surface(
             shape = RoundedCornerShape(9.dp),
-            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.42f)
+            color = adaptiveIconContainerColor(MaterialTheme.colorScheme.primary)
         ) {
             Icon(
                 imageVector = metric.icon,
@@ -464,7 +466,7 @@ private fun MetricCard(
         ) {
             Surface(
                 shape = CircleShape,
-                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.56f)
+                color = adaptiveIconContainerColor(MaterialTheme.colorScheme.primary)
             ) {
                 Icon(
                     imageVector = metric.icon,
@@ -551,11 +553,21 @@ private fun MilestoneRow(milestone: Milestone) {
         Surface(
             shape = CircleShape,
             color = if (milestone.unlocked) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.62f)
+                adaptiveIconContainerColor(MaterialTheme.colorScheme.primary)
             } else {
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                adaptiveIconContainerColor(readRecordSecondaryTextColor(), subdued = true)
             },
-            border = if (milestone.unlocked) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.28f))
+            border = BorderStroke(
+                1.dp,
+                adaptiveIconContainerBorderColor(
+                    accent = if (milestone.unlocked) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        readRecordSecondaryTextColor()
+                    },
+                    subdued = !milestone.unlocked
+                )
+            )
         ) {
             Icon(
                 imageVector = milestone.icon,
@@ -594,7 +606,7 @@ private fun MilestoneRow(milestone: Milestone) {
                     .height(5.dp)
                     .clip(RoundedCornerShape(5.dp)),
                 color = if (milestone.unlocked) unlockedColor else MaterialTheme.colorScheme.secondary,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.56f)
+                trackColor = achievementTrackColor()
             )
         }
     }
@@ -608,7 +620,7 @@ private fun HighlightRow(highlight: Highlight) {
     ) {
         Surface(
             shape = RoundedCornerShape(10.dp),
-            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.42f)
+            color = adaptiveIconContainerColor(MaterialTheme.colorScheme.secondary)
         ) {
             Icon(
                 imageVector = highlight.icon,
@@ -650,7 +662,7 @@ private fun TopBookRow(record: ReadRecord) {
         ) {
             Surface(
                 shape = CircleShape,
-                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.46f)
+                color = adaptiveIconContainerColor(MaterialTheme.colorScheme.primary)
             ) {
                 Icon(
                     imageVector = Icons.Default.Star,
@@ -682,7 +694,7 @@ private fun TopBookRow(record: ReadRecord) {
             Text(
                 text = formatReadDuration(record.readTime),
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
+                color = achievementAccentColor(),
                 fontWeight = FontWeight.Bold
             )
         }
@@ -723,6 +735,80 @@ private fun formatHeroDuration(durationMs: Long): String {
         minutes > 0 -> "${minutes}分钟"
         else -> "0分钟"
     }
+}
+
+@Composable
+private fun achievementAccentColor(): Color {
+    val primary = MaterialTheme.colorScheme.primary
+    val background = MaterialTheme.colorScheme.background
+    val isDarkMode = background.luminance() < 0.35f
+    return when {
+        isDarkMode && primary.luminance() < 0.28f -> lerp(primary, Color.White, 0.32f)
+        !isDarkMode && primary.luminance() > 0.72f -> lerp(primary, Color.Black, 0.32f)
+        else -> primary
+    }
+}
+
+@Composable
+private fun achievementInsetColor(): Color {
+    val card = readRecordCardContainerColor()
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val isDarkCard = card.luminance() < 0.35f
+    val amount = if (isDarkCard) 0.16f else 0.055f
+    return lerp(card, onSurface, amount)
+}
+
+@Composable
+private fun achievementTrackColor(): Color {
+    val inset = achievementInsetColor()
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val amount = if (inset.luminance() < 0.35f) 0.22f else 0.1f
+    return lerp(inset, onSurface, amount)
+}
+
+@Composable
+private fun adaptiveIconContainerColor(
+    accent: Color,
+    subdued: Boolean = false
+): Color {
+    val surface = readRecordCardContainerColor()
+    val isLightAccent = accent.luminance() > 0.62f
+    val isDarkSurface = surface.luminance() < 0.35f
+    val target = when {
+        isDarkSurface -> Color.White
+        isLightAccent -> Color.Black
+        else -> Color.White
+    }
+    val amount = if (subdued) {
+        if (isDarkSurface) {
+            0.1f
+        } else if (isLightAccent) {
+            0.12f
+        } else {
+            0.05f
+        }
+    } else {
+        if (isDarkSurface) {
+            0.18f
+        } else if (isLightAccent) {
+            0.24f
+        } else {
+            0.09f
+        }
+    }
+    return lerp(surface, target, amount)
+}
+
+@Composable
+private fun adaptiveIconContainerBorderColor(
+    accent: Color,
+    subdued: Boolean = false
+): Color {
+    val container = adaptiveIconContainerColor(accent, subdued)
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val isDarkContainer = container.luminance() < 0.35f
+    return lerp(container, onSurface, if (isDarkContainer) 0.2f else 0.14f)
+        .copy(alpha = if (subdued) 0.26f else 0.38f)
 }
 
 private fun calculateLongestStreak(activeDates: Set<LocalDate>): Int {
