@@ -51,6 +51,10 @@ import io.legado.app.model.RuleUpdate
 import io.legado.app.model.SourceCallBack
 
 class MainViewModel(application: Application) : BaseViewModel(application) {
+    private companion object {
+        const val SOURCE_REFRESH_CONCURRENCY = 2
+    }
+
     private var threadCount = AppConfig.threadCount
     private var poolSize = min(threadCount, AppConst.MAX_THREAD)
     private var upTocPool = Executors.newFixedThreadPool(poolSize).asCoroutineDispatcher()
@@ -204,7 +208,9 @@ class MainViewModel(application: Application) : BaseViewModel(application) {
             return
         }
         
-        val semaphore = sourceSemaphores.getOrPut(source.bookSourceUrl) { Semaphore(1) }
+        val semaphore = sourceSemaphores.getOrPut(source.bookSourceUrl) {
+            Semaphore(SOURCE_REFRESH_CONCURRENCY)
+        }
         
         if (semaphore.availablePermits == 0) {
             logUpdate("⏸️ 任务等待（书源${source.bookSourceName}，书籍《${book.name}》）：等待书源信号量...", verbose = true)
