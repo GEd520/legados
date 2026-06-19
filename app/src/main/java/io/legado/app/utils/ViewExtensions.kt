@@ -48,11 +48,11 @@ import splitties.systemservices.inputMethodManager
 import splitties.views.bottomPadding
 import splitties.views.topPadding
 import java.lang.reflect.Field
-import androidx.core.graphics.createBitmap
 import androidx.core.text.HtmlCompat
 import androidx.core.view.isVisible
 import androidx.core.text.parseAsHtml
 import androidx.core.view.postDelayed
+import io.legado.app.help.MemoryPressure
 import io.legado.app.help.TextViewTagHandler
 import io.legado.app.model.analyzeRule.AnalyzeUrl.Companion.paramPattern
 import io.noties.markwon.Markwon
@@ -171,8 +171,14 @@ fun View.screenshot(bitmap: Bitmap? = null, canvas: Canvas? = null): Bitmap? {
             bitmap.eraseColor(Color.TRANSPARENT)
             bitmap
         } else {
+            MemoryPressure.trimIfNeeded()
+            val newBitmap = try {
+                Bitmap.createBitmap(width, height, pageScreenshotConfig())
+            } catch (_: OutOfMemoryError) {
+                null
+            } ?: return bitmap?.takeUnless { it.isRecycled }
             bitmap?.recycle()
-            createBitmap(width, height)
+            newBitmap
         }
         val c = canvas ?: Canvas()
         c.setBitmap(screenshot)
@@ -184,6 +190,14 @@ fun View.screenshot(bitmap: Bitmap? = null, canvas: Canvas? = null): Bitmap? {
         screenshot
     } else {
         null
+    }
+}
+
+private fun pageScreenshotConfig(): Bitmap.Config {
+    return if (MemoryPressure.isSmallHeap) {
+        Bitmap.Config.RGB_565
+    } else {
+        Bitmap.Config.ARGB_8888
     }
 }
 

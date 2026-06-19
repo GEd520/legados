@@ -12,6 +12,7 @@ import io.legado.app.constant.AppLog.putDebug
 import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookSource
 import io.legado.app.exception.NoStackTraceException
+import io.legado.app.help.MemoryPressure
 import io.legado.app.help.book.BookHelp
 import io.legado.app.help.book.isEpub
 import io.legado.app.help.book.isMobi
@@ -51,7 +52,11 @@ object ImageProvider {
             if (AppConfig.bitmapCacheSize !in 1..1024) {
                 AppConfig.bitmapCacheSize = 50
             }
-            return AppConfig.bitmapCacheSize * M
+            val userSize = AppConfig.bitmapCacheSize * M
+            val heapBound = (MemoryPressure.maxMemory / 8)
+                .coerceIn(8L * M, 64L * M)
+                .toInt()
+            return min(userSize, heapBound)
         }
 
     val bitmapLruCache = BitmapLruCache()
@@ -93,7 +98,8 @@ object ImageProvider {
      * @param bitmap 位图
      */
     fun put(key: String, bitmap: Bitmap) {
-        ensureLruCacheSize(bitmap)
+        MemoryPressure.trimIfNeeded()
+        if (!ensureLruCacheSize(bitmap)) return
         bitmapLruCache.put(key, bitmap)
     }
 
@@ -133,20 +139,12 @@ object ImageProvider {
      * 确保LRU缓存大小
      * @param bitmap 位图
      */
-    private fun ensureLruCacheSize(bitmap: Bitmap) {
-        val lruMaxSize = bitmapLruCache.maxSize()
-        val lruSize = bitmapLruCache.size()
-        val byteCount = bitmap.byteCount
-        val size = if (byteCount > lruMaxSize) {
-            min(256 * M, (byteCount * 1.3).toInt())
-        } else if (lruSize + byteCount > lruMaxSize && bitmapLruCache.count < 5) {
-            min(256 * M, (lruSize + byteCount * 1.3).toInt())
-        } else {
-            lruMaxSize
+    private fun ensureLruCacheSize(bitmap: Bitmap): Boolean {
+        val targetSize = cacheSize
+        if (bitmapLruCache.maxSize() != targetSize) {
+            bitmapLruCache.resize(targetSize)
         }
-        if (size > lruMaxSize) {
-            bitmapLruCache.resize(size)
-        }
+        return bitmap == errorBitmap || bitmap.byteCount <= bitmapLruCache.maxSize()
     }
 
     /**

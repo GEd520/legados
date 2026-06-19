@@ -30,6 +30,7 @@ import io.legado.app.constant.AppPattern
 import io.legado.app.constant.PreferKey
 import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.SearchBook
+import io.legado.app.help.MemoryPressure
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.glide.ImageLoader
 import io.legado.app.help.glide.OkHttpModelLoader
@@ -68,10 +69,20 @@ class CoverImageView @JvmOverloads constructor(
     attrs: AttributeSet? = null
 ) : AppCompatImageView(context, attrs) {
     companion object {
-        private const val NAME_BITMAP_CACHE_BYTES = 6 * 1024 * 1024
-        private const val HTML_COVER_CACHE_BYTES = 12 * 1024 * 1024
+        private const val M = 1024 * 1024
+        private const val DEFAULT_NAME_BITMAP_CACHE_BYTES = 6 * M
+        private const val DEFAULT_HTML_COVER_CACHE_BYTES = 12 * M
+
+        private fun boundedCacheBytes(defaultBytes: Int, heapDivisor: Int, minBytes: Int): Int {
+            return (MemoryPressure.maxMemory / heapDivisor)
+                .coerceIn(minBytes.toLong(), defaultBytes.toLong())
+                .toInt()
+        }
+
         private val nameBitmapCache by lazy {
-            object : LruCache<String, Bitmap>(NAME_BITMAP_CACHE_BYTES) {
+            object : LruCache<String, Bitmap>(
+                boundedCacheBytes(DEFAULT_NAME_BITMAP_CACHE_BYTES, 64, 2 * M)
+            ) {
                 override fun sizeOf(key: String, value: Bitmap): Int {
                     return value.byteCount.coerceAtLeast(1)
                 }
@@ -79,7 +90,9 @@ class CoverImageView @JvmOverloads constructor(
         }
         private val needNameBitmap by lazy { LruCache<String, Boolean>(99) }
         private val htmlCoverCache by lazy {
-            object : LruCache<String, Bitmap>(HTML_COVER_CACHE_BYTES) {
+            object : LruCache<String, Bitmap>(
+                boundedCacheBytes(DEFAULT_HTML_COVER_CACHE_BYTES, 32, 4 * M)
+            ) {
                 override fun sizeOf(key: String, value: Bitmap): Int {
                     return value.byteCount.coerceAtLeast(1)
                 }
@@ -204,6 +217,8 @@ class CoverImageView @JvmOverloads constructor(
                 nameBitmapCache.put(pathName + width, bitmap)
                 invalidate()
             } catch (_: CancellationException) {
+            } catch (_: OutOfMemoryError) {
+                MemoryPressure.trimIfNeeded()
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -213,6 +228,7 @@ class CoverImageView @JvmOverloads constructor(
     private fun generateCoverBitmap(name: String?, author: String?): Bitmap {
         viewWidth = width.toFloat()
         viewHeight = height.toFloat()
+        MemoryPressure.trimIfNeeded()
         val bitmap = createBitmap(width, height)
         val bitmapCanvas = Canvas(bitmap)
         var startX = width * 0.2f
@@ -491,6 +507,10 @@ class CoverImageView @JvmOverloads constructor(
                 }
                 onLoadFinish?.invoke()
             } catch (_: CancellationException) {
+            } catch (_: OutOfMemoryError) {
+                MemoryPressure.trimIfNeeded()
+                setImageDrawable(BookCover.defaultDrawable)
+                onLoadFinish?.invoke()
             } catch (e: Exception) {
                 e.printStackTrace()
                 setImageDrawable(BookCover.defaultDrawable)
@@ -556,16 +576,23 @@ class CoverImageView @JvmOverloads constructor(
                         View.MeasureSpec.makeMeasureSpec(renderHeight, View.MeasureSpec.EXACTLY)
                     )
                     wv.layout(0, 0, renderWidth, renderHeight)
+                    MemoryPressure.trimIfNeeded()
                     val bmp = createBitmap(renderWidth, renderHeight)
                     val canvas = Canvas(bmp)
                     wv.draw(canvas)
                     bmp
+                } catch (_: OutOfMemoryError) {
+                    MemoryPressure.trimIfNeeded()
+                    null
                 } catch (e: Exception) {
                     e.printStackTrace()
                     null
                 }
 
                 bitmap
+            } catch (_: OutOfMemoryError) {
+                MemoryPressure.trimIfNeeded()
+                null
             } catch (e: Exception) {
                 e.printStackTrace()
                 null

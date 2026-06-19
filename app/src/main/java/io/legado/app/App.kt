@@ -40,6 +40,7 @@ import io.legado.app.help.DefaultData
 import io.legado.app.help.DispatchersMonitor
 import io.legado.app.help.LifecycleHelp
 import io.legado.app.help.LauncherIconHelp
+import io.legado.app.help.MemoryPressure
 import io.legado.app.help.RuleBigDataHelp
 import io.legado.app.help.book.BookHelp
 import io.legado.app.help.config.AppConfig
@@ -60,6 +61,7 @@ import io.legado.app.ui.book.read.page.entities.TextLine
 import io.legado.app.ui.widget.image.CoverImageView
 import io.legado.app.utils.ChineseUtils
 import io.legado.app.utils.LogUtils
+import io.legado.app.utils.buildMainHandler
 import io.legado.app.utils.defaultSharedPreferences
 import io.legado.app.utils.getPrefBoolean
 import io.legado.app.utils.isDebuggable
@@ -74,6 +76,13 @@ import java.util.logging.Level
 class App : Application() {
 
     private lateinit var oldConfig: Configuration
+    private val memoryTrimHandler by lazy { buildMainHandler() }
+    private val memoryTrimRunnable = object : Runnable {
+        override fun run() {
+            MemoryPressure.throttleTrim(::trimAppMemory)
+            memoryTrimHandler.postDelayed(this, if (MemoryPressure.isSmallHeap) 3_000L else 10_000L)
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -85,6 +94,8 @@ class App : Application() {
         applyDayNightInit(this)
         LauncherIconHelp.fixLauncherIconPref()
         registerActivityLifecycleCallbacks(LifecycleHelp)
+        MemoryPressure.setTrimCallback(::trimAppMemory)
+        startMemoryPressureMonitor()
         defaultSharedPreferences.registerOnSharedPreferenceChangeListener(AppConfig)
         Coroutine.async {
             LogUtils.init(this@App)
@@ -136,6 +147,11 @@ class App : Application() {
         }
     }
 
+    private fun startMemoryPressureMonitor() {
+        memoryTrimHandler.removeCallbacks(memoryTrimRunnable)
+        memoryTrimHandler.postDelayed(memoryTrimRunnable, 3_000L)
+    }
+
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         trimAppMemory(level)
@@ -156,12 +172,7 @@ class App : Application() {
         CacheManager.trimMemory(level)
         ImageProvider.trimMemory(level)
         CoverImageView.trimMemory(level)
-        if (level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND
-            || level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW
-            || level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL
-        ) {
-            TextLine.clearBgBitmapCache()
-        }
+        TextLine.trimBgBitmapCache(level)
         runCatching {
             Glide.get(this).trimMemory(level)
         }

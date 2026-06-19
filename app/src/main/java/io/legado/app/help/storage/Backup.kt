@@ -1,5 +1,6 @@
 package io.legado.app.help.storage
 
+import android.content.ComponentCallbacks2
 import android.content.Context
 import android.net.Uri
 import androidx.core.net.toUri
@@ -10,6 +11,7 @@ import io.legado.app.data.appDb
 import io.legado.app.exception.NoStackTraceException
 import io.legado.app.help.AppWebDav
 import io.legado.app.help.DirectLinkUpload
+import io.legado.app.help.MemoryPressure
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.config.LocalConfig
 import io.legado.app.help.config.ReadBookConfig
@@ -269,8 +271,7 @@ object Backup {
 
     private fun stageRuntimeSourceCaches(rootPath: String) {
         val runtimeCaches = getRuntimeSourceCaches()
-        FileUtils.createFileIfNotExist(rootPath + File.separator + runtimeSourceCacheFileName)
-            .writeText(GSON.toJson(runtimeCaches))
+        writeJsonToFile(runtimeCaches, runtimeSourceCacheFileName, rootPath)
     }
 
     fun stageBackgroundImageFiles(rootPath: String) {
@@ -439,9 +440,14 @@ object Backup {
      * @param context Android Context
      * @param path 备份目标路径
      */
+    @Suppress("DEPRECATION")
     private suspend fun backup(context: Context, path: String?) {
         LogUtils.d(TAG, "开始备份 path:$path")
         val aes = BackupAES()
+        MemoryPressure.trimNow(
+            ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW,
+            waitForCompletion = true
+        )
         FileUtils.delete(backupPath)
 
         val selectedFiles = BackupSelectorConfig.getSelectedFileNames()
@@ -472,8 +478,11 @@ object Backup {
             writeListToJson(appDb.replaceRuleDao.all, "replaceRule.json", backupPath)
         }
         if (selectedFiles.contains(HighlightRuleStore.backupFileName)) {
-            FileUtils.createFileIfNotExist(backupPath + File.separator + HighlightRuleStore.backupFileName)
-                .writeText(GSON.toJson(HighlightRuleStore.createBackupData(appCtx)))
+            writeJsonToFile(
+                HighlightRuleStore.createBackupData(appCtx),
+                HighlightRuleStore.backupFileName,
+                backupPath
+            )
         }
         if (selectedFiles.contains("readRecord.json")) {
             writeListToJson(appDb.readRecordDao.all, "readRecord.json", backupPath)
@@ -519,24 +528,15 @@ object Backup {
 
         // 导出阅读配置
         if (selectedFiles.contains(ReadBookConfig.configFileName)) {
-            GSON.toJson(ReadBookConfig.getBackupConfigList()).let {
-                FileUtils.createFileIfNotExist(backupPath + File.separator + ReadBookConfig.configFileName)
-                    .writeText(it)
-            }
+            writeJsonToFile(ReadBookConfig.getBackupConfigList(), ReadBookConfig.configFileName, backupPath)
         }
         if (selectedFiles.contains(ReadBookConfig.shareConfigFileName)) {
-            GSON.toJson(ReadBookConfig.getBackupShareConfig()).let {
-                FileUtils.createFileIfNotExist(backupPath + File.separator + ReadBookConfig.shareConfigFileName)
-                    .writeText(it)
-            }
+            writeJsonToFile(ReadBookConfig.getBackupShareConfig(), ReadBookConfig.shareConfigFileName, backupPath)
         }
 
         // 导出主题配置
         if (selectedFiles.contains(ThemeConfig.configFileName)) {
-            GSON.toJson(ThemeConfig.configList).let {
-                FileUtils.createFileIfNotExist(backupPath + File.separator + ThemeConfig.configFileName)
-                    .writeText(it)
-            }
+            writeJsonToFile(ThemeConfig.configList, ThemeConfig.configFileName, backupPath)
         }
 
         // 导出直链上传配置
@@ -550,12 +550,12 @@ object Backup {
         // 导出封面规则配置
         if (selectedFiles.contains(BookCover.configFileName)) {
             BookCover.getConfig()?.let {
-                FileUtils.createFileIfNotExist(backupPath + File.separator + BookCover.configFileName)
-                    .writeText(GSON.toJson(it))
+                writeJsonToFile(it, BookCover.configFileName, backupPath)
             }
         }
 
         currentCoroutineContext().ensureActive()
+        MemoryPressure.trimIfNeeded()
 
         // 导出SharedPreferences配置（应用主配置）
         if (selectedFiles.contains("config.xml")) {
@@ -625,6 +625,7 @@ object Backup {
         }
 
         currentCoroutineContext().ensureActive()
+        MemoryPressure.trimIfNeeded()
 
         val zipFileName = getNowZipFileName()
         val paths = getBackupPaths()
@@ -639,6 +640,7 @@ object Backup {
         }
 
         if (ZipUtils.zipFiles(paths, zipFilePath)) {
+            MemoryPressure.trimIfNeeded()
             // 复制到目标目录
             when {
                 path.isNullOrBlank() -> {
@@ -669,6 +671,7 @@ object Backup {
         FileUtils.delete(zipFilePath)
 
         currentCoroutineContext().ensureActive()
+        MemoryPressure.trimNow(ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE)
 
         // 上传背景图片到WebDav
         AppWebDav.upBgs(getBackgroundImageFiles().toTypedArray())
@@ -685,12 +688,18 @@ object Backup {
         currentCoroutineContext().ensureActive()
         withContext(IO) {
             LogUtils.d(TAG, "阅读备份 $fileName 列表大小 ${list.size}")
-            val file = FileUtils.createFileIfNotExist(path + File.separator + fileName)
-            file.outputStream().buffered().use {
-                GSON.writeToOutputStream(it, list)
-            }
+            val file = writeJsonToFile(list, fileName, path)
             LogUtils.d(TAG, "阅读备份 $fileName 写入大小 ${file.length()}")
         }
+    }
+
+    private fun writeJsonToFile(any: Any, fileName: String, path: String): File {
+        val file = FileUtils.createFileIfNotExist(path + File.separator + fileName)
+        file.outputStream().buffered().use {
+            GSON.writeToOutputStream(it, any)
+        }
+        MemoryPressure.trimIfNeeded()
+        return file
     }
 
     /**
@@ -801,8 +810,7 @@ object Backup {
         }
         
         if (bookCacheIndexList.isNotEmpty()) {
-            val indexFile = File(rootPath, bookCacheIndexFileName)
-            indexFile.writeText(GSON.toJson(bookCacheIndexList))
+            writeJsonToFile(bookCacheIndexList, bookCacheIndexFileName, rootPath)
             LogUtils.d(TAG, "书籍缓存索引已保存，共 ${bookCacheIndexList.size} 本书")
         }
     }

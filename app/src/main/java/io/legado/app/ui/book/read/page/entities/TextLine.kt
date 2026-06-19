@@ -8,11 +8,13 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Shader
+import android.content.ComponentCallbacks2
 import android.os.Build
 import android.text.TextPaint
 import androidx.annotation.Keep
 import androidx.core.graphics.toColorInt
 import io.legado.app.help.PaintPool
+import io.legado.app.help.MemoryPressure
 import io.legado.app.help.book.isImage
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.config.ReadBookConfig
@@ -695,7 +697,13 @@ data class TextLine(
         private val searchRadius = 5.dpToPx().toFloat()
         private val searchPadding = 1.dpToPx().toFloat()
         private val einkUnderlineWidth = 1.dpToPx().toFloat()
-        private val bgBitmapCache = object : android.util.LruCache<String, Bitmap>(16 * 1024 * 1024) {
+        private const val M = 1024 * 1024
+        private fun bgBitmapCacheSize(): Int {
+            return (MemoryPressure.maxMemory / 32)
+                .coerceIn(4L * M, 16L * M)
+                .toInt()
+        }
+        private val bgBitmapCache = object : android.util.LruCache<String, Bitmap>(bgBitmapCacheSize()) {
             override fun sizeOf(key: String, value: Bitmap): Int {
                 return value.byteCount.coerceAtLeast(1)
             }
@@ -783,6 +791,20 @@ data class TextLine(
 
         fun clearBgBitmapCache() {
             bgBitmapCache.evictAll()
+        }
+
+        @Suppress("DEPRECATION")
+        fun trimBgBitmapCache(level: Int) {
+            if (level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND
+                || level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW
+                || level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL
+            ) {
+                clearBgBitmapCache()
+            } else if (level == ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN
+                || level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE
+            ) {
+                bgBitmapCache.trimToSize(bgBitmapCache.maxSize() / 2)
+            }
         }
 
         fun copyBgImageToInternal(context: android.content.Context, sourcePath: String): String? {

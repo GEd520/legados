@@ -144,17 +144,42 @@ class SimulationPageDelegate(readView: ReadView) : HorizontalPageDelegate(readVi
     override fun setBitmap() {
         when (mDirection) {
             PageDirection.PREV -> {
+                recycleNextBitmap()
                 prevBitmap = prevPage.screenshot(prevBitmap, canvas)
                 curBitmap = curPage.screenshot(curBitmap, canvas)
             }
 
             PageDirection.NEXT -> {
+                recyclePrevBitmap()
                 nextBitmap = nextPage.screenshot(nextBitmap, canvas)
                 curBitmap = curPage.screenshot(curBitmap, canvas)
             }
 
             else -> Unit
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        recyclePrevBitmap()
+        recycleCurBitmap()
+        recycleNextBitmap()
+        canvas.setBitmap(null)
+    }
+
+    private fun recyclePrevBitmap() {
+        prevBitmap?.takeUnless { it.isRecycled }?.recycle()
+        prevBitmap = null
+    }
+
+    private fun recycleCurBitmap() {
+        curBitmap?.takeUnless { it.isRecycled }?.recycle()
+        curBitmap = null
+    }
+
+    private fun recycleNextBitmap() {
+        nextBitmap?.takeUnless { it.isRecycled }?.recycle()
+        nextBitmap = null
     }
 
     override fun setViewSize(width: Int, height: Int) {

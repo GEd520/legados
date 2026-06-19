@@ -1,10 +1,12 @@
 package io.legado.app.api.controller
 
+import android.content.ComponentCallbacks2
 import fi.iki.elonen.NanoHTTPD
 import io.legado.app.api.ReturnData
 import io.legado.app.constant.PreferKey
 import io.legado.app.data.appDb
 import io.legado.app.help.DirectLinkUpload
+import io.legado.app.help.MemoryPressure
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.config.ReadBookConfig
 import io.legado.app.help.config.ThemeConfig
@@ -32,7 +34,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import splitties.init.appCtx
-import java.io.ByteArrayInputStream
 import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -44,7 +45,7 @@ import androidx.core.content.edit
  * 提供一键备份功能，支持下载ZIP备份文件
  * 
  * 独立于Backup.backupLocked实现，因为backupLocked会在完成后删除临时文件
- * 这里自行控制备份流程，在ZIP打包后立即读取字节数据
+ * 这里自行控制备份流程，并保留临时ZIP文件供HTTP流式下载
  */
 object BackupController {
 
@@ -83,9 +84,9 @@ object BackupController {
         appCtx.filesDir.getFile("web_backup").createFolderIfNotExist().absolutePath
     }
 
-    /** 缓存最近一次备份的ZIP字节数据 */
+    /** 缓存最近一次备份的ZIP文件 */
     @Volatile
-    private var cachedBackupZip: ByteArray? = null
+    private var cachedBackupZipFile: File? = null
 
     /** 缓存最近一次备份的概览信息 */
     @Volatile
@@ -100,9 +101,9 @@ object BackupController {
 
         backupScope.launch {
             try {
-                val zipBytes = executeWebBackup()
-                if (zipBytes != null) {
-                    cachedBackupZip = zipBytes
+                val zipFile = executeWebBackup()
+                if (zipFile != null && zipFile.exists() && zipFile.length() > 0L) {
+                    cachedBackupZipFile = zipFile
                     cachedBackupOverview = generateBackupOverview()
                 } else {
                     errorRef.set(RuntimeException("ZIP打包失败"))
@@ -133,13 +134,13 @@ object BackupController {
             )
         }
 
-        val zipBytes = cachedBackupZip
-        if (zipBytes != null && zipBytes.isNotEmpty()) {
+        val zipFile = cachedBackupZipFile
+        if (zipFile != null && zipFile.exists() && zipFile.length() > 0L) {
             return NanoHTTPD.newFixedLengthResponse(
                 NanoHTTPD.Response.Status.OK,
                 "application/zip",
-                ByteArrayInputStream(zipBytes),
-                zipBytes.size.toLong()
+                zipFile.inputStream(),
+                zipFile.length()
             ).apply {
                 addHeader("Content-Disposition", "attachment; filename=\"backup.zip\"")
             }
@@ -166,11 +167,16 @@ object BackupController {
     }
 
     /**
-     * 执行Web备份，返回ZIP字节数组
+     * 执行Web备份，返回ZIP文件
      * 独立于Backup.backupLocked，自行控制备份和打包流程
      */
-    private suspend fun executeWebBackup(): ByteArray? {
+    @Suppress("DEPRECATION")
+    private suspend fun executeWebBackup(): File? {
         val aes = BackupAES()
+        MemoryPressure.trimNow(
+            ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW,
+            waitForCompletion = true
+        )
         FileUtils.delete(webBackupPath)
 
         withContext(Dispatchers.IO) {
@@ -183,8 +189,11 @@ object BackupController {
             writeListToJson(appDb.rssSourceDao.all, "rssSources.json", webBackupPath)
             writeListToJson(appDb.rssStarDao.all, "rssStar.json", webBackupPath)
             writeListToJson(appDb.replaceRuleDao.all, "replaceRule.json", webBackupPath)
-            FileUtils.createFileIfNotExist(webBackupPath + File.separator + HighlightRuleStore.backupFileName)
-                .writeText(GSON.toJson(HighlightRuleStore.createBackupData(appCtx)))
+            writeJsonToFile(
+                HighlightRuleStore.createBackupData(appCtx),
+                HighlightRuleStore.backupFileName,
+                webBackupPath
+            )
             writeListToJson(appDb.readRecordDao.all, "readRecord.json", webBackupPath)
             writeListToJson(appDb.readRecordDao.getAllDetailsList(), "readRecordDetail.json", webBackupPath)
             writeListToJson(appDb.readRecordDao.getAllSessionsList(), "readRecordSession.json", webBackupPath)
@@ -205,20 +214,11 @@ object BackupController {
             }
 
             // 导出阅读配置
-            GSON.toJson(ReadBookConfig.getBackupConfigList()).let {
-                FileUtils.createFileIfNotExist(webBackupPath + File.separator + ReadBookConfig.configFileName)
-                    .writeText(it)
-            }
-            GSON.toJson(ReadBookConfig.getBackupShareConfig()).let {
-                FileUtils.createFileIfNotExist(webBackupPath + File.separator + ReadBookConfig.shareConfigFileName)
-                    .writeText(it)
-            }
+            writeJsonToFile(ReadBookConfig.getBackupConfigList(), ReadBookConfig.configFileName, webBackupPath)
+            writeJsonToFile(ReadBookConfig.getBackupShareConfig(), ReadBookConfig.shareConfigFileName, webBackupPath)
 
             // 导出主题配置
-            GSON.toJson(ThemeConfig.configList).let {
-                FileUtils.createFileIfNotExist(webBackupPath + File.separator + ThemeConfig.configFileName)
-                    .writeText(it)
-            }
+            writeJsonToFile(ThemeConfig.configList, ThemeConfig.configFileName, webBackupPath)
 
             // 导出直链上传配置
             DirectLinkUploadRepository().createBackupJson()?.let {
@@ -228,8 +228,7 @@ object BackupController {
 
             // 导出封面规则配置
             BookCover.getConfig()?.let {
-                FileUtils.createFileIfNotExist(webBackupPath + File.separator + BookCover.configFileName)
-                    .writeText(GSON.toJson(it))
+                writeJsonToFile(it, BookCover.configFileName, webBackupPath)
             }
 
             // 导出SharedPreferences配置
@@ -253,6 +252,7 @@ object BackupController {
                 }
                 edit.commit()
             }
+            MemoryPressure.trimIfNeeded()
 
             // 导出视频播放配置
             appCtx.getSharedPreferences(webBackupPath, "videoConfig")?.let { sp ->
@@ -268,12 +268,14 @@ object BackupController {
                     }
                 }
             }
+            MemoryPressure.trimIfNeeded()
 
             Backup.stageBackgroundImageFiles(webBackupPath)
             Backup.stageHighlightRuleBackgroundFiles(webBackupPath)
             Backup.stageBookCache(webBackupPath)
             Backup.stageBookChapterForCache(webBackupPath)
         }
+        MemoryPressure.trimIfNeeded()
 
         // 打包ZIP
         val backupDir = File(webBackupPath)
@@ -285,9 +287,8 @@ object BackupController {
         FileUtils.delete(tempZip)
 
         if (ZipUtils.zipFiles(paths, tempZip.absolutePath)) {
-            val bytes = tempZip.readBytes()
-            FileUtils.delete(tempZip)
-            return bytes
+            MemoryPressure.trimIfNeeded()
+            return tempZip
         }
 
         return null
@@ -298,11 +299,17 @@ object BackupController {
      */
     private suspend fun writeListToJson(list: List<Any>, fileName: String, path: String) {
         withContext(Dispatchers.IO) {
-            val file = FileUtils.createFileIfNotExist(path + File.separator + fileName)
-            file.outputStream().buffered().use {
-                GSON.writeToOutputStream(it, list)
-            }
+            writeJsonToFile(list, fileName, path)
         }
+    }
+
+    private fun writeJsonToFile(any: Any, fileName: String, path: String): File {
+        val file = FileUtils.createFileIfNotExist(path + File.separator + fileName)
+        file.outputStream().buffered().use {
+            GSON.writeToOutputStream(it, any)
+        }
+        MemoryPressure.trimIfNeeded()
+        return file
     }
 
     /**
