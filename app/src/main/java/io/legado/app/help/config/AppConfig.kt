@@ -70,6 +70,7 @@ object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
     // ==================== 主题与界面配置 ====================
     var themeMode = appCtx.getPrefString(PreferKey.themeMode, "0")
     var useDefaultCover = appCtx.getPrefBoolean(PreferKey.useDefaultCover, false)
+    var loadCoverHighQuality = appCtx.getPrefBoolean(PreferKey.loadCoverHighQuality, false)
     var optimizeRender = CanvasRecorderFactory.isSupport
             && appCtx.getPrefBoolean(PreferKey.optimizeRender, false)
     var recordLog = appCtx.getPrefBoolean(PreferKey.recordLog)
@@ -146,6 +147,9 @@ object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
 
             PreferKey.useDefaultCover -> useDefaultCover =
                 appCtx.getPrefBoolean(PreferKey.useDefaultCover, false)
+
+            PreferKey.loadCoverHighQuality -> loadCoverHighQuality =
+                appCtx.getPrefBoolean(PreferKey.loadCoverHighQuality, false)
 
             PreferKey.optimizeRender -> optimizeRender = CanvasRecorderFactory.isSupport
                     && appCtx.getPrefBoolean(PreferKey.optimizeRender, false)

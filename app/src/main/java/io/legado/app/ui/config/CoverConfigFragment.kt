@@ -5,9 +5,11 @@ import android.content.SharedPreferences
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
+import androidx.lifecycle.lifecycleScope
 import androidx.preference.Preference
 import io.legado.app.R
 import io.legado.app.constant.PreferKey
+import io.legado.app.data.repository.CoverGalleryRepository
 import io.legado.app.lib.dialogs.selector
 import io.legado.app.lib.prefs.SwitchPreference
 import io.legado.app.lib.prefs.fragment.PreferenceFragment
@@ -30,12 +32,16 @@ import io.legado.app.utils.removePref
 import io.legado.app.utils.setEdgeEffectColor
 import io.legado.app.utils.showDialogFragment
 import io.legado.app.utils.toastOnUi
+import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import splitties.init.appCtx
 import java.io.FileOutputStream
 
 class CoverConfigFragment : PreferenceFragment(),
     SharedPreferences.OnSharedPreferenceChangeListener {
 
+    private val coverGalleryRepository by lazy { CoverGalleryRepository() }
     private val requestCodeCover = 111
     private val requestCodeCoverDark = 112
     private val selectImage = registerForActivityResult(HandleFileContract()) {
@@ -51,6 +57,8 @@ class CoverConfigFragment : PreferenceFragment(),
         addPreferencesFromResource(R.xml.pref_config_cover)
         upPreferenceSummary(PreferKey.defaultCover, getPrefString(PreferKey.defaultCover))
         upPreferenceSummary(PreferKey.defaultCoverDark, getPrefString(PreferKey.defaultCoverDark))
+        upPreferenceSummary(PreferKey.coverCollectionDay, getPrefString(PreferKey.coverCollectionDay))
+        upPreferenceSummary(PreferKey.coverCollectionNight, getPrefString(PreferKey.coverCollectionNight))
         findPreference<SwitchPreference>(PreferKey.coverShowAuthor)
             ?.isEnabled = getPrefBoolean(PreferKey.coverShowName)
         findPreference<SwitchPreference>(PreferKey.coverShowAuthorN)
@@ -78,7 +86,9 @@ class CoverConfigFragment : PreferenceFragment(),
         sharedPreferences ?: return
         when (key) {
             PreferKey.defaultCover,
-            PreferKey.defaultCoverDark -> {
+            PreferKey.defaultCoverDark,
+            PreferKey.coverCollectionDay,
+            PreferKey.coverCollectionNight -> {
                 upPreferenceSummary(key, getPrefString(key))
             }
 
@@ -104,8 +114,10 @@ class CoverConfigFragment : PreferenceFragment(),
             }
 
             PreferKey.coverShowAuthor,
-            PreferKey.coverShowAuthorN -> {
-                BookCover.upDefaultCover()
+            PreferKey.coverShowAuthorN,
+            PreferKey.coverCollectionModeDay,
+            PreferKey.coverCollectionModeNight -> {
+                refreshCover()
             }
         }
     }
@@ -116,6 +128,8 @@ class CoverConfigFragment : PreferenceFragment(),
             "coverRule" -> showDialogFragment(CoverRuleConfigDialog())
             "coverHtmlCode" -> CoverHtmlActivity.startTemplateList(requireContext())
             "coverGallery" -> CoverGalleryActivity.start(requireContext())
+            PreferKey.coverCollectionDay -> selectCoverCollection(false)
+            PreferKey.coverCollectionNight -> selectCoverCollection(true)
             PreferKey.defaultCover ->
                 if (getPrefString(preference.key).isNullOrEmpty()) {
                     selectImage.launch {
@@ -179,8 +193,44 @@ class CoverConfigFragment : PreferenceFragment(),
                 value
             }
 
+            PreferKey.coverCollectionDay,
+            PreferKey.coverCollectionNight -> {
+                lifecycleScope.launch {
+                    val groupName = withContext(IO) {
+                        coverGalleryRepository.getGroupName(value?.toLongOrNull())
+                    }
+                    preference.summary = groupName ?: getString(R.string.cover_collection_none)
+                }
+            }
+
             else -> preference.summary = value
         }
+    }
+
+    private fun selectCoverCollection(isNight: Boolean) {
+        lifecycleScope.launch {
+            val groups = withContext(IO) {
+                coverGalleryRepository.allGroupsWithImages()
+                    .filter { it.images.isNotEmpty() }
+            }
+            val items = arrayListOf(getString(R.string.cover_collection_none))
+            items.addAll(groups.map { "${it.group.name} (${it.images.size})" })
+            context?.selector(items = items) { _, index ->
+                val selected = if (index <= 0) null else groups.getOrNull(index - 1)?.group
+                coverGalleryRepository.setSelectedGroup(isNight, selected?.id)
+                upPreferenceSummary(
+                    if (isNight) PreferKey.coverCollectionNight else PreferKey.coverCollectionDay,
+                    selected?.id?.toString()
+                )
+                refreshCover()
+            }
+        }
+    }
+
+    private fun refreshCover() {
+        BookCover.upDefaultCover()
+        postEvent(EventBus.BOOKSHELF_REFRESH, System.currentTimeMillis().toString())
+        postEvent(EventBus.REFRESH_BOOK_INFO, false)
     }
 
     /**

@@ -378,7 +378,8 @@ class CoverImageView @JvmOverloads constructor(
             this.name = it
         }
         val galleryDefaultCover = BookCover.getGalleryDefaultCover(
-            galleryIdentity ?: listOfNotNull(sourceOrigin, path, name, author).joinToString("|")
+            galleryIdentity ?: listOfNotNull(sourceOrigin, path, name, author).joinToString("|"),
+            path
         )
         val actualPath = galleryDefaultCover ?: path
         this.bitmapPath = actualPath
@@ -444,6 +445,10 @@ class CoverImageView @JvmOverloads constructor(
                 })
             }
             builder
+                .override(
+                    if (AppConfig.loadCoverHighQuality) Target.SIZE_ORIGINAL else 240,
+                    if (AppConfig.loadCoverHighQuality) Target.SIZE_ORIGINAL else 320
+                )
                 .centerCrop()
                 .into(this)
         }

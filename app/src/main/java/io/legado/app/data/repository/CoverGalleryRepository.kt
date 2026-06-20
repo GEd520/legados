@@ -4,22 +4,27 @@ import android.content.Context
 import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
 import io.legado.app.constant.EventBus
+import io.legado.app.constant.PreferKey
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.CoverGalleryGroup
 import io.legado.app.data.entities.CoverGalleryGroupWithImages
 import io.legado.app.data.entities.CoverGalleryImage
 import io.legado.app.help.CacheManager
+import io.legado.app.help.config.AppConfig
 import io.legado.app.model.BookCover
 import io.legado.app.utils.FileUtils
 import io.legado.app.utils.MD5Utils
 import io.legado.app.utils.createFolderIfNotExist
 import io.legado.app.utils.externalFiles
 import io.legado.app.utils.getFile
+import io.legado.app.utils.getPrefString
 import io.legado.app.utils.inputStream
 import io.legado.app.utils.normalizeFileName
 import io.legado.app.utils.postEvent
+import io.legado.app.utils.putPrefString
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.withContext
+import splitties.init.appCtx
 import java.io.File
 import java.io.FileOutputStream
 import java.util.zip.ZipEntry
@@ -38,6 +43,15 @@ class CoverGalleryRepository {
     }
 
     fun flowGroupWithImages(groupId: Long) = dao.flowGroupWithImages(groupId)
+
+    fun allGroupsWithImages(): List<CoverGalleryGroupWithImages> {
+        return dao.getAllGroupsWithImages()
+    }
+
+    fun getGroupName(groupId: Long?): String? {
+        groupId ?: return null
+        return dao.getGroupWithImagesNow(groupId)?.group?.name
+    }
 
     suspend fun addGroup(name: String): Long {
         val order = (dao.getMaxGroupOrder() ?: -1) + 1
@@ -178,19 +192,85 @@ class CoverGalleryRepository {
         ZipImportResult(groupName, images.size)
     }
 
-    fun getDefaultCoverPath(identity: String? = null): String? {
-        val groupWithImages = dao.getDefaultGroupWithImages() ?: return null
+    fun getDefaultCoverPath(
+        identity: String? = null,
+        originalCoverPath: String? = null
+    ): String? {
+        val selected = getSelectedGroupWithImages(originalCoverPath)
+        val groupWithImages = selected ?: dao.getDefaultGroupWithImages() ?: return null
         val images = groupWithImages.images
             .filter { it.path.isNotBlank() }
             .sortedWith(compareBy({ it.order }, { it.id }))
         if (images.isEmpty()) return null
-        val randomSeed = CacheManager.getLong(randomSeedKeyPrefix + groupWithImages.group.id) ?: 0L
         val key = identity?.takeIf { it.isNotBlank() } ?: "default"
-        val index = stableIndex(
-            key = "${groupWithImages.group.id}:$randomSeed:$key",
-            size = images.size
-        )
+        val index = if (selected != null && selectedMode() == MODE_SEQUENCE) {
+            sequentialIndex(groupWithImages.group.id, key, images.size)
+        } else {
+            val randomSeed = CacheManager.getLong(randomSeedKeyPrefix + groupWithImages.group.id) ?: 0L
+            stableIndex(
+                key = "${groupWithImages.group.id}:$randomSeed:$key",
+                size = images.size
+            )
+        }
         return images[index].path
+    }
+
+    fun setSelectedGroup(isNight: Boolean, groupId: Long?) {
+        val key = if (isNight) PreferKey.coverCollectionNight else PreferKey.coverCollectionDay
+        appCtx.putPrefString(key, groupId?.toString().orEmpty())
+    }
+
+    private fun getSelectedGroupWithImages(originalCoverPath: String?): CoverGalleryGroupWithImages? {
+        val isNight = AppConfig.isNightTheme
+        if (selectedMode(isNight) == MODE_MIXED && originalCoverPath.isRealCoverPath()) {
+            return null
+        }
+        val groupId = appCtx.getPrefString(
+            if (isNight) PreferKey.coverCollectionNight else PreferKey.coverCollectionDay
+        )?.toLongOrNull() ?: return null
+        return dao.getGroupWithImagesNow(groupId)
+    }
+
+    private fun selectedMode(isNight: Boolean = AppConfig.isNightTheme): String {
+        return appCtx.getPrefString(
+            if (isNight) PreferKey.coverCollectionModeNight else PreferKey.coverCollectionModeDay,
+            MODE_RANDOM
+        ) ?: MODE_RANDOM
+    }
+
+    private fun sequentialIndex(groupId: Long, key: String, size: Int): Int {
+        if (size <= 1) return 0
+        val cacheKey = "$sequenceKeyPrefix$groupId"
+        val assignments = CacheManager.get(cacheKey)
+            ?.split('\n')
+            ?.filter { it.isNotBlank() }
+            ?.toMutableList()
+            ?: mutableListOf()
+        val existsIndex = assignments.indexOf(key)
+        if (existsIndex >= 0) return existsIndex % size
+        assignments.add(key)
+        CacheManager.put(cacheKey, assignments.joinToString("\n"))
+        return (assignments.size - 1) % size
+    }
+
+    private fun String?.isRealCoverPath(): Boolean {
+        val value = this?.trim().orEmpty()
+        if (value.isBlank() || value.equals("use_default_cover", ignoreCase = true)) {
+            return false
+        }
+        val lowerValue = value.lowercase()
+        return when {
+            lowerValue.startsWith("http://") ||
+                lowerValue.startsWith("https://") ||
+                lowerValue.startsWith("content://") ||
+                lowerValue.startsWith("android.resource://") ||
+                lowerValue.startsWith("file:///android_asset/") -> true
+            lowerValue.startsWith("file://") -> runCatching {
+                File(Uri.parse(value).path.orEmpty()).isFile
+            }.getOrDefault(false)
+            File(value).isAbsolute -> File(value).isFile
+            else -> true
+        }
     }
 
     private fun stableIndex(key: String, size: Int): Int {
@@ -264,8 +344,12 @@ class CoverGalleryRepository {
     class NoCoverGalleryImageException(message: String) : IllegalArgumentException(message)
 
     companion object {
+        const val MODE_RANDOM = "random"
+        const val MODE_SEQUENCE = "sequence"
+        const val MODE_MIXED = "mixed"
         const val backupDirName = "封面图集"
         const val randomSeedKeyPrefix = "coverGalleryRandomSeed:"
+        private const val sequenceKeyPrefix = "coverGallerySequence:"
         private val imageExtensions = setOf("jpg", "jpeg", "png", "webp", "gif", "bmp", "heic", "heif")
     }
 }

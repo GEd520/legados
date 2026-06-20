@@ -51,6 +51,14 @@ interface CoverGalleryDao {
     @Query("select * from cover_gallery_groups where isDefault = 1 limit 1")
     fun getDefaultGroupWithImages(): CoverGalleryGroupWithImages?
 
+    @Transaction
+    @Query("select * from cover_gallery_groups order by `order`, id")
+    fun getAllGroupsWithImages(): List<CoverGalleryGroupWithImages>
+
+    @Transaction
+    @Query("select * from cover_gallery_groups where id = :groupId")
+    fun getGroupWithImagesNow(groupId: Long): CoverGalleryGroupWithImages?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertGroup(group: CoverGalleryGroup): Long
 

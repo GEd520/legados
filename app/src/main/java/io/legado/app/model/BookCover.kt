@@ -75,12 +75,13 @@ object BookCover {
         upDefaultCover()
     }
 
-    fun getGalleryDefaultCover(identity: String? = null): String? {
-        return coverGalleryRepository.getDefaultCoverPath(identity)
+    fun getGalleryDefaultCover(identity: String? = null, originalCoverPath: String? = null): String? {
+        return coverGalleryRepository.getDefaultCoverPath(identity, originalCoverPath)
     }
 
     fun getDisplayCover(book: Book): String? {
-        return getGalleryDefaultCover(book.bookUrl) ?: book.getDisplayCover()
+        val originalCover = book.getDisplayCover()
+        return getGalleryDefaultCover(book.bookUrl, originalCover) ?: originalCover
     }
 
     fun getDisplayCover(searchBook: SearchBook): String? {
@@ -93,7 +94,7 @@ object BookCover {
             append('|')
             append(searchBook.author)
         }
-        return getGalleryDefaultCover(identity) ?: searchBook.coverUrl
+        return getGalleryDefaultCover(identity, searchBook.coverUrl) ?: searchBook.coverUrl
     }
 
     /**
@@ -109,12 +110,12 @@ object BookCover {
         if (isNightTheme) {
             drawBookName = appCtx.getPrefBoolean(PreferKey.coverShowNameN, true)
             drawBookAuthor = appCtx.getPrefBoolean(PreferKey.coverShowAuthorN, true)
-            path = getGalleryDefaultCover("default-night")
+            path = getGalleryDefaultCover("default-night", appCtx.getPrefString(PreferKey.defaultCoverDark))
                 ?: appCtx.getPrefString(PreferKey.defaultCoverDark)
         } else {
             drawBookName = appCtx.getPrefBoolean(PreferKey.coverShowName, true)
             drawBookAuthor = appCtx.getPrefBoolean(PreferKey.coverShowAuthor, true)
-            path = getGalleryDefaultCover("default-day")
+            path = getGalleryDefaultCover("default-day", appCtx.getPrefString(PreferKey.defaultCover))
                 ?: appCtx.getPrefString(PreferKey.defaultCover)
         }
         defaultDrawable = runCatching {
