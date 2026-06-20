@@ -27,6 +27,7 @@ import io.legado.app.constant.AppLog
 import io.legado.app.constant.PreferKey
 import io.legado.app.exception.NoStackTraceException
 import io.legado.app.help.AppWebDav
+import io.legado.app.help.DirectLinkUpload
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.config.LocalConfig
 import io.legado.app.help.coroutine.Coroutine
@@ -66,6 +67,7 @@ import io.legado.app.utils.showDialogFragment
 import io.legado.app.utils.showHelp
 import io.legado.app.utils.toEditable
 import io.legado.app.utils.toastOnUi
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.Dispatchers.Main
 import kotlinx.coroutines.Job
@@ -84,6 +86,7 @@ class BackupConfigFragment : PreferenceFragment(),
     private val waitDialog by lazy { WaitDialog(requireContext()) }
     private var backupJob: Job? = null
     private var restoreJob: Job? = null
+    private var backupSelectorSizeJob: Job? = null
 
     private val selectBackupPath = registerForActivityResult(HandleFileContract()) {
         it.uri?.let { uri ->
@@ -299,6 +302,7 @@ class BackupConfigFragment : PreferenceFragment(),
         val activity = requireActivity()
         val rootView = activity.window.decorView as? ViewGroup ?: return
         var showDialog by mutableStateOf(true)
+        var itemSizes by mutableStateOf<Map<String, Long>>(emptyMap())
 
         val composeView = ComposeView(activity).apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
@@ -308,6 +312,7 @@ class BackupConfigFragment : PreferenceFragment(),
                         BackupSelectorDialog(
                             items = items,
                             initialChecked = initialChecked,
+                            itemSizes = itemSizes,
                             onApply = { checkedStates ->
                                 items.forEach { item ->
                                     BackupSelectorConfig.setSelected(
@@ -333,6 +338,48 @@ class BackupConfigFragment : PreferenceFragment(),
         )
         rootView.addView(composeView, layoutParams)
         composeDialogView = composeView
+
+        backupSelectorSizeJob?.cancel()
+        backupSelectorSizeJob = lifecycleScope.launch {
+            try {
+                val sizes = withContext(IO) {
+                    getBackupSelectorSizeMap()
+                }
+                if (composeDialogView === composeView) {
+                    itemSizes = sizes
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                AppLog.put("获取备份选择器数据大小失败\n${e.localizedMessage}", e)
+            }
+        }
+    }
+
+    private fun getBackupSelectorSizeMap(): Map<String, Long> {
+        val sizeByFileName = BackupInfoHelper.getBackupOverview().items
+            .groupBy { it.fileName }
+            .mapValues { entry -> entry.value.sumOf { it.size } }
+        return BackupSelectorConfig.allItems.associate { item ->
+            val size = when (item.key) {
+                "directLinkRule" -> sizeByFileName[DirectLinkUpload.ruleFileName]
+                    ?: sizeByFileName[item.fileName]
+                    ?: 0L
+
+                "backgroundImages" -> sizeByFileName["backgroundImages"]
+                    ?: sizeByFileName[item.fileName]
+                    ?: 0L
+
+                "bookCache" -> listOf(
+                    "book_cache",
+                    "bookChapterCache.json",
+                    "bookCacheIndex.json"
+                ).sumOf { fileName -> sizeByFileName[fileName] ?: 0L }
+
+                else -> sizeByFileName[item.fileName] ?: 0L
+            }
+            item.key to size
+        }
     }
 
     /**
@@ -672,6 +719,8 @@ class BackupConfigFragment : PreferenceFragment(),
     }
     
     private fun dismissComposeDialog() {
+        backupSelectorSizeJob?.cancel()
+        backupSelectorSizeJob = null
         composeDialogView?.let { view ->
             val parent = view.parent as? ViewGroup
             parent?.removeView(view)

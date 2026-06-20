@@ -4,11 +4,13 @@ import android.content.Context
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import io.legado.app.R
 import io.legado.app.base.BaseDialogFragment
 import io.legado.app.base.adapter.ItemViewHolder
 import io.legado.app.base.adapter.RecyclerAdapter
+import io.legado.app.constant.AppLog
 import io.legado.app.databinding.DialogRecyclerViewBinding
 import io.legado.app.databinding.ItemBackupCategoryBinding
 import io.legado.app.help.config.LocalConfig
@@ -17,6 +19,10 @@ import io.legado.app.lib.theme.primaryColor
 import io.legado.app.lib.theme.primaryTextColor
 import io.legado.app.utils.setLayout
 import io.legado.app.utils.viewbindingdelegate.viewBinding
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -49,8 +55,23 @@ class BackupInfoDialog : BaseDialogFragment(R.layout.dialog_recycler_view) {
     }
 
     private fun loadBackupInfo() {
-        val overview = BackupInfoHelper.getBackupOverview()
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val overview = withContext(IO) {
+                    BackupInfoHelper.getBackupOverview()
+                }
+                showBackupInfo(overview)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                AppLog.put("读取备份信息失败\n${e.localizedMessage}", e)
+                binding.tvMsg.visibility = View.VISIBLE
+                binding.tvMsg.text = e.localizedMessage ?: getString(R.string.no_backup_data)
+            }
+        }
+    }
 
+    private fun showBackupInfo(overview: BackupInfoHelper.BackupOverview) {
         if (overview.items.isEmpty()) {
             binding.tvMsg.visibility = View.VISIBLE
             binding.tvMsg.text = getString(R.string.no_backup_data)

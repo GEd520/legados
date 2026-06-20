@@ -9,6 +9,8 @@ import io.legado.app.help.config.ThemeConfig
 import io.legado.app.data.repository.CoverGalleryRepository
 import io.legado.app.model.BookCover
 import io.legado.app.model.upload.DirectLinkUploadRepository
+import io.legado.app.ui.book.read.config.HighlightRuleStore
+import io.legado.app.utils.GSON
 import splitties.init.appCtx
 import java.io.File
 
@@ -47,7 +49,7 @@ object BackupInfoHelper {
     private val categoryConfig = listOf(
         CategoryDef("书籍相关", "📚", listOf("bookshelf", "bookmark", "bookGroup", "bookChapter", "readRecord", "bookCache", "bookChapterCache")),
         CategoryDef("源相关", "📡", listOf("bookSource", "rssSource", "rssStar", "sourceSub", "runtimeSourceCache")),
-        CategoryDef("规则相关", "🔧", listOf("replaceRule", "txtTocRule", "dictRule", "keyboardAssist")),
+        CategoryDef("规则相关", "🔧", listOf("replaceRule", "highlightRule", "txtTocRule", "dictRule", "keyboardAssist")),
         CategoryDef("语音相关", "🔊", listOf("httpTTS")),
         CategoryDef("配置相关", "⚙️", listOf("config", "videoConfig", "readConfig", "shareConfig", "coverConfig", "servers"))
     )
@@ -62,6 +64,7 @@ object BackupInfoHelper {
         "rssSources.json" to "订阅源",
         "rssStar.json" to "订阅收藏",
         "replaceRule.json" to "替换规则",
+        HighlightRuleStore.backupFileName to "高亮规则",
         "readRecord.json" to "阅读记录",
         "readRecordDetail.json" to "阅读详情",
         "readRecordSession.json" to "阅读时间线",
@@ -124,6 +127,21 @@ object BackupInfoHelper {
             totalSize += estimatedSize
             if (selected) selectedSize += estimatedSize
             items.add(BackupFileInfo(fileName, displayName, estimatedSize, selected))
+        }
+
+        run {
+            val fileName = HighlightRuleStore.backupFileName
+            val selected = isFileSelected(fileName)
+            val jsonSize = GSON.toJson(HighlightRuleStore.createBackupData(appCtx))
+                .toByteArray()
+                .size
+                .toLong()
+            val bgSize = HighlightRuleStore.getUsedBgImageFiles(appCtx).sumOf { it.length() }
+            val size = jsonSize + bgSize
+            totalSize += size
+            if (selected) selectedSize += size
+            val displayName = displayNameMap[fileName] ?: fileName
+            items.add(BackupFileInfo(fileName, displayName, size, selected))
         }
 
         val runtimeCacheCount = appDb.cacheDao.getRuntimeSourceCaches(System.currentTimeMillis()).size

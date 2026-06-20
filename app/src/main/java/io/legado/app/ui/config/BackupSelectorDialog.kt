@@ -34,17 +34,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import io.legado.app.R
+import io.legado.app.help.storage.BackupInfoHelper
 import io.legado.app.help.storage.BackupSelectorConfig
 
 @Composable
 fun BackupSelectorDialog(
     items: List<BackupSelectorConfig.BackupItem>,
     initialChecked: Map<String, Boolean>,
+    itemSizes: Map<String, Long> = emptyMap(),
     onApply: (Map<String, Boolean>) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -97,6 +100,7 @@ fun BackupSelectorDialog(
                             BackupSelectorRow(
                                 item = item,
                                 checked = checkedStates[item.key] == true,
+                                size = itemSizes[item.key],
                                 onCheckedChange = { checkedStates[item.key] = it }
                             )
                         }
@@ -133,17 +137,28 @@ private fun BackupSelectorHeader(
             .padding(horizontal = 22.dp, vertical = 18.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Text(
-            text = stringResource(R.string.backup_selector),
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Text(
-            text = "$selectedCount/$totalCount",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.backup_selector),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = "已选 $selectedCount/$totalCount",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(start = 12.dp),
+                maxLines = 1
+            )
+        }
     }
 }
 
@@ -151,6 +166,7 @@ private fun BackupSelectorHeader(
 private fun BackupSelectorRow(
     item: BackupSelectorConfig.BackupItem,
     checked: Boolean,
+    size: Long?,
     onCheckedChange: (Boolean) -> Unit
 ) {
     Row(
@@ -188,6 +204,15 @@ private fun BackupSelectorRow(
                 overflow = TextOverflow.Ellipsis
             )
         }
+        Text(
+            text = size?.let { BackupInfoHelper.formatSize(it) } ?: "--",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 12.dp),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.End
+        )
     }
 }
 
