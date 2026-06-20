@@ -25,6 +25,12 @@ interface BookChapterDao {
     @Query("select * from chapters order by bookUrl, `index`")
     fun getAll(): List<BookChapter>
 
+    @Query("select * from chapters order by bookUrl, `index` limit :limit offset :offset")
+    fun getAll(limit: Int, offset: Int): List<BookChapter>
+
+    @Query("select count(*) from chapters")
+    fun getAllCount(): Int
+
     @Query("select * from chapters where bookUrl = :bookUrl and `index` = :index")
     fun getChapter(bookUrl: String, index: Int): BookChapter?
 

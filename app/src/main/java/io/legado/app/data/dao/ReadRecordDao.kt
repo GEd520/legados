@@ -75,6 +75,12 @@ interface ReadRecordDao {
     @get:Query("SELECT * FROM readRecord")
     val all: List<ReadRecord>
 
+    @Query("SELECT * FROM readRecord ORDER BY deviceId, bookName, bookAuthor LIMIT :limit OFFSET :offset")
+    suspend fun getAllReadRecords(limit: Int, offset: Int): List<ReadRecord>
+
+    @Query("SELECT COUNT(*) FROM readRecord")
+    fun getReadRecordCount(): Int
+
     @Query("SELECT * FROM readRecord WHERE bookName LIKE '%' || :query || '%' OR bookAuthor LIKE '%' || :query || '%' ORDER BY lastRead DESC")
     fun searchReadRecordsByLastRead(query: String): Flow<List<ReadRecord>>
 
@@ -90,6 +96,9 @@ interface ReadRecordDao {
     @Query("SELECT * FROM readRecordDetail")
     suspend fun getAllDetailsList(): List<ReadRecordDetail>
 
+    @Query("SELECT * FROM readRecordDetail ORDER BY deviceId, bookName, bookAuthor, date LIMIT :limit OFFSET :offset")
+    suspend fun getAllDetailsList(limit: Int, offset: Int): List<ReadRecordDetail>
+
     @Query("SELECT COUNT(*) FROM readRecordDetail")
     fun getDetailsCount(): Int
 
@@ -104,6 +113,9 @@ interface ReadRecordDao {
 
     @Query("SELECT * FROM readRecordSession")
     suspend fun getAllSessionsList(): List<ReadRecordSession>
+
+    @Query("SELECT * FROM readRecordSession ORDER BY id LIMIT :limit OFFSET :offset")
+    suspend fun getAllSessionsList(limit: Int, offset: Int): List<ReadRecordSession>
 
     @Query("SELECT COUNT(*) FROM readRecordSession")
     fun getSessionsCount(): Int

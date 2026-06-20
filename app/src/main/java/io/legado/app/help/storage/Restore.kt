@@ -48,6 +48,7 @@ import io.legado.app.model.BookCover
 import io.legado.app.model.localBook.LocalBook
 import io.legado.app.model.upload.DirectLinkUploadRepository
 import io.legado.app.data.repository.CoverGalleryRepository
+import io.legado.app.exception.NoStackTraceException
 import io.legado.app.ui.book.read.config.HighlightRuleStore
 import io.legado.app.utils.FileUtils
 import io.legado.app.utils.GSON
@@ -139,11 +140,18 @@ object Restore {
             Backup.withStorageLock {
                 FileUtils.delete(Backup.backupPath)
                 if (uri.isContentScheme()) {
-                    DocumentFile.fromSingleUri(context, uri)!!.openInputStream()!!.use {
+                    val inputStream = DocumentFile.fromSingleUri(context, uri)?.openInputStream()
+                        ?: throw NoStackTraceException("打开备份文件失败")
+                    inputStream.use {
                         ZipUtils.unZipToPath(it, Backup.backupPath)
                     }
                 } else {
-                    ZipUtils.unZipToPath(File(uri.path!!), Backup.backupPath)
+                    val filePath = uri.path ?: throw NoStackTraceException("备份文件路径为空")
+                    val backupFile = File(filePath)
+                    if (!backupFile.exists()) {
+                        throw NoStackTraceException("备份文件不存在")
+                    }
+                    ZipUtils.unZipToPath(backupFile, Backup.backupPath)
                 }
                 restoreStarted = true
                 restore(Backup.backupPath)
@@ -154,6 +162,7 @@ object Restore {
                 appCtx.toastOnUi("恢复备份出错\n${it.localizedMessage}")
                 AppLog.put("恢复备份出错\n${it.localizedMessage}", it)
             } else {
+                appCtx.toastOnUi("打开备份文件出错\n${it.localizedMessage}")
                 AppLog.put("复制解压文件出错\n${it.localizedMessage}", it)
             }
         }
@@ -211,29 +220,29 @@ object Restore {
 
         // 恢复书架数据
         if ("bookshelf.json" in selectedSet) {
-            appDb.bookDao.deleteAll()
             fileToListT<Book>(path, "bookshelf.json")?.let {
                 it.forEach { book -> book.upType() }
                 it.filter { book -> book.isLocal }
                     .forEach { book -> book.coverUrl = LocalBook.getCoverPath(book) }
                 val ignoreLocalBook = BackupConfig.ignoreLocalBook
                 val books = it.filterNot { book -> ignoreLocalBook && book.isLocal }
+                appDb.bookDao.deleteAll()
                 appDb.bookDao.insert(*books.toTypedArray())
             }
         }
 
         // 恢复书签
         if ("bookmark.json" in selectedSet) {
-            appDb.bookmarkDao.deleteAll()
             fileToListT<Bookmark>(path, "bookmark.json")?.let {
+                appDb.bookmarkDao.deleteAll()
                 appDb.bookmarkDao.insert(*it.toTypedArray())
             }
         }
 
         // 恢复书籍分组
         if ("bookGroup.json" in selectedSet) {
-            appDb.bookGroupDao.deleteAll()
             fileToListT<BookGroup>(path, "bookGroup.json")?.let {
+                appDb.bookGroupDao.deleteAll()
                 appDb.bookGroupDao.insert(*it.toTypedArray())
             }
         }
@@ -244,13 +253,14 @@ object Restore {
         }
 
         if ("bookSource.json" in selectedSet) {
-            appDb.bookSourceDao.deleteAll()
             fileToListT<BookSource>(path, "bookSource.json")?.let {
+                appDb.bookSourceDao.deleteAll()
                 appDb.bookSourceDao.insert(*it.toTypedArray())
             } ?: run {
                 val bookSourceFile = File(path, "bookSource.json")
                 if (bookSourceFile.exists()) {
                     val json = bookSourceFile.readText()
+                    appDb.bookSourceDao.deleteAll()
                     ImportOldData.importOldSource(json)
                 }
             }
@@ -258,24 +268,24 @@ object Restore {
 
         // 恢复RSS源
         if ("rssSources.json" in selectedSet) {
-            appDb.rssSourceDao.deleteAll()
             fileToListT<RssSource>(path, "rssSources.json")?.let {
+                appDb.rssSourceDao.deleteAll()
                 appDb.rssSourceDao.insert(*it.toTypedArray())
             }
         }
 
         // 恢复RSS收藏
         if ("rssStar.json" in selectedSet) {
-            appDb.rssStarDao.deleteAll()
             fileToListT<RssStar>(path, "rssStar.json")?.let {
+                appDb.rssStarDao.deleteAll()
                 appDb.rssStarDao.insert(*it.toTypedArray())
             }
         }
 
         // 恢复替换规则
         if ("replaceRule.json" in selectedSet) {
-            appDb.replaceRuleDao.deleteAll()
             fileToListT<ReplaceRule>(path, "replaceRule.json")?.let {
+                appDb.replaceRuleDao.deleteAll()
                 appDb.replaceRuleDao.insert(*it.toTypedArray())
             }
         }
@@ -291,40 +301,40 @@ object Restore {
             }
         }
         if ("searchHistory.json" in selectedSet) {
-            appDb.searchKeywordDao.deleteAll()
             fileToListT<SearchKeyword>(path, "searchHistory.json")?.let {
+                appDb.searchKeywordDao.deleteAll()
                 appDb.searchKeywordDao.insert(*it.toTypedArray())
             }
         }
 
         // 恢复TXT目录规则
         if ("txtTocRule.json" in selectedSet) {
-            appDb.txtTocRuleDao.deleteAll()
             fileToListT<TxtTocRule>(path, "txtTocRule.json")?.let {
+                appDb.txtTocRuleDao.deleteAll()
                 appDb.txtTocRuleDao.insert(*it.toTypedArray())
             }
         }
 
         // 恢复HTTP TTS配置
         if ("httpTTS.json" in selectedSet) {
-            appDb.httpTTSDao.deleteAll()
             fileToListT<HttpTTS>(path, "httpTTS.json")?.let {
+                appDb.httpTTSDao.deleteAll()
                 appDb.httpTTSDao.insert(*it.toTypedArray())
             }
         }
 
         // 恢复词典规则
         if ("dictRule.json" in selectedSet) {
-            appDb.dictRuleDao.deleteAll()
             fileToListT<DictRule>(path, "dictRule.json")?.let {
+                appDb.dictRuleDao.deleteAll()
                 appDb.dictRuleDao.insert(*it.toTypedArray())
             }
         }
 
         // 恢复键盘辅助
         if ("keyboardAssists.json" in selectedSet) {
-            appDb.keyboardAssistsDao.deleteAll()
             fileToListT<KeyboardAssist>(path, "keyboardAssists.json")?.let {
+                appDb.keyboardAssistsDao.deleteAll()
                 appDb.keyboardAssistsDao.insert(*it.toTypedArray())
             }
         }
@@ -478,7 +488,7 @@ object Restore {
         }
 
         // 恢复书籍缓存和章节目录
-        if (bookCacheIndexFileName in selectedSet || "bookChapterCache.json" in selectedSet) {
+        if (bookCacheFolderName in selectedSet || bookCacheIndexFileName in selectedSet || "bookChapterCache.json" in selectedSet) {
             restoreBookCache(path)
         }
 
@@ -518,7 +528,6 @@ object Restore {
         val aes = BackupAES()
 
         // 恢复书架数据
-        appDb.bookDao.deleteAll()
         fileToListT<Book>(path, "bookshelf.json")?.let {
             it.forEach { book ->
                 book.upType()
@@ -526,53 +535,55 @@ object Restore {
             it.filter { book -> book.isLocal }
                 .forEach { book ->
                     book.coverUrl = LocalBook.getCoverPath(book)
-                }
+            }
             val ignoreLocalBook = BackupConfig.ignoreLocalBook
             val books = it.filterNot { book -> ignoreLocalBook && book.isLocal }
+            appDb.bookDao.deleteAll()
             appDb.bookDao.insert(*books.toTypedArray())
         }
 
         // 恢复书签
         restoreBookChapters(path)
 
-        appDb.bookmarkDao.deleteAll()
         fileToListT<Bookmark>(path, "bookmark.json")?.let {
+            appDb.bookmarkDao.deleteAll()
             appDb.bookmarkDao.insert(*it.toTypedArray())
         }
 
         // 恢复书籍分组
-        appDb.bookGroupDao.deleteAll()
         fileToListT<BookGroup>(path, "bookGroup.json")?.let {
+            appDb.bookGroupDao.deleteAll()
             appDb.bookGroupDao.insert(*it.toTypedArray())
         }
 
         // 恢复书源（兼容旧版本格式）
-        appDb.bookSourceDao.deleteAll()
         fileToListT<BookSource>(path, "bookSource.json")?.let {
+            appDb.bookSourceDao.deleteAll()
             appDb.bookSourceDao.insert(*it.toTypedArray())
         } ?: run {
             val bookSourceFile = File(path, "bookSource.json")
             if (bookSourceFile.exists()) {
                 val json = bookSourceFile.readText()
+                appDb.bookSourceDao.deleteAll()
                 ImportOldData.importOldSource(json)
             }
         }
 
         // 恢复RSS源
-        appDb.rssSourceDao.deleteAll()
         fileToListT<RssSource>(path, "rssSources.json")?.let {
+            appDb.rssSourceDao.deleteAll()
             appDb.rssSourceDao.insert(*it.toTypedArray())
         }
 
         // 恢复RSS收藏
-        appDb.rssStarDao.deleteAll()
         fileToListT<RssStar>(path, "rssStar.json")?.let {
+            appDb.rssStarDao.deleteAll()
             appDb.rssStarDao.insert(*it.toTypedArray())
         }
 
         // 恢复替换规则
-        appDb.replaceRuleDao.deleteAll()
         fileToListT<ReplaceRule>(path, "replaceRule.json")?.let {
+            appDb.replaceRuleDao.deleteAll()
             appDb.replaceRuleDao.insert(*it.toTypedArray())
         }
 
@@ -584,45 +595,45 @@ object Restore {
         }?.onFailure {
             AppLog.put("鎭㈠楂樹寒瑙勫垯鍑洪敊\n${it.localizedMessage}", it)
         }
-        appDb.searchKeywordDao.deleteAll()
         fileToListT<SearchKeyword>(path, "searchHistory.json")?.let {
+            appDb.searchKeywordDao.deleteAll()
             appDb.searchKeywordDao.insert(*it.toTypedArray())
         }
 
         // 恢复TXT目录规则
-        appDb.txtTocRuleDao.deleteAll()
         fileToListT<TxtTocRule>(path, "txtTocRule.json")?.let {
+            appDb.txtTocRuleDao.deleteAll()
             appDb.txtTocRuleDao.insert(*it.toTypedArray())
         }
 
         // 恢复HTTP TTS配置
-        appDb.httpTTSDao.deleteAll()
         fileToListT<HttpTTS>(path, "httpTTS.json")?.let {
+            appDb.httpTTSDao.deleteAll()
             appDb.httpTTSDao.insert(*it.toTypedArray())
         }
 
         // 恢复词典规则
-        appDb.dictRuleDao.deleteAll()
         fileToListT<DictRule>(path, "dictRule.json")?.let {
+            appDb.dictRuleDao.deleteAll()
             appDb.dictRuleDao.insert(*it.toTypedArray())
         }
 
         // 恢复键盘辅助（先删除再插入，保证与备份数据一致）
-        appDb.keyboardAssistsDao.deleteAll()
         fileToListT<KeyboardAssist>(path, "keyboardAssists.json")?.let {
+            appDb.keyboardAssistsDao.deleteAll()
             appDb.keyboardAssistsDao.insert(*it.toTypedArray())
         }
 
         restoreCoverGallery(path)
 
         // 恢复阅读记录（先清空再导入）
-        appDb.readRecordDao.clear()
-        appDb.readRecordDao.clearDetails()
-        appDb.readRecordDao.clearSessions()
         val readRecords = fileToListT<ReadRecord>(path, "readRecord.json").orEmpty()
         val readRecordDetails = fileToListT<ReadRecordDetail>(path, "readRecordDetail.json").orEmpty()
         val readRecordSessions = fileToListT<ReadRecordSession>(path, "readRecordSession.json").orEmpty()
         if (readRecords.isNotEmpty() || readRecordDetails.isNotEmpty() || readRecordSessions.isNotEmpty()) {
+            appDb.readRecordDao.clear()
+            appDb.readRecordDao.clearDetails()
+            appDb.readRecordDao.clearSessions()
             ReadRecordRepository(appDb.readRecordDao).apply {
                 importRecords(
                     readRecords,
@@ -657,32 +668,32 @@ object Restore {
         }
 
         // 恢复直链上传配置
-        DirectLinkUpload.delConfig()
         getDirectLinkRuleBackupFile(path)?.runCatching {
+            DirectLinkUpload.delConfig()
             DirectLinkUploadRepository().restoreBackupJson(readText())
         }?.onFailure {
             AppLog.put("恢复直链上传出错\n${it.localizedMessage}", it)
         }
 
         // 恢复主题配置
-        ThemeConfig.replaceConfigs(emptyList())
         File(path, ThemeConfig.configFileName).takeIf {
             it.exists()
         }?.runCatching {
             val configs = GSON.fromJsonArray<ThemeConfig.Config>(readText()).getOrNull()
             FileUtils.delete(ThemeConfig.configFilePath)
             copyTo(File(ThemeConfig.configFilePath))
+            ThemeConfig.replaceConfigs(emptyList())
             ThemeConfig.replaceConfigs(configs)
         }?.onFailure {
             AppLog.put("恢复主题出错\n${it.localizedMessage}", it)
         }
 
         // 恢复封面规则配置
-        BookCover.delCoverRule()
         File(path, BookCover.configFileName).takeIf {
             it.exists()
         }?.runCatching {
             val json = readText()
+            BookCover.delCoverRule()
             BookCover.saveCoverRule(json)
         }?.onFailure {
             AppLog.put("恢复封面规则出错\n${it.localizedMessage}", it)
@@ -964,12 +975,15 @@ object Restore {
 
     private fun restoreReadConfigBackgrounds(path: String) {
         val bgNames = linkedSetOf<String>()
-        File(path, ReadBookConfig.configFileName).takeIf { it.exists() }?.runCatching {
+        val configFile = File(path, ReadBookConfig.configFileName).takeIf { it.exists() }
+        val shareConfigFile = File(path, ReadBookConfig.shareConfigFileName).takeIf { it.exists() }
+        if (configFile == null && shareConfigFile == null) return
+        configFile?.runCatching {
             GSON.fromJsonArray<ReadBookConfig.Config>(readText()).getOrThrow()
         }?.getOrNull()?.forEach { config ->
             collectBgNames(config, bgNames)
         }
-        File(path, ReadBookConfig.shareConfigFileName).takeIf { it.exists() }?.runCatching {
+        shareConfigFile?.runCatching {
             GSON.fromJsonObject<ReadBookConfig.Config>(readText()).getOrThrow()
         }?.getOrNull()?.let { config ->
             collectBgNames(config, bgNames)

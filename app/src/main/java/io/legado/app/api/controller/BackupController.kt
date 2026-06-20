@@ -1,6 +1,8 @@
 package io.legado.app.api.controller
 
 import android.content.ComponentCallbacks2
+import androidx.core.content.edit
+import com.google.gson.stream.JsonWriter
 import fi.iki.elonen.NanoHTTPD
 import io.legado.app.api.ReturnData
 import io.legado.app.constant.PreferKey
@@ -28,17 +30,19 @@ import io.legado.app.utils.getFile
 import io.legado.app.utils.getSharedPreferences
 import io.legado.app.utils.outputStream
 import io.legado.app.utils.writeToOutputStream
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import splitties.init.appCtx
 import java.io.File
+import java.io.OutputStreamWriter
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
-import androidx.core.content.edit
 
 /**
  * Web端备份控制器
@@ -48,6 +52,8 @@ import androidx.core.content.edit
  * 这里自行控制备份流程，并保留临时ZIP文件供HTTP流式下载
  */
 object BackupController {
+
+    private const val PAGED_BACKUP_SIZE = 500
 
     private val backupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -98,13 +104,13 @@ object BackupController {
     fun backup(): NanoHTTPD.Response {
         val errorRef = AtomicReference<Throwable?>(null)
         val latch = CountDownLatch(1)
+        cachedBackupOverview = null
 
         backupScope.launch {
             try {
                 val zipFile = executeWebBackup()
                 if (zipFile != null && zipFile.exists() && zipFile.length() > 0L) {
                     cachedBackupZipFile = zipFile
-                    cachedBackupOverview = generateBackupOverview()
                 } else {
                     errorRef.set(RuntimeException("ZIP打包失败"))
                 }
@@ -172,19 +178,22 @@ object BackupController {
      */
     @Suppress("DEPRECATION")
     private suspend fun executeWebBackup(): File? {
-        val aes = BackupAES()
-        MemoryPressure.trimNow(
-            ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW,
-            waitForCompletion = true
-        )
-        FileUtils.delete(webBackupPath)
+        try {
+            val aes = BackupAES()
+            MemoryPressure.trimNow(
+                ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW,
+                waitForCompletion = true
+            )
+            FileUtils.delete(webBackupPath)
 
         withContext(Dispatchers.IO) {
             // 导出数据库数据到JSON文件
             writeListToJson(appDb.bookDao.all, "bookshelf.json", webBackupPath)
             writeListToJson(appDb.bookmarkDao.all, "bookmark.json", webBackupPath)
             writeListToJson(appDb.bookGroupDao.all, "bookGroup.json", webBackupPath)
-            writeListToJson(appDb.bookChapterDao.getAll(), "bookChapter.json", webBackupPath)
+            writePagedListToJson("bookChapter.json", webBackupPath) { limit, offset ->
+                appDb.bookChapterDao.getAll(limit, offset)
+            }
             writeListToJson(appDb.bookSourceDao.all, "bookSource.json", webBackupPath)
             writeListToJson(appDb.rssSourceDao.all, "rssSources.json", webBackupPath)
             writeListToJson(appDb.rssStarDao.all, "rssStar.json", webBackupPath)
@@ -194,9 +203,15 @@ object BackupController {
                 HighlightRuleStore.backupFileName,
                 webBackupPath
             )
-            writeListToJson(appDb.readRecordDao.all, "readRecord.json", webBackupPath)
-            writeListToJson(appDb.readRecordDao.getAllDetailsList(), "readRecordDetail.json", webBackupPath)
-            writeListToJson(appDb.readRecordDao.getAllSessionsList(), "readRecordSession.json", webBackupPath)
+            writePagedListToJson("readRecord.json", webBackupPath) { limit, offset ->
+                appDb.readRecordDao.getAllReadRecords(limit, offset)
+            }
+            writePagedListToJson("readRecordDetail.json", webBackupPath) { limit, offset ->
+                appDb.readRecordDao.getAllDetailsList(limit, offset)
+            }
+            writePagedListToJson("readRecordSession.json", webBackupPath) { limit, offset ->
+                appDb.readRecordDao.getAllSessionsList(limit, offset)
+            }
             writeListToJson(appDb.searchKeywordDao.all, "searchHistory.json", webBackupPath)
             writeListToJson(appDb.txtTocRuleDao.all, "txtTocRule.json", webBackupPath)
             writeListToJson(appDb.httpTTSDao.all, "httpTTS.json", webBackupPath)
@@ -288,10 +303,14 @@ object BackupController {
 
         if (ZipUtils.zipFiles(paths, tempZip.absolutePath)) {
             MemoryPressure.trimIfNeeded()
+            cachedBackupOverview = generateBackupOverview()
             return tempZip
         }
 
-        return null
+            return null
+        } finally {
+            FileUtils.delete(webBackupPath)
+        }
     }
 
     /**
@@ -310,6 +329,35 @@ object BackupController {
         }
         MemoryPressure.trimIfNeeded()
         return file
+    }
+
+    private suspend fun <T : Any> writePagedListToJson(
+        fileName: String,
+        path: String,
+        loadPage: suspend (limit: Int, offset: Int) -> List<T>
+    ) {
+        withContext(Dispatchers.IO) {
+            val file = FileUtils.createFileIfNotExist(path + File.separator + fileName)
+            file.outputStream().buffered().use { output ->
+                JsonWriter(OutputStreamWriter(output, "UTF-8")).use { writer ->
+                    writer.setIndent("  ")
+                    writer.beginArray()
+                    var offset = 0
+                    while (true) {
+                        currentCoroutineContext().ensureActive()
+                        val page = loadPage(PAGED_BACKUP_SIZE, offset)
+                        if (page.isEmpty()) break
+                        page.forEach { item ->
+                            GSON.toJson(item, item::class.java, writer)
+                        }
+                        offset += page.size
+                        MemoryPressure.trimIfNeeded()
+                        if (page.size < PAGED_BACKUP_SIZE) break
+                    }
+                    writer.endArray()
+                }
+            }
+        }
     }
 
     /**
@@ -333,7 +381,7 @@ object BackupController {
                 appDb.bookGroupDao.all.size
             },
             BackupItemDef("bookChapter.json", "章节目录", "书籍章节目录数据") {
-                appDb.bookChapterDao.getAll().size
+                appDb.bookChapterDao.getAllCount()
             },
             BackupItemDef("bookSource.json", "书源", "网络小说书源") {
                 appDb.bookSourceDao.all.size
@@ -348,7 +396,7 @@ object BackupController {
                 appDb.replaceRuleDao.all.size
             },
             BackupItemDef("readRecord.json", "阅读记录", "阅读时长统计记录") {
-                appDb.readRecordDao.all.size
+                appDb.readRecordDao.getReadRecordCount()
             },
             BackupItemDef("readRecordDetail.json", "阅读详情", "每本书每天的阅读统计") {
                 appDb.readRecordDao.getDetailsCount()

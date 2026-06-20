@@ -3,23 +3,31 @@ package io.legado.app.help.storage
 import android.content.ComponentCallbacks2
 import android.content.Context
 import android.net.Uri
+import androidx.core.content.edit
 import androidx.core.net.toUri
 import androidx.documentfile.provider.DocumentFile
+import com.google.gson.stream.JsonWriter
 import io.legado.app.constant.AppLog
 import io.legado.app.constant.PreferKey
 import io.legado.app.data.appDb
+import io.legado.app.data.entities.BookChapter
+import io.legado.app.data.entities.Cache
+import io.legado.app.data.repository.CoverGalleryRepository
 import io.legado.app.exception.NoStackTraceException
 import io.legado.app.help.AppWebDav
 import io.legado.app.help.DirectLinkUpload
 import io.legado.app.help.MemoryPressure
+import io.legado.app.help.book.BookHelp
+import io.legado.app.help.book.getFolderNameNoCache
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.config.LocalConfig
 import io.legado.app.help.config.ReadBookConfig
 import io.legado.app.help.config.ThemeConfig
 import io.legado.app.help.coroutine.Coroutine
 import io.legado.app.model.BookCover
+import io.legado.app.model.VideoPlay.VIDEO_PREF_NAME
 import io.legado.app.model.upload.DirectLinkUploadRepository
-import io.legado.app.help.storage.BackupSelectorConfig
+import io.legado.app.ui.book.read.config.HighlightRuleStore
 import io.legado.app.utils.FileUtils
 import io.legado.app.utils.GSON
 import io.legado.app.utils.LogUtils
@@ -45,18 +53,11 @@ import splitties.init.appCtx
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.io.OutputStreamWriter
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
-import androidx.core.content.edit
-import io.legado.app.data.entities.Cache
-import io.legado.app.data.entities.BookChapter
-import io.legado.app.help.book.BookHelp
-import io.legado.app.help.book.getFolderNameNoCache
-import io.legado.app.model.VideoPlay.VIDEO_PREF_NAME
-import io.legado.app.ui.book.read.config.HighlightRuleStore
-import io.legado.app.data.repository.CoverGalleryRepository
 
 /**
  * 章节缓存信息
@@ -120,6 +121,7 @@ object Backup {
     private const val bookCacheFolderName = "book_cache"
     private const val bookCacheIndexFileName = "bookCacheIndex.json"
     private const val bookChapterFileName = "bookChapter.json"
+    private const val pagedBackupSize = 500
 
     /** 备份临时目录路径，用于存放解压/压缩前的文件 */
     val backupPath: String by lazy {
@@ -342,17 +344,6 @@ object Backup {
             .listFiles()
             ?.mapTo(arrayListOf()) { it.absolutePath }
             ?: arrayListOf()
-        val paths = arrayListOf(*backupFileNames)
-        for (i in 0 until paths.size) {
-            paths[i] = backupPath + File.separator + paths[i]
-        }
-        val bgFiles = getBackgroundImageFiles()
-        LogUtils.d(TAG, "背景图片文件数量: ${bgFiles.size}")
-        bgFiles.forEach {
-            LogUtils.d(TAG, "添加背景图片: ${it.absolutePath}")
-            paths.add(it.absolutePath)
-        }
-        return paths
     }
 
     /**
@@ -443,7 +434,8 @@ object Backup {
     @Suppress("DEPRECATION")
     private suspend fun backup(context: Context, path: String?) {
         LogUtils.d(TAG, "开始备份 path:$path")
-        val aes = BackupAES()
+        try {
+            val aes = BackupAES()
         MemoryPressure.trimNow(
             ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW,
             waitForCompletion = true
@@ -463,7 +455,9 @@ object Backup {
             writeListToJson(appDb.bookGroupDao.all, "bookGroup.json", backupPath)
         }
         if (selectedFiles.contains(bookChapterFileName)) {
-            writeListToJson(appDb.bookChapterDao.getAll(), bookChapterFileName, backupPath)
+            writePagedListToJson(bookChapterFileName, backupPath) { limit, offset ->
+                appDb.bookChapterDao.getAll(limit, offset)
+            }
         }
         if (selectedFiles.contains("bookSource.json")) {
             writeListToJson(appDb.bookSourceDao.all, "bookSource.json", backupPath)
@@ -485,13 +479,19 @@ object Backup {
             )
         }
         if (selectedFiles.contains("readRecord.json")) {
-            writeListToJson(appDb.readRecordDao.all, "readRecord.json", backupPath)
+            writePagedListToJson("readRecord.json", backupPath) { limit, offset ->
+                appDb.readRecordDao.getAllReadRecords(limit, offset)
+            }
         }
         if (selectedFiles.contains("readRecordDetail.json")) {
-            writeListToJson(appDb.readRecordDao.getAllDetailsList(), "readRecordDetail.json", backupPath)
+            writePagedListToJson("readRecordDetail.json", backupPath) { limit, offset ->
+                appDb.readRecordDao.getAllDetailsList(limit, offset)
+            }
         }
         if (selectedFiles.contains("readRecordSession.json")) {
-            writeListToJson(appDb.readRecordDao.getAllSessionsList(), "readRecordSession.json", backupPath)
+            writePagedListToJson("readRecordSession.json", backupPath) { limit, offset ->
+                appDb.readRecordDao.getAllSessionsList(limit, offset)
+            }
         }
         if (selectedFiles.contains("searchHistory.json")) {
             writeListToJson(appDb.searchKeywordDao.all, "searchHistory.json", backupPath)
@@ -639,31 +639,37 @@ object Backup {
             zipFileName
         }
 
-        if (ZipUtils.zipFiles(paths, zipFilePath)) {
-            MemoryPressure.trimIfNeeded()
-            // 复制到目标目录
-            when {
-                path.isNullOrBlank() -> {
-                    copyBackup(context.getExternalFilesDir(null)!!, backupFileName)
-                }
-
-                path.isContentScheme() -> {
-                    copyBackup(context, path.toUri(), backupFileName)
-                }
-
-                else -> {
-                    copyBackup(File(path), backupFileName)
-                }
+        val zipCreated = ZipUtils.zipFiles(paths, zipFilePath)
+        if (!zipCreated) {
+            throw NoStackTraceException("创建备份ZIP失败")
+        }
+        val zipFile = File(zipFilePath)
+        if (!zipFile.exists() || zipFile.length() <= 0L) {
+            throw NoStackTraceException("备份ZIP文件为空")
+        }
+        MemoryPressure.trimIfNeeded()
+        when {
+            path.isNullOrBlank() -> {
+                val externalDir = context.getExternalFilesDir(null)
+                    ?: throw NoStackTraceException("备份目录不可用")
+                copyBackup(externalDir, backupFileName)
             }
 
-            // 上传到WebDav云端
-            LocalConfig.lastBackup = System.currentTimeMillis()
-
-            try {
-                AppWebDav.backUpWebDav(zipFileName)
-            } catch (e: Exception) {
-                AppLog.put("上传备份至webdav失败\n$e", e)
+            path.isContentScheme() -> {
+                copyBackup(context, path.toUri(), backupFileName)
             }
+
+            else -> {
+                copyBackup(File(path), backupFileName)
+            }
+        }
+
+        LocalConfig.lastBackup = System.currentTimeMillis()
+
+        try {
+            AppWebDav.backUpWebDav(zipFileName)
+        } catch (e: Exception) {
+            AppLog.put("上传备份至webdav失败\n$e", e)
         }
 
         // 清理临时文件
@@ -675,6 +681,10 @@ object Backup {
 
         // 上传背景图片到WebDav
         AppWebDav.upBgs(getBackgroundImageFiles().toTypedArray())
+        } finally {
+            FileUtils.delete(backupPath)
+            FileUtils.delete(zipFilePath)
+        }
     }
 
     /**
@@ -702,6 +712,40 @@ object Backup {
         return file
     }
 
+    private suspend fun <T : Any> writePagedListToJson(
+        fileName: String,
+        path: String,
+        loadPage: suspend (limit: Int, offset: Int) -> List<T>
+    ) {
+        currentCoroutineContext().ensureActive()
+        withContext(IO) {
+            val file = FileUtils.createFileIfNotExist(path + File.separator + fileName)
+            var total = 0
+            file.outputStream().buffered().use { output ->
+                JsonWriter(OutputStreamWriter(output, "UTF-8")).use { writer ->
+                    writer.setIndent("  ")
+                    writer.beginArray()
+                    var offset = 0
+                    while (true) {
+                        currentCoroutineContext().ensureActive()
+                        val page = loadPage(pagedBackupSize, offset)
+                        if (page.isEmpty()) break
+                        page.forEach { item ->
+                            GSON.toJson(item, item::class.java, writer)
+                        }
+                        total += page.size
+                        offset += page.size
+                        MemoryPressure.trimIfNeeded()
+                        if (page.size < pagedBackupSize) break
+                    }
+                    writer.endArray()
+                }
+            }
+            LogUtils.d(TAG, "闃呰澶囦唤 $fileName 鍒楄〃澶у皬 $total")
+            LogUtils.d(TAG, "闃呰澶囦唤 $fileName 鍐欏叆澶у皬 ${file.length()}")
+        }
+    }
+
     /**
      * 复制备份文件到SAF（Storage Access Framework）目录
      * 用于Android 10+的分区存储
@@ -714,9 +758,14 @@ object Backup {
     @Throws(Exception::class)
     @Suppress("SameParameterValue")
     private fun copyBackup(context: Context, uri: Uri, fileName: String) {
-        val treeDoc = DocumentFile.fromTreeUri(context, uri)!!
-        treeDoc.findFile(fileName)?.delete()
-        val fileDoc = treeDoc.createFile("", fileName)
+        val treeDoc = DocumentFile.fromTreeUri(context, uri)
+            ?: throw NoStackTraceException("备份目录不可用")
+        treeDoc.findFile(fileName)?.let { oldFile ->
+            if (!oldFile.delete()) {
+                throw NoStackTraceException("删除旧备份文件失败")
+            }
+        }
+        val fileDoc = treeDoc.createFile("application/zip", fileName)
             ?: throw NoStackTraceException("创建文件失败")
         val outputS = fileDoc.openOutputStream()
             ?: throw NoStackTraceException("打开OutputStream失败")
