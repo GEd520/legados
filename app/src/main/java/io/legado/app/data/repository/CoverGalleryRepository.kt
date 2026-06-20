@@ -30,7 +30,6 @@ import java.io.FileOutputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
-import kotlin.math.absoluteValue
 
 class CoverGalleryRepository {
 
@@ -76,6 +75,7 @@ class CoverGalleryRepository {
 
     suspend fun deleteGroup(groupId: Long) {
         dao.deleteGroup(groupId)
+        clearGroupState(groupId)
         refreshDefaultCover()
     }
 
@@ -104,6 +104,7 @@ class CoverGalleryRepository {
 
     suspend fun rerandomizeGroup(groupId: Long) {
         CacheManager.put(randomSeedKeyPrefix + groupId, System.currentTimeMillis())
+        CacheManager.delete(sequenceKeyPrefix + groupId)
         refreshDefaultCover()
     }
 
@@ -242,15 +243,28 @@ class CoverGalleryRepository {
         if (size <= 1) return 0
         val cacheKey = "$sequenceKeyPrefix$groupId"
         val assignments = CacheManager.get(cacheKey)
-            ?.split('\n')
-            ?.filter { it.isNotBlank() }
+            ?.lineSequence()
+            ?.mapIndexedNotNull { index, line ->
+                val value = line.takeIf { it.isNotBlank() } ?: return@mapIndexedNotNull null
+                val savedIndex = value.substringAfter('\t', "").toIntOrNull()
+                val savedKey = value.substringBefore('\t')
+                savedKey to (savedIndex ?: index)
+            }
             ?.toMutableList()
             ?: mutableListOf()
-        val existsIndex = assignments.indexOf(key)
-        if (existsIndex >= 0) return existsIndex % size
-        assignments.add(key)
-        CacheManager.put(cacheKey, assignments.joinToString("\n"))
-        return (assignments.size - 1) % size
+        assignments.firstOrNull { it.first == key }?.let {
+            return Math.floorMod(it.second, size)
+        }
+        val nextIndex = (assignments.maxOfOrNull { it.second } ?: -1) + 1
+        assignments.add(key to nextIndex)
+        val bounded = assignments.takeLast(MAX_SEQUENCE_ASSIGNMENTS)
+        CacheManager.put(cacheKey, bounded.joinToString("\n") { "${it.first}\t${it.second}" })
+        return Math.floorMod(nextIndex, size)
+    }
+
+    private fun clearGroupState(groupId: Long) {
+        CacheManager.delete(randomSeedKeyPrefix + groupId)
+        CacheManager.delete(sequenceKeyPrefix + groupId)
     }
 
     private fun String?.isRealCoverPath(): Boolean {
@@ -279,7 +293,7 @@ class CoverGalleryRepository {
         key.forEach {
             hash = 31 * hash + it.code
         }
-        return (hash % size).absoluteValue.toInt()
+        return Math.floorMod(hash, size)
     }
 
     private fun copyImageToCovers(context: Context, uri: Uri): String {
@@ -349,7 +363,8 @@ class CoverGalleryRepository {
         const val MODE_MIXED = "mixed"
         const val backupDirName = "封面图集"
         const val randomSeedKeyPrefix = "coverGalleryRandomSeed:"
-        private const val sequenceKeyPrefix = "coverGallerySequence:"
+        const val sequenceKeyPrefix = "coverGallerySequence:"
+        private const val MAX_SEQUENCE_ASSIGNMENTS = 5000
         private val imageExtensions = setOf("jpg", "jpeg", "png", "webp", "gif", "bmp", "heic", "heif")
     }
 }

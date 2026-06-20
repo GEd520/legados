@@ -116,13 +116,17 @@ fun ReadRecordScreen(
         )
     }
 
-    if (showMergeDialog && selectedRecord != null) {
-        val candidates = produceState(initialValue = emptyList<ReadRecord>()) {
-            value = viewModel.getMergeCandidates(selectedRecord!!)
+    val targetRecord = selectedRecord
+    if (showMergeDialog && targetRecord != null) {
+        val candidates = produceState(initialValue = emptyList<ReadRecord>(), targetRecord) {
+            value = viewModel.getMergeCandidates(targetRecord)
         }.value
 
         AlertDialog(
-            onDismissRequest = { showMergeDialog = false },
+            onDismissRequest = {
+                showMergeDialog = false
+                selectedRecord = null
+            },
             containerColor = MaterialTheme.colorScheme.surface,
             title = { Text("合并同名书籍") },
             text = {
@@ -130,7 +134,7 @@ fun ReadRecordScreen(
                     Text("没有找到可以合并的记录")
                 } else {
                     Column {
-                        Text("选择要合并到「${selectedRecord!!.bookName}」的记录：")
+                        Text("选择要合并到「${targetRecord.bookName}」的记录：")
                         candidates.forEach { record ->
                             Text(
                                 text = "· ${record.bookName} - ${record.bookAuthor.ifBlank { "未知作者" }}",
@@ -142,14 +146,18 @@ fun ReadRecordScreen(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    viewModel.mergeReadRecords(selectedRecord!!, candidates)
+                    viewModel.mergeReadRecords(targetRecord, candidates)
                     showMergeDialog = false
+                    selectedRecord = null
                 }) {
                     Text("合并", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showMergeDialog = false }) {
+                TextButton(onClick = {
+                    showMergeDialog = false
+                    selectedRecord = null
+                }) {
                     Text("取消", color = MaterialTheme.colorScheme.onSurface)
                 }
             }
@@ -403,9 +411,10 @@ private fun BookCoverImage(
         color = MaterialTheme.colorScheme.surfaceVariant,
         modifier = modifier.shadow(4.dp, RoundedCornerShape(6.dp))
     ) {
-        if (coverBitmap != null) {
+        val bitmap = coverBitmap
+        if (bitmap != null) {
             androidx.compose.foundation.Image(
-                bitmap = coverBitmap!!.asImageBitmap(),
+                bitmap = bitmap.asImageBitmap(),
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
@@ -478,9 +487,9 @@ private fun LazyListScope.RecordListContent(
                 item(key = "timeline_header_$date") {
                     TimelineDateHeader(
                         date = date,
-                        totalDuration = state.dailyReadTimes[
+                        totalDuration = runCatching {
                             LocalDate.parse(date, DateTimeFormatter.ISO_LOCAL_DATE)
-                        ] ?: 0L
+                        }.getOrNull()?.let { state.dailyReadTimes[it] } ?: 0L
                     )
                 }
                 sessions.forEachIndexed { index, session ->

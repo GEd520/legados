@@ -25,12 +25,6 @@ object ParagraphBubbleRenderer {
         return Size(side, side)
     }
 
-    fun inlineWidth(baseWidth: Float): Float {
-        val scale = BubblePackageManager.currentEntry().config.sizeScale
-            .coerceIn(BubblePackageManager.MIN_SIZE_SCALE, BubblePackageManager.MAX_SIZE_SCALE)
-        return baseWidth * scale
-    }
-
     fun cacheKey(src: String, width: Int, height: Int?): String {
         val config = BubblePackageManager.currentEntry().config
         val color = resolveColor(config, status(src))

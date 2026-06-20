@@ -178,7 +178,7 @@ class ImageCropActivity : BaseActivity<ActivityImageCropBinding>(
                 val width = (info.size.width / sampleSize).coerceAtLeast(1)
                 val height = (info.size.height / sampleSize).coerceAtLeast(1)
                 decoder.setTargetSize(width, height)
-            }.copy(Bitmap.Config.ARGB_8888, false)
+            }
         }.getOrNull()
     }
 

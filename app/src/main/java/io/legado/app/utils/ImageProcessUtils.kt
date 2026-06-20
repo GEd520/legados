@@ -37,10 +37,13 @@ object ImageProcessUtils {
                 parentFile?.mkdirs()
             }
         }
-        FileOutputStream(file).use {
-            scaled.compress(Bitmap.CompressFormat.JPEG, 92, it)
+        try {
+            FileOutputStream(file).use {
+                scaled.compress(Bitmap.CompressFormat.JPEG, 92, it)
+            }
+        } finally {
+            if (scaled !== bitmap) scaled.recycle()
         }
-        if (scaled !== bitmap) scaled.recycle()
         return file.absolutePath
     }
 
@@ -60,6 +63,6 @@ object ImageProcessUtils {
         ) {
             return this
         }
-        return File(parentFile, "$nameWithoutExtension.jpg")
+        return File(parentFile ?: File("."), "$nameWithoutExtension.jpg")
     }
 }

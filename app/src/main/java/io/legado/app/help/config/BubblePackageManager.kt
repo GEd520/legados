@@ -19,7 +19,6 @@ object BubblePackageManager {
     const val BUILTIN_DIR_NAME = "builtin_default"
     const val DEFAULT_EMPHASIS_COLOR = "#FF0000"
     const val DEFAULT_NORMAL_COLOR = "#808080"
-    const val DEFAULT_COLOR = DEFAULT_EMPHASIS_COLOR
     const val MIN_SIZE_SCALE = 0.5f
     const val MAX_SIZE_SCALE = 1.5f
     private const val packageFileName = "bubble.json"

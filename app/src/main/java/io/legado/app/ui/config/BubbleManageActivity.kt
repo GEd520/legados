@@ -47,6 +47,7 @@ import io.legado.app.utils.postEvent
 import io.legado.app.utils.toastOnUi
 import io.legado.app.utils.viewbindingdelegate.viewBinding
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayInputStream
@@ -398,6 +399,11 @@ class BubbleManageActivity : BaseActivity<ActivityThemeManageBinding>(), ColorPi
             holder.bind(items[position])
         }
 
+        override fun onViewRecycled(holder: Holder) {
+            holder.cancelPreview()
+            super.onViewRecycled(holder)
+        }
+
         private fun createItemView(parent: ViewGroup): LinearLayout {
             return LinearLayout(parent.context).apply {
                 orientation = LinearLayout.HORIZONTAL
@@ -419,6 +425,7 @@ class BubbleManageActivity : BaseActivity<ActivityThemeManageBinding>(), ColorPi
         }
 
         inner class Holder(private val itemRoot: LinearLayout) : RecyclerView.ViewHolder(itemRoot) {
+            private var previewJob: Job? = null
             private val preview = ImageView(itemRoot.context).apply {
                 layoutParams = LinearLayout.LayoutParams(BUBBLE_PREVIEW_BOX_DP.dp, BUBBLE_PREVIEW_BOX_DP.dp)
                 scaleType = ImageView.ScaleType.CENTER_INSIDE
@@ -466,6 +473,7 @@ class BubbleManageActivity : BaseActivity<ActivityThemeManageBinding>(), ColorPi
 
             fun bind(entry: BubblePackageManager.Entry) {
                 val active = activeDirName == entry.dirName
+                val previewKey = buildPreviewKey(entry)
                 title.text = entry.config.name
                 title.setTextColor(themePrimaryTextColor())
                 info.text = buildString {
@@ -475,14 +483,45 @@ class BubbleManageActivity : BaseActivity<ActivityThemeManageBinding>(), ColorPi
                     append(if (entry.config.updatedAt > 0L) dateFormat.format(Date(entry.config.updatedAt)) else "内置")
                 }
                 info.setTextColor(themeSecondaryTextColor())
-                preview.setImageBitmap(previewBitmap(entry.config))
-                if (preview.drawable == null) {
-                    preview.setImageDrawable(ColorDrawable(Color.TRANSPARENT))
+                preview.setTag(R.id.bubble_preview_key, previewKey)
+                preview.setImageDrawable(ColorDrawable(Color.TRANSPARENT))
+                previewJob?.cancel()
+                previewJob = lifecycleScope.launch {
+                    val bitmap = withContext(Dispatchers.IO) {
+                        previewBitmap(entry.config)
+                    }
+                    if (preview.getTag(R.id.bubble_preview_key) != previewKey) {
+                        return@launch
+                    }
+                    if (bitmap != null) {
+                        preview.setImageBitmap(bitmap)
+                    } else {
+                        preview.setImageDrawable(ColorDrawable(Color.TRANSPARENT))
+                    }
                 }
                 action.text = if (active) getString(R.string.applied) else getString(R.string.apply)
                 action.setTextColor(if (active) accentColor else themePrimaryTextColor())
                 action.setOnClickListener { applyEntry(entry) }
                 itemRoot.setOnClickListener { showActions(entry) }
+            }
+
+            fun cancelPreview() {
+                previewJob?.cancel()
+                previewJob = null
+                preview.setTag(R.id.bubble_preview_key, null)
+            }
+
+            private fun buildPreviewKey(entry: BubblePackageManager.Entry): String {
+                val config = entry.config
+                return buildString {
+                    append(entry.dirName)
+                    append('#')
+                    append(config.updatedAt)
+                    append('#')
+                    append(config.svgTemplate.hashCode())
+                    append('#')
+                    append(config.dayEmphasisColor)
+                }
             }
         }
     }

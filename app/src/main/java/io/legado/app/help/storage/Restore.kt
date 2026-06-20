@@ -335,13 +335,13 @@ object Restore {
 
         // 恢复阅读记录
         if ("readRecord.json" in selectedSet || "readRecordDetail.json" in selectedSet || "readRecordSession.json" in selectedSet) {
-            appDb.readRecordDao.clear()
-            appDb.readRecordDao.clearDetails()
-            appDb.readRecordDao.clearSessions()
             val readRecords = if ("readRecord.json" in selectedSet) fileToListT<ReadRecord>(path, "readRecord.json").orEmpty() else emptyList()
             val readRecordDetails = if ("readRecordDetail.json" in selectedSet) fileToListT<ReadRecordDetail>(path, "readRecordDetail.json").orEmpty() else emptyList()
             val readRecordSessions = if ("readRecordSession.json" in selectedSet) fileToListT<ReadRecordSession>(path, "readRecordSession.json").orEmpty() else emptyList()
             if (readRecords.isNotEmpty() || readRecordDetails.isNotEmpty() || readRecordSessions.isNotEmpty()) {
+                appDb.readRecordDao.clear()
+                appDb.readRecordDao.clearDetails()
+                appDb.readRecordDao.clearSessions()
                 ReadRecordRepository(appDb.readRecordDao).apply {
                     importRecords(
                         readRecords,
@@ -861,8 +861,10 @@ object Restore {
         appDb.coverGalleryDao.deleteAllGroups()
 
         appDb.cacheDao.deleteRuntimeSourceCachesByPrefix(CoverGalleryRepository.randomSeedKeyPrefix)
+        appDb.cacheDao.deleteRuntimeSourceCachesByPrefix(CoverGalleryRepository.sequenceKeyPrefix)
         oldGroupIds.forEach {
             CacheManager.deleteMemory(CoverGalleryRepository.randomSeedKeyPrefix + it)
+            CacheManager.deleteMemory(CoverGalleryRepository.sequenceKeyPrefix + it)
         }
 
         val targetDir = appCtx.externalFiles.getFile("covers").createFolderIfNotExist()

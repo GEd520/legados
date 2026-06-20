@@ -131,13 +131,17 @@ class ReadRecordViewModel : ViewModel() {
             .groupBy { dateFormat.format(Date(it.startTime)) }
             .mapValues { (_, sessions) -> mergeContinuousSessions(sessions) }
 
-        val dailyCounts = data.details
-            .groupBy { LocalDate.parse(it.date, DateTimeFormatter.ISO_LOCAL_DATE) }
+        val detailsWithDate = data.details.mapNotNull { detail ->
+            parseDetailDate(detail.date)?.let { it to detail }
+        }
+
+        val dailyCounts = detailsWithDate
+            .groupBy { it.first }
             .mapValues { it.value.size }
 
-        val dailyTimes = data.details
-            .groupBy { LocalDate.parse(it.date, DateTimeFormatter.ISO_LOCAL_DATE) }
-            .mapValues { (_, details) -> details.sumOf { it.readTime } }
+        val dailyTimes = detailsWithDate
+            .groupBy { it.first }
+            .mapValues { (_, details) -> details.sumOf { it.second.readTime } }
 
         val todayReadTime = dailyTimes[today] ?: 0L
         val todayBookCount = data.details
@@ -467,6 +471,12 @@ private fun Long.toLocalDateString(): String {
         .atZone(ZoneId.systemDefault())
         .toLocalDate()
         .format(DateTimeFormatter.ISO_LOCAL_DATE)
+}
+
+private fun parseDetailDate(date: String): LocalDate? {
+    return runCatching {
+        LocalDate.parse(date, DateTimeFormatter.ISO_LOCAL_DATE)
+    }.getOrNull()
 }
 
 private fun recordIdentity(deviceId: String, bookName: String, bookAuthor: String): RecordIdentity {

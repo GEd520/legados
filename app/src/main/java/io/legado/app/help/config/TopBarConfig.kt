@@ -221,9 +221,11 @@ object TopBarConfig {
                 ?: throw IllegalArgumentException(appCtx.getString(R.string.top_bar_config_missing))
             val config = normalizeConfig(GSON.fromJsonObject<Config>(packageFile.readText()).getOrThrow())
             config.updatedAt = System.currentTimeMillis()
-            val dirName = config.name.normalizeFileName().ifBlank { "top_bar_${System.currentTimeMillis()}" }
+            val dirName = uniqueDirName(
+                config.isNightMode,
+                config.name.normalizeFileName().ifBlank { "top_bar_${System.currentTimeMillis()}" }
+            )
             val targetDir = localDir(config.isNightMode, dirName)
-            if (targetDir.exists()) FileUtils.delete(targetDir, deleteRootDir = true)
             targetDir.mkdirs()
             packageFile.parentFile?.copyRecursively(targetDir, overwrite = true)
             val finalConfig = config.copy(wallpaperPath = normalizeWallpaperPath(config.wallpaperPath, targetDir))
@@ -332,6 +334,17 @@ object TopBarConfig {
     }
 
     private fun localDir(isNight: Boolean, dirName: String): File = typeDir(isNight).getFile(dirName)
+
+    private fun uniqueDirName(isNight: Boolean, preferred: String): String {
+        val clean = preferred.normalizeFileName().ifBlank { "top_bar_${System.currentTimeMillis()}" }
+        var candidate = clean
+        var index = 1
+        while (localDir(isNight, candidate).exists()) {
+            candidate = "${clean}_$index"
+            index++
+        }
+        return candidate
+    }
 
     private fun typeDir(isNight: Boolean): File {
         return rootDir.getFile(if (isNight) "night" else "day").apply { mkdirs() }

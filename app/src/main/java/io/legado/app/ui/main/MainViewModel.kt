@@ -154,12 +154,27 @@ class MainViewModel(application: Application) : BaseViewModel(application) {
             }
         }
         if (addedBooks.isNotEmpty()) {
-            logUpdate("📚 更新队列：新增 ${addedBooks.size} 本书到更新队列，当前队列总数：${waitUpTocBooks.size}")
+            logUpdate("📚 更新队列：新增 ${addedBooks.size} 本书到更新队列，当前队列总数：${waitUpTocBookCount()}")
         }
         if (upTocJob == null) {
             logUpdate("🚀 更新启动：开始处理更新队列，并发数：$threadCount")
             startUpTocJob()
         }
+    }
+
+    @Synchronized
+    private fun pollWaitUpTocBook(): String? {
+        return waitUpTocBooks.poll()
+    }
+
+    @Synchronized
+    private fun waitUpTocBookCount(): Int {
+        return waitUpTocBooks.size
+    }
+
+    @Synchronized
+    private fun hasWaitUpTocBooks(): Boolean {
+        return waitUpTocBooks.isNotEmpty()
     }
 
     private fun startUpTocJob() {
@@ -168,7 +183,7 @@ class MainViewModel(application: Application) : BaseViewModel(application) {
         upTocJob = viewModelScope.launch(upTocPool) {
             flow {
                 while (true) {
-                    emit(waitUpTocBooks.poll() ?: break)
+                    emit(pollWaitUpTocBook() ?: break)
                 }
             }.onEachParallel(threadCount) {
                 onUpTocBooks.add(it)
@@ -180,8 +195,8 @@ class MainViewModel(application: Application) : BaseViewModel(application) {
                 postUpBooksLiveData()
             }.onCompletion {
                 upTocJob = null
-                if (waitUpTocBooks.isNotEmpty()) {
-                    logUpdate("🔄 更新继续：队列中还有 ${waitUpTocBooks.size} 本书待更新", verbose = true)
+                if (hasWaitUpTocBooks()) {
+                    logUpdate("🔄 更新继续：队列中还有 ${waitUpTocBookCount()} 本书待更新", verbose = true)
                     startUpTocJob()
                 } else {
                     logUpdate("✨ 更新完成：所有书籍更新任务已完成")
@@ -264,11 +279,11 @@ class MainViewModel(application: Application) : BaseViewModel(application) {
     fun postUpBooksLiveData(reset: Boolean = false) {
         if (AppConfig.showWaitUpCount) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                onUpBooksLiveData.postValue(waitUpTocBooks.size + onUpTocBooks.size)
+                onUpBooksLiveData.postValue(waitUpTocBookCount() + onUpTocBooks.size)
             } else {
                 var count = 0
                 onUpTocBooks.forEach { _ -> count++ }
-                onUpBooksLiveData.postValue(waitUpTocBooks.size + count)
+                onUpBooksLiveData.postValue(waitUpTocBookCount() + count)
             }
         } else if (reset) {
             onUpBooksLiveData.postValue(0)
@@ -311,7 +326,7 @@ class MainViewModel(application: Application) : BaseViewModel(application) {
                         isEmpty
                     }
                     //有目录更新是不缓存,优先更新目录,现在更多网站限制并发
-                    CacheBook.setWorkingState(waitUpTocBooks.isEmpty() && isOnUpTocBooksEmpty)
+                    CacheBook.setWorkingState(!hasWaitUpTocBooks() && isOnUpTocBooksEmpty)
                     delay(1000)
                 }
             }

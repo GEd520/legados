@@ -11,7 +11,9 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import java.text.SimpleDateFormat
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
@@ -98,7 +100,10 @@ class ReadRecordRepository(
     }
 
     private fun isValidDetail(detail: ReadRecordDetail): Boolean {
-        return hasValidIdentity(detail.deviceId, detail.bookName)
+        return hasValidIdentity(detail.deviceId, detail.bookName) &&
+            runCatching {
+                LocalDate.parse(detail.date, DateTimeFormatter.ISO_LOCAL_DATE)
+            }.isSuccess
     }
 
     private fun isValidSession(session: ReadRecordSession): Boolean {

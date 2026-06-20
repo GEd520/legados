@@ -40,6 +40,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -75,6 +76,7 @@ import io.legado.app.utils.GSON
 import io.legado.app.utils.fromJsonObject
 import io.legado.app.utils.getPrefBoolean
 import splitties.init.appCtx
+import java.util.Collections
 
 class TextChapterLayout(
     scope: CoroutineScope,
@@ -145,8 +147,10 @@ class TextChapterLayout(
     private var durY = 0f
     private var absStartX = paddingLeft
     private var floatArray = FloatArray(128)
+    private val layoutScope = scope
     private val appendMutex = Mutex()
     private val pendingLazyContents = ArrayList<String>()
+    private val appendJobs = Collections.synchronizedSet(mutableSetOf<Job>())
 
     private var isCompleted = false
     private val job: Coroutine<*>
@@ -180,13 +184,15 @@ class TextChapterLayout(
 
     fun cancel() {
         job.cancel()
+        appendJobs.toList().forEach { it.cancel() }
+        appendJobs.clear()
         listener = null
     }
 
     fun appendContent(newContents: List<String>) {
         if (newContents.isEmpty()) return
         
-        kotlinx.coroutines.GlobalScope.launch(IO) {
+        launchAppendJob {
             try {
                 AppLog.put("懒加载排版: 请求追加内容，共${newContents.size}段，排版完成状态=${isCompleted}")
                 appendMutex.withLock {
@@ -266,7 +272,7 @@ class TextChapterLayout(
                 val matcher = AppPattern.imgPattern.matcher(text)
                 while (matcher.find()) {
                     matcher.group(1)?.let { src ->
-                        srcList.add(src)
+                        srcList.add(parseParagraphBubble(src)?.renderSrc ?: src)
                         matcher.appendReplacement(sb, srcReplaceStr)
                     }
                 }
@@ -297,7 +303,7 @@ class TextChapterLayout(
                     val matcher = AppPattern.imgPattern.matcher(text)
                     while (matcher.find()) {
                         currentCoroutineContext().ensureActive()
-                        val rawImgSrc = matcher.group(1)!!
+                        val rawImgSrc = matcher.group(1) ?: continue
                         val bubbleInfo = parseParagraphBubble(rawImgSrc)
                         val imgSrc = bubbleInfo?.renderSrc ?: rawImgSrc
                         var style: String? = null
@@ -471,7 +477,7 @@ class TextChapterLayout(
         
         // 初始排版完成后，处理排队等待的懒加载内容
         if (pendingLazyContents.isNotEmpty()) {
-            kotlinx.coroutines.GlobalScope.launch(IO) {
+            launchAppendJob {
                 try {
                     appendMutex.withLock {
                         if (pendingLazyContents.isNotEmpty()) {
@@ -484,6 +490,14 @@ class TextChapterLayout(
                     AppLog.put("处理排队懒加载内容失败: ${e.localizedMessage}", e)
                 }
             }
+        }
+    }
+
+    private fun launchAppendJob(block: suspend CoroutineScope.() -> Unit) {
+        val appendJob = layoutScope.launch(IO, block = block)
+        appendJobs.add(appendJob)
+        appendJob.invokeOnCompletion {
+            appendJobs.remove(appendJob)
         }
     }
 
@@ -684,7 +698,7 @@ class TextChapterLayout(
                     val matcher = AppPattern.imgPattern.matcher(text)
                     while (matcher.find()) {
                         currentCoroutineContext().ensureActive()
-                        val rawImgSrc = matcher.group(1)!!
+                        val rawImgSrc = matcher.group(1) ?: continue
                         val bubbleInfo = parseParagraphBubble(rawImgSrc)
                         val imgSrc = bubbleInfo?.renderSrc ?: rawImgSrc
                         var style: String? = null
