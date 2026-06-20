@@ -1629,6 +1629,17 @@
     <string name="effect_frosted">磨砂</string>
     <string name="applied_top_bar_config">已应用顶栏包: %s</string>
     <string name="share_top_bar_config">分享顶栏包配置</string>
+
+    <!-- 气泡管理 -->
+    <string name="bubble_manage">气泡管理</string>
+    <string name="bubble_manage_summary">管理段评气泡 SVG、颜色与大小</string>
+    <string name="bubble_name">气泡名称</string>
+    <string name="bubble_size_scale">大小倍率，0.5-1.5</string>
+    <string name="bubble_day_normal">日间普通颜色</string>
+    <string name="bubble_day_emphasis">日间强调颜色</string>
+    <string name="bubble_night_normal">夜间普通颜色</string>
+    <string name="bubble_night_emphasis">夜间强调颜色</string>
+    <string name="bubble_svg_template">SVG 模板，支持 ${color} 和 ${num}</string>
     
     <!-- 通用 -->
     <string name="manual_config">手动配置</string>

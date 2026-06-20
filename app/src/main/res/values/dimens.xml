@@ -39,4 +39,5 @@
 
     <!-- Shared modern UI shape tokens -->
     <dimen name="ui_panel_radius">10dp</dimen>
+    <dimen name="ui_action_radius">9dp</dimen>
 </resources>

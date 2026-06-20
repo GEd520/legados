@@ -250,6 +250,9 @@
             android:launchMode="standard" />
         <!-- 搜索界面 -->
         <activity
+            android:name=".ui.config.BubbleManageActivity"
+            android:launchMode="standard" />
+        <activity
             android:name=".ui.book.search.SearchActivity"
             android:launchMode="standard" />
         <!-- 关于界面 -->

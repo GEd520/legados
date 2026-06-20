@@ -20,5 +20,6 @@
     <item name="inline_content_lock_parent_scroll" type="id" />
     <item name="explore_source_url" type="id" />
     <item name="explore_content_signature" type="id" />
+    <item name="ui_title_typeface_role" type="id" />
 
 </resources>

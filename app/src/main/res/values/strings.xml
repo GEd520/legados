@@ -1803,6 +1803,17 @@
     <string name="effect_frosted">Frosted</string>
     <string name="applied_top_bar_config">Applied top bar config: %s</string>
     <string name="share_top_bar_config">Share top bar config</string>
+
+    <!-- Bubble Manage -->
+    <string name="bubble_manage">Bubble manager</string>
+    <string name="bubble_manage_summary">Manage paragraph comment bubble SVG, colors, and size</string>
+    <string name="bubble_name">Bubble name</string>
+    <string name="bubble_size_scale">Size scale, 0.5-1.5</string>
+    <string name="bubble_day_normal">Day normal color</string>
+    <string name="bubble_day_emphasis">Day emphasis color</string>
+    <string name="bubble_night_normal">Night normal color</string>
+    <string name="bubble_night_emphasis">Night emphasis color</string>
+    <string name="bubble_svg_template">SVG template, supports ${color} and ${num}</string>
     
     <!-- Common -->
     <string name="manual_config">Manual Config</string>

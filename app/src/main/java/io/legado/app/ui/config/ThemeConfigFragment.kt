@@ -241,6 +241,8 @@ class ThemeConfigFragment : PreferenceFragment(),
 
             "topBarManage" -> startActivity<TopBarManageActivity>()
 
+            "bubbleManage" -> startActivity<BubbleManageActivity>()
+
             "welcomeStyle" -> startActivity<ConfigActivity> {
                 putExtra("configTag", ConfigTag.WELCOME_CONFIG)
             }
