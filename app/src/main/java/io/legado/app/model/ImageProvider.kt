@@ -186,6 +186,9 @@ object ImageProvider {
         src: String,
         bookSource: BookSource?
     ): Size {
+        if (ParagraphBubbleRenderer.isBubbleSrc(src)) {
+            return ParagraphBubbleRenderer.getSize(src)
+        }
         val file = cacheImage(book, src, bookSource)
         val op = BitmapFactory.Options()
         // inJustDecodeBounds如果设置为true,仅仅返回图片实际的宽和高,宽和高是赋值给opts.outWidth,opts.outHeight;
@@ -207,6 +210,9 @@ object ImageProvider {
         src: String,
         bookSource: BookSource?
     ): Boolean {
+        if (ParagraphBubbleRenderer.isBubbleSrc(src)) {
+            return false
+        }
         val file = cacheImage(book, src, bookSource)
         return isGifFile(file)
     }
@@ -259,6 +265,18 @@ object ImageProvider {
         width: Int,
         height: Int? = null
     ): Bitmap {
+        if (ParagraphBubbleRenderer.isBubbleSrc(src)) {
+            val cacheKey = ParagraphBubbleRenderer.cacheKey(src, width, height)
+            getNotRecycled(cacheKey)?.let { return it }
+            return kotlin.runCatching {
+                ParagraphBubbleRenderer.render(src, width, height)
+                    ?: throw NoStackTraceException(appCtx.getString(R.string.error_decode_bitmap))
+            }.onSuccess {
+                put(cacheKey, it)
+            }.onFailure {
+                put(cacheKey, errorBitmap)
+            }.getOrDefault(errorBitmap)
+        }
         //src为空白时 可能被净化替换掉了 或者规则失效
         if (book.getUseReplaceRule() && src.isBlank()) {
             book.setUseReplaceRule(false)

@@ -1,6 +1,7 @@
 package io.legado.app.ui.book.read.page.provider
 
 import android.graphics.Paint
+import android.net.Uri
 import android.text.Layout
 import android.text.SpannableStringBuilder
 import android.text.Spanned
@@ -24,6 +25,7 @@ import io.legado.app.help.config.AppConfig
 import io.legado.app.help.config.ReadBookConfig
 import io.legado.app.help.coroutine.Coroutine
 import io.legado.app.model.ImageProvider
+import io.legado.app.model.ParagraphBubbleRenderer
 import io.legado.app.model.ReadBook
 import io.legado.app.ui.book.read.page.entities.TextChapter
 import io.legado.app.ui.book.read.page.entities.TextLine
@@ -295,15 +297,19 @@ class TextChapterLayout(
                     val matcher = AppPattern.imgPattern.matcher(text)
                     while (matcher.find()) {
                         currentCoroutineContext().ensureActive()
-                        val imgSrc = matcher.group(1)!!
+                        val rawImgSrc = matcher.group(1)!!
+                        val bubbleInfo = parseParagraphBubble(rawImgSrc)
+                        val imgSrc = bubbleInfo?.renderSrc ?: rawImgSrc
                         var style: String? = null
-                        var click: String? = null
+                        var click: String? = bubbleInfo?.click
                         var imgSize = ImageProvider.getImageSize(book, imgSrc, ReadBook.bookSource)
                         val isAnimated = ImageProvider.isGif(book, imgSrc, ReadBook.bookSource)
-                        val urlMatcher = paramPattern.matcher(imgSrc)
-                        if (urlMatcher.find()) {
+                        val urlMatcher = paramPattern.matcher(rawImgSrc)
+                        if (bubbleInfo != null) {
+                            style = bubbleInfo.style
+                        } else if (urlMatcher.find()) {
                             var width: String? = null
-                            val urlOptionStr = imgSrc.substring(urlMatcher.end())
+                            val urlOptionStr = rawImgSrc.substring(urlMatcher.end())
                             GSON.fromJsonObject<Map<String, String>>(urlOptionStr).getOrNull()?.let { map ->
                                 map.forEach { (key, value) ->
                                     when (key) {
@@ -528,9 +534,14 @@ class TextChapterLayout(
                     val urlMatcher = paramPattern.matcher(titleImg)
                     var click: String? = null
                     var style: String? = null
-                    var imgSize = ImageProvider.getImageSize(book, titleImg, ReadBook.bookSource)
-                    val isAnimated = ImageProvider.isGif(book, titleImg, ReadBook.bookSource)
-                    if (urlMatcher.find()) {
+                    val bubbleInfo = parseParagraphBubble(titleImg)
+                    val renderTitleImg = bubbleInfo?.renderSrc ?: titleImg
+                    var imgSize = ImageProvider.getImageSize(book, renderTitleImg, ReadBook.bookSource)
+                    val isAnimated = ImageProvider.isGif(book, renderTitleImg, ReadBook.bookSource)
+                    if (bubbleInfo != null) {
+                        style = bubbleInfo.style
+                        click = bubbleInfo.click
+                    } else if (urlMatcher.find()) {
                         var width: String? = null
                         val urlOptionStr = titleImg.substring(urlMatcher.end())
                         GSON.fromJsonObject<Map<String, String>>(urlOptionStr).getOrNull()
@@ -567,19 +578,19 @@ class TextChapterLayout(
                     }
                     when (style) {
                         "text" -> {
-                            srcList.add(titleImg)
+                            srcList.add(renderTitleImg)
                             clickList.add(click)
                             srcReplaceChar
                         }
                         "TEXT" -> {
-                            srcList.add(titleImg)
+                            srcList.add(renderTitleImg)
                             clickList.add(click)
                             reviewChar
                         }
                         else -> {
                             setTypeImage(
                                 book,
-                                titleImg,
+                                renderTitleImg,
                                 contentPaintTextHeight,
                                 style,
                                 imgSize,
@@ -642,7 +653,7 @@ class TextChapterLayout(
                 val matcher = AppPattern.imgPattern.matcher(text)
                 while (matcher.find()) {
                     matcher.group(1)?.let { src ->
-                        srcList.add(src)
+                        srcList.add(parseParagraphBubble(src)?.renderSrc ?: src)
                         matcher.appendReplacement(sb, srcReplaceStr)
                     }
                 }
@@ -673,15 +684,19 @@ class TextChapterLayout(
                     val matcher = AppPattern.imgPattern.matcher(text)
                     while (matcher.find()) {
                         currentCoroutineContext().ensureActive()
-                        val imgSrc = matcher.group(1)!!
+                        val rawImgSrc = matcher.group(1)!!
+                        val bubbleInfo = parseParagraphBubble(rawImgSrc)
+                        val imgSrc = bubbleInfo?.renderSrc ?: rawImgSrc
                         var style: String? = null
-                        var click: String? = null
+                        var click: String? = bubbleInfo?.click
                         var imgSize = ImageProvider.getImageSize(book, imgSrc, ReadBook.bookSource)
                         val isAnimated = ImageProvider.isGif(book, imgSrc, ReadBook.bookSource)
-                        val urlMatcher = paramPattern.matcher(imgSrc)
-                        if (urlMatcher.find()) {
+                        val urlMatcher = paramPattern.matcher(rawImgSrc)
+                        if (bubbleInfo != null) {
+                            style = bubbleInfo.style
+                        } else if (urlMatcher.find()) {
                             var width: String? = null
-                            val urlOptionStr = imgSrc.substring(urlMatcher.end())
+                            val urlOptionStr = rawImgSrc.substring(urlMatcher.end())
                             GSON.fromJsonObject<Map<String, String>>(urlOptionStr).getOrNull()?.let { map ->
                                 map.forEach { (key, value) ->
                                     when (key) {
@@ -988,15 +1003,21 @@ class TextChapterLayout(
                 var needAddText = true
                 spanned.getSpans(charIndex, charIndex + 1, ImageSpan::class.java).firstOrNull()?.let { span -> //处理图片
                     val source = span.source ?: return@let
+                    val bubbleInfo = parseParagraphBubble(source)
+                    val renderSource = bubbleInfo?.renderSrc ?: source
                     val urlMatcher = paramPattern.matcher(source)
-                    if (urlMatcher.find()) {
-                        val urlOptionStr = source.substring(urlMatcher.end())
-                        val urlOption = GSON.fromJsonObject<Map<String, String>>(urlOptionStr).getOrNull() ?: return@let
-                        var iStyle = urlOption["style"]
+                    if (bubbleInfo != null || urlMatcher.find()) {
+                        val urlOption = if (bubbleInfo == null) {
+                            val urlOptionStr = source.substring(urlMatcher.end())
+                            GSON.fromJsonObject<Map<String, String>>(urlOptionStr).getOrNull() ?: return@let
+                        } else {
+                            emptyMap()
+                        }
+                        var iStyle = bubbleInfo?.style ?: urlOption["style"]
                         val width = urlOption["width"]
-                        val click = urlOption["click"]
-                        var imgSize = ImageProvider.getImageSize(book, source, ReadBook.bookSource)
-                        val isAnimated = ImageProvider.isGif(book, source, ReadBook.bookSource)
+                        val click = bubbleInfo?.click ?: urlOption["click"]
+                        var imgSize = ImageProvider.getImageSize(book, renderSource, ReadBook.bookSource)
+                        val isAnimated = ImageProvider.isGif(book, renderSource, ReadBook.bookSource)
                         width?.let {
                             if (width.endsWith("%")) {
                                 width.dropLast(1).toIntOrNull()?.let { percentage ->
@@ -1020,12 +1041,14 @@ class TextChapterLayout(
                         }
                         when (iStyle?.uppercase()) {
                             "TEXT" -> {
-                                ImageProvider.cacheImage(book, source, ReadBook.bookSource)
+                                if (!ParagraphBubbleRenderer.isBubbleSrc(renderSource)) {
+                                    ImageProvider.cacheImage(book, renderSource, ReadBook.bookSource)
+                                }
                                 columns.add(
                                     ImageColumn(
                                         start = absStartX + charX,
                                         end = absStartX + charRight,
-                                        src = source,
+                                        src = renderSource,
                                         click = click,
                                         isAnimated = isAnimated
                                     )
@@ -1034,7 +1057,7 @@ class TextChapterLayout(
                             else -> {
                                 setTypeImage(
                                     book,
-                                    source,
+                                    renderSource,
                                     contentPaintTextHeight,
                                     iStyle,
                                     imgSize,
@@ -1044,17 +1067,31 @@ class TextChapterLayout(
                             }
                         }
                     } else {
-                        val imgSize = ImageProvider.getImageSize(book, source, ReadBook.bookSource)
-                        val isAnimated = ImageProvider.isGif(book, source, ReadBook.bookSource)
-                        setTypeImage(
-                            book,
-                            source,
-                            contentPaintTextHeight,
-                            imageStyle,
-                            imgSize,
-                            null,
-                            isAnimated
-                        )
+                        val fallbackBubbleInfo = parseParagraphBubble(source)
+                        val fallbackSource = fallbackBubbleInfo?.renderSrc ?: source
+                        val imgSize = ImageProvider.getImageSize(book, fallbackSource, ReadBook.bookSource)
+                        val isAnimated = ImageProvider.isGif(book, fallbackSource, ReadBook.bookSource)
+                        if (fallbackBubbleInfo != null) {
+                            columns.add(
+                                ImageColumn(
+                                    start = absStartX + charX,
+                                    end = absStartX + charRight,
+                                    src = fallbackSource,
+                                    click = fallbackBubbleInfo.click,
+                                    isAnimated = isAnimated
+                                )
+                            )
+                        } else {
+                            setTypeImage(
+                                book,
+                                fallbackSource,
+                                contentPaintTextHeight,
+                                imageStyle,
+                                imgSize,
+                                null,
+                                isAnimated
+                            )
+                        }
                     }
                     needAddText = false
                 }
@@ -1739,7 +1776,9 @@ class TextChapterLayout(
             !srcList.isNullOrEmpty() && (char == srcReplaceStr || char == reviewStr) -> {
                 val src = srcList.removeFirst()
                 val click = clickList?.removeFirst()
-                ImageProvider.cacheImage(book, src, ReadBook.bookSource)
+                if (!ParagraphBubbleRenderer.isBubbleSrc(src)) {
+                    ImageProvider.cacheImage(book, src, ReadBook.bookSource)
+                }
                 val isAnimated = ImageProvider.isGif(book, src, ReadBook.bookSource)
                 ImageColumn(
                     start = absStartX + xStart,
@@ -1871,10 +1910,48 @@ class TextChapterLayout(
         return code == 8203 || code == 8204 || code == 8205 || code == 8288
     }
 
+    private fun parseParagraphBubble(src: String): BubbleImageInfo? {
+        if (!src.startsWith(PARAGRAPH_BUBBLE_PREFIX)) return null
+        val payload = src.removePrefix(PARAGRAPH_BUBBLE_PREFIX).trim()
+        val optionIndex = payload.indexOf(",{")
+        val count = if (optionIndex >= 0) {
+            payload.substring(0, optionIndex)
+        } else {
+            payload
+        }.trim()
+        val option = if (optionIndex >= 0) {
+            GSON.fromJsonObject<Map<String, String>>(payload.substring(optionIndex + 1))
+                .getOrNull()
+                .orEmpty()
+        } else {
+            emptyMap()
+        }
+        val status = option["status"]?.takeIf { it.isNotBlank() } ?: "normal"
+        val click = option["pclick"]?.takeIf { it.isNotBlank() }
+            ?: option["click"]?.takeIf { it.isNotBlank() }
+        val encodedCount = Uri.encode(count)
+        val encodedStatus = Uri.encode(status)
+        return BubbleImageInfo(
+            renderSrc = "${ParagraphBubbleRenderer.SCHEME_PREFIX}?num=${encodedCount}&status=${encodedStatus}",
+            style = "TEXT",
+            click = click
+        )
+    }
+
+    private data class BubbleImageInfo(
+        val renderSrc: String,
+        val style: String,
+        val click: String?
+    )
+
     private data class CompiledHighlightRule(
         val rule: HighlightRule,
         val regex: Regex,
     )
+
+    private companion object {
+        const val PARAGRAPH_BUBBLE_PREFIX = "dp:"
+    }
 
     private fun HighlightRule.appliesTo(isTitle: Boolean): Boolean {
         return when (targetScope) {
