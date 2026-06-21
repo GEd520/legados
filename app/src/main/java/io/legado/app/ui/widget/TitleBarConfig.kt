@@ -32,6 +32,10 @@ fun TitleBar.applyTopBarConfig() {
 }
 
 private fun TitleBar.applyTopBarConfig(config: TopBarConfig.Config) {
+    if (ignoreTopBarPackageBackground) {
+        applyTopBarChildConfig(config)
+        return
+    }
     val backgroundColor = if (config.style == TopBarConfig.STYLE_REGULAR) {
         TopBarConfig.resolveBackgroundColor(config)
     } else {
@@ -43,15 +47,10 @@ private fun TitleBar.applyTopBarConfig(config: TopBarConfig.Config) {
     } else {
         0f
     }
-    val configuredBackgroundAlpha = if (config.style == TopBarConfig.STYLE_REGULAR) {
+    val backgroundAlpha = if (config.style == TopBarConfig.STYLE_REGULAR) {
         config.wallpaperAlpha
     } else {
         config.tagBarAlpha
-    }
-    val backgroundAlpha = if (ignoreTopBarOpacity) {
-        100
-    } else {
-        configuredBackgroundAlpha
     }
     val shape = regularBackground(
         backgroundColor,
