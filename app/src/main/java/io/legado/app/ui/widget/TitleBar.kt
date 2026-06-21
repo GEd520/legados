@@ -243,10 +243,6 @@ class TitleBar @JvmOverloads constructor(
         toolbar.overflowIcon?.colorFilter = colorFilter
     }
 
-    fun applyCurrentContentColorToMenu() {
-        currentContentColor?.let(::setColorFilter)
-    }
-
     override fun setBackgroundColor(color: Int) {
         if (color.alpha < 255) {
             //这里不能改为0f,改为0f在横屏模式下文字和图标颜色会变

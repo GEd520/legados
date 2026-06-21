@@ -259,7 +259,21 @@ abstract class BaseActivity<VB : ViewBinding>(
     }
 
     private fun refreshTitleBarOpacity() {
-        findViewById<TitleBar>(R.id.title_bar)?.applyThemeTopBarOpacity()
+        val contentView = findViewById<ViewGroup>(android.R.id.content) ?: return
+        findAllTitleBars(contentView).forEach { it.applyThemeTopBarOpacity() }
+    }
+
+    private fun findAllTitleBars(viewGroup: ViewGroup): List<TitleBar> {
+        val result = mutableListOf<TitleBar>()
+        for (i in 0 until viewGroup.childCount) {
+            val child = viewGroup.getChildAt(i)
+            if (child is TitleBar) {
+                result.add(child)
+            } else if (child is ViewGroup) {
+                result.addAll(findAllTitleBars(child))
+            }
+        }
+        return result
     }
 
     protected fun hideReadAloudMiniBar() {

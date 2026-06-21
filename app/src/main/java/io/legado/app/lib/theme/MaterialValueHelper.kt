@@ -30,7 +30,7 @@ fun Context.getSecondaryTextColor(dark: Boolean): Int {
     return if (dark) {
         ContextCompat.getColor(this, R.color.md_light_secondary)
     } else {
-        ContextCompat.getColor(this, R.color.md_dark_primary_text)
+        ContextCompat.getColor(this, R.color.md_dark_secondary)
     }
 }
 

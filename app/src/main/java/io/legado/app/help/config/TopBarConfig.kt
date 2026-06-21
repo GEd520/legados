@@ -243,8 +243,12 @@ object TopBarConfig {
         return addOrUpdate(config)
     }
 
+    fun opacityToAlpha(opacity: Int): Int {
+        return opacity.coerceIn(0, 100) * 255 / 100
+    }
+
     fun withOpacity(color: Int, opacity: Int): Int {
-        val alpha = (opacity.coerceIn(0, 100) * 255 / 100).coerceIn(0, 255)
+        val alpha = opacityToAlpha(opacity)
         return Color.argb(alpha, Color.red(color), Color.green(color), Color.blue(color))
     }
 

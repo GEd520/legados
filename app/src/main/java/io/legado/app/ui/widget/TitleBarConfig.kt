@@ -32,6 +32,25 @@ import io.legado.app.utils.applyTint
 import java.io.File
 
 fun TitleBar.applyTopBarConfig() {
+    if (AppConfig.isEInkMode) {
+        setBackgroundResource(R.drawable.bg_eink_border_bottom)
+        applyTopBarContentColor(context.primaryTextColor)
+        applyTopBarChildConfig()
+        return
+    }
+    if (!opaque && context.transparentNavBar) {
+        setBackgroundColor(Color.TRANSPARENT)
+        applyTopBarContentColor(context.primaryTextColor)
+        applyTopBarChildConfig()
+        return
+    }
+    if (ignoreTopBarOpacity) {
+        setBackgroundColor(context.primaryColor)
+        applyTopBarContentColor(context.primaryTextColor)
+        elevation = context.elevation
+        applyTopBarChildConfig()
+        return
+    }
     val config = TopBarConfig.currentConfig(context, AppConfig.isNightTheme)
     applyTopBarConfig(config)
 }
@@ -39,11 +58,14 @@ fun TitleBar.applyTopBarConfig() {
 fun TitleBar.applyThemeTopBarOpacity() {
     if (AppConfig.isEInkMode) {
         setBackgroundResource(R.drawable.bg_eink_border_bottom)
+        applyTopBarContentColor(context.primaryTextColor)
+        applyTopBarChildConfig()
         return
     }
     if (!opaque && context.transparentNavBar) {
         setBackgroundColor(Color.TRANSPARENT)
         applyTopBarContentColor(context.primaryTextColor)
+        applyTopBarChildConfig()
         return
     }
     val config = TopBarConfig.currentConfig(context, AppConfig.isNightTheme)
@@ -51,6 +73,7 @@ fun TitleBar.applyThemeTopBarOpacity() {
         setBackgroundColor(context.primaryColor)
         applyTopBarContentColor(context.primaryTextColor)
         elevation = context.elevation
+        applyTopBarChildConfig()
         return
     }
     val alpha = if (config.style == TopBarConfig.STYLE_REGULAR) {
@@ -61,6 +84,7 @@ fun TitleBar.applyThemeTopBarOpacity() {
     setBackgroundColor(TopBarConfig.withOpacity(context.primaryColor, alpha))
     applyTopBarContentColor(context.primaryTextColor)
     elevation = if (alpha < 100) 0.1f else context.elevation
+    applyTopBarChildConfig()
 }
 
 private fun TitleBar.applyTopBarConfig(config: TopBarConfig.Config) {
@@ -87,7 +111,7 @@ private fun TitleBar.applyTopBarConfig(config: TopBarConfig.Config) {
     )
     val wallpaper = TopBarConfig.currentWallpaperFile(context, AppConfig.isNightTheme)
         ?.takeIf { config.style == TopBarConfig.STYLE_REGULAR }
-        ?.let { file -> bitmapLayer(file, backgroundAlpha) }
+        ?.let { file -> bitmapLayer(file, backgroundAlpha, radius) }
     background = if (wallpaper == null) {
         shape
     } else {
@@ -105,6 +129,7 @@ private fun TitleBar.applyTopBarConfig(config: TopBarConfig.Config) {
 private fun TitleBar.applyTopBarContentColor(color: Int) {
     setTextColor(color)
     setColorFilter(color)
+    toolbar.menu.applyTint(context)
 }
 
 fun View.applyTopBarChildConfig() {
@@ -175,7 +200,7 @@ private fun tabTextColorStateList(contentColor: Int): ColorStateList {
     )
 }
 
-private fun TitleBar.bitmapLayer(file: File, alphaPercent: Int): Drawable? {
+private fun TitleBar.bitmapLayer(file: File, alphaPercent: Int, radius: Float): Drawable? {
     val bitmap = kotlin.runCatching {
         BitmapUtils.decodeBitmap(
             file.absolutePath,
@@ -185,9 +210,7 @@ private fun TitleBar.bitmapLayer(file: File, alphaPercent: Int): Drawable? {
     }.getOrNull() ?: return null
     return TopBarWallpaperDrawable(
         bitmap = bitmap,
-        radius = context.resources.getDimension(R.dimen.ui_panel_radius) *
-            TopBarConfig.resolveCornerScale(TopBarConfig.currentConfig(context, AppConfig.isNightTheme))
-                .coerceIn(0f, 3f),
+        radius = radius,
         alphaPercent = alphaPercent
     )
 }
@@ -200,7 +223,7 @@ private class TopBarWallpaperDrawable(
 
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
         shader = BitmapShader(bitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
-        alpha = (alphaPercent.coerceIn(0, 100) * 255 / 100).coerceIn(0, 255)
+        alpha = TopBarConfig.opacityToAlpha(alphaPercent)
     }
     private val rect = RectF()
     private val matrix = Matrix()
