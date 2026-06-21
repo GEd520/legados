@@ -43,10 +43,15 @@ private fun TitleBar.applyTopBarConfig(config: TopBarConfig.Config) {
     } else {
         0f
     }
-    val backgroundAlpha = if (config.style == TopBarConfig.STYLE_REGULAR) {
+    val configuredBackgroundAlpha = if (config.style == TopBarConfig.STYLE_REGULAR) {
         config.wallpaperAlpha
     } else {
         config.tagBarAlpha
+    }
+    val backgroundAlpha = if (ignoreTopBarOpacity) {
+        100
+    } else {
+        configuredBackgroundAlpha
     }
     val shape = regularBackground(
         backgroundColor,
@@ -55,7 +60,7 @@ private fun TitleBar.applyTopBarConfig(config: TopBarConfig.Config) {
     )
     val wallpaper = TopBarConfig.currentWallpaperFile(context, AppConfig.isNightTheme)
         ?.takeIf { config.style == TopBarConfig.STYLE_REGULAR }
-        ?.let { file -> bitmapLayer(file, config.wallpaperAlpha) }
+        ?.let { file -> bitmapLayer(file, backgroundAlpha) }
     background = if (wallpaper == null) {
         shape
     } else {
