@@ -2,7 +2,6 @@ package io.legado.app.ui.widget
 
 import android.content.Context
 import android.content.res.ColorStateList
-import android.graphics.Color
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffColorFilter
 import android.graphics.drawable.ColorDrawable
@@ -10,7 +9,6 @@ import android.graphics.drawable.Drawable
 import android.util.AttributeSet
 import android.view.Menu
 import android.view.View
-import android.widget.ImageView
 import androidx.annotation.ColorInt
 import androidx.annotation.StyleRes
 import androidx.appcompat.widget.Toolbar
@@ -19,10 +17,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.children
 import com.google.android.material.appbar.AppBarLayout
 import io.legado.app.R
-import io.legado.app.help.config.AppConfig
-import io.legado.app.lib.theme.elevation
-import io.legado.app.lib.theme.primaryColor
-import io.legado.app.lib.theme.transparentNavBar
+import io.legado.app.constant.Theme
 import io.legado.app.utils.activity
 import io.legado.app.utils.setOnApplyWindowInsetsListenerCompat
 import splitties.views.bottomPadding
@@ -62,7 +57,7 @@ class TitleBar @JvmOverloads constructor(
     private val attachToActivity: Boolean
     internal val opaque: Boolean
     internal val ignoreTopBarOpacity: Boolean
-    private var currentContentColor: Int? = null
+    internal val topBarTheme: Theme
 
     init {
         val a = context.obtainStyledAttributes(
@@ -83,8 +78,14 @@ class TitleBar @JvmOverloads constructor(
             a.getText(R.styleable.TitleBar_navigationContentDescription)
         val titleText = a.getString(R.styleable.TitleBar_title)
         val subtitleText = a.getString(R.styleable.TitleBar_subtitle)
+        val themeMode = a.getInt(R.styleable.TitleBar_themeMode, 0)
+        topBarTheme = when (themeMode) {
+            1 -> Theme.Dark
+            2 -> Theme.Light
+            else -> Theme.Auto
+        }
 
-        when (a.getInt(R.styleable.TitleBar_themeMode, 0)) {
+        when (themeMode) {
             1 -> inflate(context, R.layout.view_title_bar_dark, this)
             else -> inflate(context, R.layout.view_title_bar, this)
         }
@@ -184,13 +185,7 @@ class TitleBar @JvmOverloads constructor(
                 }
             }
 
-            if (AppConfig.isEInkMode) {
-                setBackgroundResource(R.drawable.bg_eink_border_bottom)
-            } else if (!opaque && context.transparentNavBar) {
-                setBackgroundColor(Color.TRANSPARENT)
-            } else {
-                applyThemeTopBarOpacity()
-            }
+            applyTopBarConfig()
 
             stateListAnimator = null
         }
@@ -236,9 +231,7 @@ class TitleBar @JvmOverloads constructor(
     }
 
     fun setColorFilter(@ColorInt color: Int) {
-        currentContentColor = color
         val colorFilter = PorterDuffColorFilter(color, PorterDuff.Mode.SRC_ATOP)
-        toolbar.children.firstOrNull { it is ImageView }?.background?.colorFilter = colorFilter
         toolbar.navigationIcon?.colorFilter = colorFilter
         toolbar.overflowIcon?.colorFilter = colorFilter
     }

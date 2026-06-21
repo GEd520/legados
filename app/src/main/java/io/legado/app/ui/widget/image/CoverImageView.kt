@@ -46,6 +46,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -127,6 +128,8 @@ class CoverImageView @JvmOverloads constructor(
     }
     private var viewWidth: Float = 0f
     private var viewHeight: Float = 0f
+    private var viewJob = SupervisorJob()
+    private var viewScope = CoroutineScope(viewJob + Dispatchers.Main.immediate)
     private var currentJob: Job? = null
     private val triggerChannel = Channel<Unit>(Channel.CONFLATED)
     var bitmapPath: String? = null
@@ -174,7 +177,8 @@ class CoverImageView @JvmOverloads constructor(
         super.onDraw(canvas)
         if (!drawBookName || isHtmlCover) return
         val currentName = this.name ?: return
-        if (AppConfig.useDefaultCover || needNameBitmap[bitmapPath.toString()] == true) {
+        val fallbackKey = nameBitmapFallbackKey() ?: return
+        if (AppConfig.useDefaultCover || needNameBitmap[fallbackKey] == true) {
             val currentAuthor = this.author
             val pathName = if (drawBookAuthor){
                 currentName + currentAuthor
@@ -195,7 +199,8 @@ class CoverImageView @JvmOverloads constructor(
     }
     private fun generateCoverAsync(pathName: String, name: String, author: String?, asyncAwait: Boolean) {
         currentJob?.cancel()
-        currentJob = CoroutineScope(Dispatchers.Default).launch {
+        val fallbackKey = nameBitmapFallbackKey()
+        currentJob = viewScope.launch {
             try {
                 if (asyncAwait) {
                     withTimeoutOrNull(1200) {
@@ -203,18 +208,22 @@ class CoverImageView @JvmOverloads constructor(
                     }
                     ensureActive()
                 }
-                if (width == 0) {
+                var targetWidth = width
+                if (targetWidth == 0) {
                     var attempts = 0
                     do {
                         delay(1L)
                         attempts++
-                    } while (width == 0 && attempts < 2000)
+                        targetWidth = width
+                    } while (targetWidth == 0 && attempts < 2000)
                 }
                 ensureActive()
-                val bitmap = generateCoverBitmap(name, author)
+                val bitmap = withContext(Dispatchers.Default) {
+                    generateCoverBitmap(name, author)
+                }
                 ensureActive()
-                needNameBitmap.put(bitmapPath.toString(), true)
-                nameBitmapCache.put(pathName + width, bitmap)
+                fallbackKey?.let { needNameBitmap.put(it, true) }
+                nameBitmapCache.put(pathName + targetWidth, bitmap)
                 invalidate()
             } catch (_: CancellationException) {
             } catch (_: OutOfMemoryError) {
@@ -314,7 +323,7 @@ class CoverImageView @JvmOverloads constructor(
                 isFirstResource: Boolean
             ): Boolean {
                 triggerChannel.trySend(Unit)
-                needNameBitmap.put(bitmapPath.toString(), true)
+                nameBitmapFallbackKey()?.let { needNameBitmap.put(it, true) }
                 return false
             }
 
@@ -327,7 +336,7 @@ class CoverImageView @JvmOverloads constructor(
             ): Boolean {
                 currentJob?.cancel()
                 currentJob = null
-                needNameBitmap.remove(bitmapPath.toString())
+                nameBitmapFallbackKey()?.let { needNameBitmap.remove(it) }
                 invalidate()
                 return false
             }
@@ -371,12 +380,10 @@ class CoverImageView @JvmOverloads constructor(
         onLoadFinish: (() -> Unit)? = null,
         galleryIdentity: String? = null
     ) {
-        val currentAuthor = author?.replace(AppPattern.bdRegex, "")?.trim()?.also {
-            this.author = it
-        }
-        val currentName = name?.replace(AppPattern.bdRegex, "")?.trim()?.also {
-            this.name = it
-        }
+        val currentAuthor = author?.replace(AppPattern.bdRegex, "")?.trim()
+        val currentName = name?.replace(AppPattern.bdRegex, "")?.trim()
+        this.author = currentAuthor
+        this.name = currentName
         val galleryDefaultCover = BookCover.getGalleryDefaultCover(
             galleryIdentity ?: listOfNotNull(sourceOrigin, path, name, author).joinToString("|"),
             path
@@ -469,7 +476,7 @@ class CoverImageView @JvmOverloads constructor(
     @SuppressLint("SetJavaScriptEnabled")
     private fun loadHtmlCover(bookName: String, author: String?, onLoadFinish: (() -> Unit)?) {
         currentJob?.cancel()
-        currentJob = CoroutineScope(Dispatchers.Main).launch {
+        currentJob = viewScope.launch {
             try {
                 if (width <= 0 || height <= 0) {
                     var attempts = 0
@@ -576,16 +583,21 @@ class CoverImageView @JvmOverloads constructor(
                 }
 
                 val bitmap = try {
+                    var bmp: Bitmap? = null
                     wv.measure(
                         View.MeasureSpec.makeMeasureSpec(renderWidth, View.MeasureSpec.EXACTLY),
                         View.MeasureSpec.makeMeasureSpec(renderHeight, View.MeasureSpec.EXACTLY)
                     )
                     wv.layout(0, 0, renderWidth, renderHeight)
                     MemoryPressure.trimIfNeeded()
-                    val bmp = createBitmap(renderWidth, renderHeight)
-                    val canvas = Canvas(bmp)
-                    wv.draw(canvas)
-                    bmp
+                    try {
+                        bmp = createBitmap(renderWidth, renderHeight)
+                        val canvas = Canvas(bmp)
+                        wv.draw(canvas)
+                        bmp.also { bmp = null }
+                    } finally {
+                        bmp?.recycle()
+                    }
                 } catch (_: OutOfMemoryError) {
                     MemoryPressure.trimIfNeeded()
                     null
@@ -614,7 +626,22 @@ class CoverImageView @JvmOverloads constructor(
     override fun onDetachedFromWindow() {
         currentJob?.cancel()
         currentJob = null
+        viewJob.cancel()
         super.onDetachedFromWindow()
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        if (!viewJob.isActive) {
+            viewJob = SupervisorJob()
+            viewScope = CoroutineScope(viewJob + Dispatchers.Main.immediate)
+        }
+    }
+
+    private fun nameBitmapFallbackKey(): String? {
+        bitmapPath?.takeIf { it.isNotBlank() }?.let { return it }
+        val currentName = name?.takeIf { it.isNotBlank() } ?: return null
+        return "name:$currentName|${author.orEmpty()}"
     }
 
 }

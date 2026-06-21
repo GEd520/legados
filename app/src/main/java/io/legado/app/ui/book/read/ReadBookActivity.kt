@@ -465,7 +465,7 @@ class ReadBookActivity : BaseReadBookActivity(),
                 setOnMenuItemClickListener(this@ReadBookActivity)
             }.show()
         }
-        binding.readMenu.refreshMenuColorFilter()
+        binding.readMenu.post { binding.readMenu.refreshMenuColorFilter() }
         return super.onCompatCreateOptionsMenu(menu)
     }
 

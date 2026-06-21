@@ -28,63 +28,32 @@ import io.legado.app.lib.theme.primaryColor
 import io.legado.app.lib.theme.primaryTextColor
 import io.legado.app.lib.theme.transparentNavBar
 import io.legado.app.utils.BitmapUtils
+import io.legado.app.utils.MenuExtensions
 import io.legado.app.utils.applyTint
 import java.io.File
 
 fun TitleBar.applyTopBarConfig() {
     if (AppConfig.isEInkMode) {
         setBackgroundResource(R.drawable.bg_eink_border_bottom)
-        applyTopBarContentColor(context.primaryTextColor)
+        applyTopBarContentColor()
         applyTopBarChildConfig()
         return
     }
     if (!opaque && context.transparentNavBar) {
         setBackgroundColor(Color.TRANSPARENT)
-        applyTopBarContentColor(context.primaryTextColor)
+        applyTopBarContentColor()
         applyTopBarChildConfig()
         return
     }
     if (ignoreTopBarOpacity) {
         setBackgroundColor(context.primaryColor)
-        applyTopBarContentColor(context.primaryTextColor)
+        applyTopBarContentColor()
         elevation = context.elevation
         applyTopBarChildConfig()
         return
     }
     val config = TopBarConfig.currentConfig(context, AppConfig.isNightTheme)
     applyTopBarConfig(config)
-}
-
-fun TitleBar.applyThemeTopBarOpacity() {
-    if (AppConfig.isEInkMode) {
-        setBackgroundResource(R.drawable.bg_eink_border_bottom)
-        applyTopBarContentColor(context.primaryTextColor)
-        applyTopBarChildConfig()
-        return
-    }
-    if (!opaque && context.transparentNavBar) {
-        setBackgroundColor(Color.TRANSPARENT)
-        applyTopBarContentColor(context.primaryTextColor)
-        applyTopBarChildConfig()
-        return
-    }
-    val config = TopBarConfig.currentConfig(context, AppConfig.isNightTheme)
-    if (ignoreTopBarOpacity) {
-        setBackgroundColor(context.primaryColor)
-        applyTopBarContentColor(context.primaryTextColor)
-        elevation = context.elevation
-        applyTopBarChildConfig()
-        return
-    }
-    val alpha = if (config.style == TopBarConfig.STYLE_REGULAR) {
-        config.wallpaperAlpha
-    } else {
-        config.tagBarAlpha
-    }
-    setBackgroundColor(TopBarConfig.withOpacity(context.primaryColor, alpha))
-    applyTopBarContentColor(context.primaryTextColor)
-    elevation = if (alpha < 100) 0.1f else context.elevation
-    applyTopBarChildConfig()
 }
 
 private fun TitleBar.applyTopBarConfig(config: TopBarConfig.Config) {
@@ -122,14 +91,15 @@ private fun TitleBar.applyTopBarConfig(config: TopBarConfig.Config) {
         backgroundAlpha < 100 -> 0.1f
         else -> context.elevation
     }
-    applyTopBarContentColor(context.primaryTextColor)
+    applyTopBarContentColor()
     applyTopBarChildConfig(config)
 }
 
-private fun TitleBar.applyTopBarContentColor(color: Int) {
+private fun TitleBar.applyTopBarContentColor() {
+    val color = MenuExtensions.getMenuColor(context, topBarTheme)
     setTextColor(color)
     setColorFilter(color)
-    toolbar.menu.applyTint(context)
+    toolbar.menu.applyTint(context, topBarTheme)
 }
 
 fun View.applyTopBarChildConfig() {

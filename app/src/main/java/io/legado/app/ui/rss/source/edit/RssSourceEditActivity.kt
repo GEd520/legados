@@ -30,6 +30,7 @@ import io.legado.app.ui.file.HandleFileContract
 import io.legado.app.ui.login.SourceLoginActivity
 import io.legado.app.ui.qrcode.QrCodeResult
 import io.legado.app.ui.rss.source.debug.RssSourceDebugActivity
+import io.legado.app.ui.widget.applyTopBarChildConfig
 import io.legado.app.ui.widget.dialog.UrlOptionDialog
 import io.legado.app.ui.widget.dialog.CookieViewerDialog
 import io.legado.app.ui.widget.dialog.VariableDialog
@@ -319,6 +320,7 @@ class RssSourceEditActivity :
                 newFocus.postDelayed({ sendText("") }, 120)
             }
         }
+        binding.tabLayout.applyTopBarChildConfig()
         binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabReselected(tab: TabLayout.Tab?) {
 

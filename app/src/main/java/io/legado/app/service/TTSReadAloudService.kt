@@ -32,6 +32,7 @@ import kotlin.coroutines.coroutineContext
 class TTSReadAloudService : BaseReadAloudService(), TextToSpeech.OnInitListener {
 
     private var textToSpeech: TextToSpeech? = null
+    @Volatile
     private var ttsInitFinish = false
     private var speakJob: Coroutine<*>? = null
     private val utteranceListener = TTSUtteranceListener()

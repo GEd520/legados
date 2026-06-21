@@ -23,13 +23,10 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Date
-import java.util.Locale
-import java.util.TimeZone
 import java.util.concurrent.ConcurrentHashMap
 import splitties.init.appCtx
 
@@ -67,10 +64,6 @@ class ReadRecordViewModel : ViewModel() {
 
     private val coverPathCache = ConcurrentHashMap<String, String?>()
     private val chapterTitleCache = ConcurrentHashMap<String, String?>()
-
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).apply {
-        timeZone = TimeZone.getDefault()
-    }
 
     private val _displayMode = MutableStateFlow(loadDisplayMode())
     val displayMode = _displayMode.asStateFlow()
@@ -128,7 +121,7 @@ class ReadRecordViewModel : ViewModel() {
         }
 
         val mergedDailySessions = searchedSessions
-            .groupBy { dateFormat.format(Date(it.startTime)) }
+            .groupBy { it.startTime.toLocalDateString() }
             .mapValues { (_, sessions) -> mergeContinuousSessions(sessions) }
 
         val detailsWithDate = data.details.mapNotNull { detail ->
@@ -158,10 +151,10 @@ class ReadRecordViewModel : ViewModel() {
         val timelineMap = searchedSessions
             .asSequence()
             .filter { session ->
-                val sDate = dateFormat.format(Date(session.startTime))
+                val sDate = session.startTime.toLocalDateString()
                 dateStr == null || sDate == dateStr
             }
-            .groupBy { dateFormat.format(Date(it.startTime)) }
+            .groupBy { it.startTime.toLocalDateString() }
             .mapValues { (_, sessions) ->
                 mergeContinuousSessions(sessions).reversed()
             }

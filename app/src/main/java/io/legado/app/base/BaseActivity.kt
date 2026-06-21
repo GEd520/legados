@@ -16,6 +16,7 @@ import androidx.activity.addCallback
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.viewbinding.ViewBinding
+import com.google.android.material.tabs.TabLayout
 import io.legado.app.R
 import io.legado.app.constant.AppConst
 import io.legado.app.constant.EventBus
@@ -33,7 +34,8 @@ import io.legado.app.ui.book.read.config.ReadAloudActivity
 import io.legado.app.ui.widget.ReadAloudMiniBarController
 import io.legado.app.ui.widget.ReadAloudMiniBarHost
 import io.legado.app.ui.widget.TitleBar
-import io.legado.app.ui.widget.applyThemeTopBarOpacity
+import io.legado.app.ui.widget.applyTopBarChildConfig
+import io.legado.app.ui.widget.applyTopBarConfig
 import io.legado.app.ui.debuglog.DebugFloatingBallManager
 import io.legado.app.ui.debuglog.DebugLogPanelDialog
 import io.legado.app.utils.ColorUtils
@@ -113,7 +115,7 @@ abstract class BaseActivity<VB : ViewBinding>(
         }
         observeEvent<Boolean>(EventBus.TOP_BAR_CHANGED) {
             if (it == AppConfig.isNightTheme) {
-                refreshTitleBarOpacity()
+                refreshTitleBars()
             }
         }
         onActivityCreated(savedInstanceState)
@@ -258,22 +260,23 @@ abstract class BaseActivity<VB : ViewBinding>(
         readAloudMiniBarController?.refresh()
     }
 
-    private fun refreshTitleBarOpacity() {
+    private fun refreshTitleBars() {
         val contentView = findViewById<ViewGroup>(android.R.id.content) ?: return
-        findAllTitleBars(contentView).forEach { it.applyThemeTopBarOpacity() }
+        refreshTopBarViews(contentView)
     }
 
-    private fun findAllTitleBars(viewGroup: ViewGroup): List<TitleBar> {
-        val result = mutableListOf<TitleBar>()
+    private fun refreshTopBarViews(viewGroup: ViewGroup) {
         for (i in 0 until viewGroup.childCount) {
             val child = viewGroup.getChildAt(i)
             if (child is TitleBar) {
-                result.add(child)
-            } else if (child is ViewGroup) {
-                result.addAll(findAllTitleBars(child))
+                child.applyTopBarConfig()
+            } else if (child is TabLayout || child.id == R.id.search_view) {
+                child.applyTopBarChildConfig()
+            }
+            if (child is ViewGroup) {
+                refreshTopBarViews(child)
             }
         }
-        return result
     }
 
     protected fun hideReadAloudMiniBar() {

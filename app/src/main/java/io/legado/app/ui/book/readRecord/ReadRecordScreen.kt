@@ -44,7 +44,9 @@ import io.legado.app.utils.startActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
@@ -652,8 +654,7 @@ private fun TimelineSessionView(
     onLongClick: () -> Unit,
     onDelete: () -> Unit
 ) {
-    val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
-    val startTime = timeFormat.format(Date(session.startTime))
+    val startTime = formatTime(session.startTime)
     val timelineAccentColor = readRecordTimelineAccentColor()
     val secondaryTextColor = readRecordSecondaryTextColor()
     
@@ -1307,11 +1308,10 @@ private fun ReadTimeRecordItem(
 
 private fun formatFriendlyDate(dateStr: String): String {
     return try {
-        val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        val date = inputFormat.parse(dateStr) ?: return dateStr
+        val localDate = LocalDate.parse(dateStr, DateTimeFormatter.ISO_LOCAL_DATE)
+        val date = Date.from(localDate.atStartOfDay(ZoneId.systemDefault()).toInstant())
         
         val today = LocalDate.now()
-        val localDate = date.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate()
         
         when {
             localDate == today -> "今天"
@@ -1350,6 +1350,13 @@ private fun formatDateTime(timestamp: Long): String {
     val date = Date(timestamp)
     val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
     return dateFormat.format(date)
+}
+
+private fun formatTime(timestamp: Long): String {
+    return Instant.ofEpochMilli(timestamp)
+        .atZone(ZoneId.systemDefault())
+        .toLocalTime()
+        .format(DateTimeFormatter.ofPattern("HH:mm"))
 }
 
 private fun formatTotalReadTime(totalMs: Long): String {

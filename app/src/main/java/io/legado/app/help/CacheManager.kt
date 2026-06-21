@@ -141,6 +141,8 @@ object CacheManager {
     fun getInt(key: String): Int? {
         getFromMemory(key)?.let {
             if (it is Int) return it
+            if (it is Number) return it.toInt()
+            if (it is String) return it.toIntOrNull()
         }
         return get(key, true)?.toIntOrNull()
     }
@@ -148,6 +150,8 @@ object CacheManager {
     fun getLong(key: String): Long? {
         getFromMemory(key)?.let {
             if (it is Long) return it
+            if (it is Number) return it.toLong()
+            if (it is String) return it.toLongOrNull()
         }
         return get(key, true)?.toLongOrNull()
     }
@@ -155,6 +159,8 @@ object CacheManager {
     fun getDouble(key: String): Double? {
         getFromMemory(key)?.let {
             if (it is Double) return it
+            if (it is Number) return it.toDouble()
+            if (it is String) return it.toDoubleOrNull()
         }
         return get(key, true)?.toDoubleOrNull()
     }
@@ -162,6 +168,8 @@ object CacheManager {
     fun getFloat(key: String): Float? {
         getFromMemory(key)?.let {
             if (it is Float) return it
+            if (it is Number) return it.toFloat()
+            if (it is String) return it.toFloatOrNull()
         }
         return get(key, true)?.toFloatOrNull()
     }

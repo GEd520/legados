@@ -25,6 +25,10 @@ import kotlin.math.sin
 
 @Suppress("DEPRECATION")
 class SimulationPageDelegate(readView: ReadView) : HorizontalPageDelegate(readView) {
+    private companion object {
+        const val EPSILON = 0.1f
+    }
+
     //不让x,y为0,否则在点计算时会有问题
     private var mTouchX = 0.1f
     private var mTouchY = 0.1f
@@ -545,17 +549,25 @@ class SimulationPageDelegate(readView: ReadView) : HorizontalPageDelegate(readVi
     private fun calcPoints() {
         mTouchX = touchX
         mTouchY = touchY
+        if (abs(mTouchX - mCornerX) < EPSILON) {
+            mTouchX += if (mCornerX == 0) EPSILON else -EPSILON
+        }
+        if (abs(mTouchY - mCornerY) < EPSILON) {
+            mTouchY += if (mCornerY == 0) EPSILON else -EPSILON
+        }
 
         mMiddleX = (mTouchX + mCornerX) / 2
         mMiddleY = (mTouchY + mCornerY) / 2
         mBezierControl1.x =
-            mMiddleX - (mCornerY - mMiddleY) * (mCornerY - mMiddleY) / (mCornerX - mMiddleX)
+            mMiddleX - (mCornerY - mMiddleY) * (mCornerY - mMiddleY) /
+                safeDenominator(mCornerX - mMiddleX)
         mBezierControl1.y = mCornerY.toFloat()
         mBezierControl2.x = mCornerX.toFloat()
 
         val f4 = mCornerY - mMiddleY
         if (f4 == 0f) {
-            mBezierControl2.y = mMiddleY - (mCornerX - mMiddleX) * (mCornerX - mMiddleX) / 0.1f
+            mBezierControl2.y =
+                mMiddleY - (mCornerX - mMiddleX) * (mCornerX - mMiddleX) / EPSILON
 
         } else {
             mBezierControl2.y =
@@ -574,14 +586,16 @@ class SimulationPageDelegate(readView: ReadView) : HorizontalPageDelegate(readVi
                 val f2 = viewWidth * f1 / mBezierStart1.x
                 mTouchX = abs(mCornerX - f2)
 
-                val f3 = abs(mCornerX - mTouchX) * abs(mCornerY - mTouchY) / f1
+                val f3 = abs(mCornerX - mTouchX) * abs(mCornerY - mTouchY) /
+                    safeDenominator(f1)
                 mTouchY = abs(mCornerY - f3)
 
                 mMiddleX = (mTouchX + mCornerX) / 2
                 mMiddleY = (mTouchY + mCornerY) / 2
 
                 mBezierControl1.x =
-                    mMiddleX - (mCornerY - mMiddleY) * (mCornerY - mMiddleY) / (mCornerX - mMiddleX)
+                    mMiddleX - (mCornerY - mMiddleY) * (mCornerY - mMiddleY) /
+                        safeDenominator(mCornerX - mMiddleX)
                 mBezierControl1.y = mCornerY.toFloat()
 
                 mBezierControl2.x = mCornerX.toFloat()
@@ -589,7 +603,7 @@ class SimulationPageDelegate(readView: ReadView) : HorizontalPageDelegate(readVi
                 val f5 = mCornerY - mMiddleY
                 if (f5 == 0f) {
                     mBezierControl2.y =
-                        mMiddleY - (mCornerX - mMiddleX) * (mCornerX - mMiddleX) / 0.1f
+                        mMiddleY - (mCornerX - mMiddleX) * (mCornerX - mMiddleX) / EPSILON
                 } else {
                     mBezierControl2.y =
                         mMiddleY - (mCornerX - mMiddleX) * (mCornerX - mMiddleX) / (mCornerY - mMiddleY)
@@ -625,14 +639,24 @@ class SimulationPageDelegate(readView: ReadView) : HorizontalPageDelegate(readVi
      * 求解直线P1P2和直线P3P4的交点坐标
      */
     private fun getCross(P1: PointF, P2: PointF, P3: PointF, P4: PointF): PointF {
-        val crossP = PointF()
-        // 二元函数通式： y=ax+b
-        val a1 = (P2.y - P1.y) / (P2.x - P1.x)
-        val b1 = (P1.x * P2.y - P2.x * P1.y) / (P1.x - P2.x)
-        val a2 = (P4.y - P3.y) / (P4.x - P3.x)
-        val b2 = (P3.x * P4.y - P4.x * P3.y) / (P3.x - P4.x)
-        crossP.x = (b2 - b1) / (a1 - a2)
-        crossP.y = a1 * crossP.x + b1
-        return crossP
+        val denominator = (P1.x - P2.x) * (P3.y - P4.y) -
+            (P1.y - P2.y) * (P3.x - P4.x)
+        if (abs(denominator) < EPSILON) {
+            return PointF(P2.x, P2.y)
+        }
+        val d1 = P1.x * P2.y - P1.y * P2.x
+        val d2 = P3.x * P4.y - P3.y * P4.x
+        return PointF(
+            (d1 * (P3.x - P4.x) - (P1.x - P2.x) * d2) / denominator,
+            (d1 * (P3.y - P4.y) - (P1.y - P2.y) * d2) / denominator
+        )
+    }
+
+    private fun safeDenominator(value: Float): Float {
+        return if (abs(value) < EPSILON) {
+            if (value < 0) -EPSILON else EPSILON
+        } else {
+            value
+        }
     }
 }

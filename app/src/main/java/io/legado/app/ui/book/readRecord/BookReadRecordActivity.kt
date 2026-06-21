@@ -75,9 +75,9 @@ import io.legado.app.utils.formatReadDuration
 import io.legado.app.utils.fullScreen
 import io.legado.app.utils.setNavigationBarColorAuto
 import io.legado.app.utils.setStatusBarColorAuto
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 class BookReadRecordActivity : AppCompatActivity() {
 
@@ -177,10 +177,9 @@ fun BookReadRecordScreen(
         .collectAsStateWithLifecycle(emptyList())
         .value
 
-    val dateFormat = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()) }
     val dayTotalDurationMap = remember(rawSessions) {
         rawSessions
-            .groupBy { dateFormat.format(Date(it.startTime)) }
+            .groupBy { formatRecordDate(it.startTime) }
             .mapValues { (_, sessions) -> sessions.sumOf { (it.endTime - it.startTime).coerceAtLeast(0L) } }
     }
     data class MergedSession(val session: ReadRecordSession, val actualDuration: Long)
@@ -212,7 +211,7 @@ fun BookReadRecordScreen(
             }
         val durationMap = merged.associate { ms -> ms.session.startTime to ms.actualDuration }
         val days = merged
-            .groupBy { dateFormat.format(Date(it.session.startTime)) }
+            .groupBy { formatRecordDate(it.session.startTime) }
             .toSortedMap(compareByDescending { it })
             .map { (date, daySessions) ->
                 ReadRecordTimelineDay(
@@ -393,7 +392,6 @@ private fun DaySection(
     sessionDurationMap: Map<Long, Long>
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
 
     Column(
         modifier = Modifier
@@ -447,7 +445,7 @@ private fun DaySection(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 sessions.sortedByDescending { it.startTime }.forEach { session ->
-                    SessionRow(session, timeFormat, sessionDurationMap[session.startTime] ?: (session.endTime - session.startTime).coerceAtLeast(0L))
+                    SessionRow(session, sessionDurationMap[session.startTime] ?: (session.endTime - session.startTime).coerceAtLeast(0L))
                 }
             }
         }
@@ -455,9 +453,7 @@ private fun DaySection(
 }
 
 @Composable
-private fun SessionRow(session: ReadRecordSession, timeFormat: SimpleDateFormat, duration: Long) {
-    val start = remember(session.startTime) { Date(session.startTime) }
-
+private fun SessionRow(session: ReadRecordSession, duration: Long) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -467,7 +463,7 @@ private fun SessionRow(session: ReadRecordSession, timeFormat: SimpleDateFormat,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = timeFormat.format(start),
+            text = formatRecordTime(session.startTime),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.Medium
@@ -496,4 +492,18 @@ private fun SessionRow(session: ReadRecordSession, timeFormat: SimpleDateFormat,
             }
         }
     }
+}
+
+private fun formatRecordDate(timeMillis: Long): String {
+    return Instant.ofEpochMilli(timeMillis)
+        .atZone(ZoneId.systemDefault())
+        .toLocalDate()
+        .format(DateTimeFormatter.ISO_LOCAL_DATE)
+}
+
+private fun formatRecordTime(timeMillis: Long): String {
+    return Instant.ofEpochMilli(timeMillis)
+        .atZone(ZoneId.systemDefault())
+        .toLocalTime()
+        .format(DateTimeFormatter.ofPattern("HH:mm"))
 }

@@ -27,7 +27,7 @@ data class PageTopBarColors(
 
 @Composable
 fun pageTopBarColors(): PageTopBarColors {
-    val version = rememberTopBarConfigVersion()
+    rememberTopBarConfigVersion()
     val context = LocalContext.current
     val primaryColor = ThemeStore.primaryColor(context)
     val alphaPercent = pageTopBarOpacityPercent()

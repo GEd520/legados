@@ -9,14 +9,10 @@ import io.legado.app.constant.AppConst
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
-import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.Date
-import java.util.Locale
-import java.util.TimeZone
 import kotlin.math.max
 import kotlin.math.min
 
@@ -27,10 +23,6 @@ class ReadRecordRepository(
     companion object {
         const val CURRENT_REPAIR_VERSION = 4
         private const val IMPORT_BATCH_SIZE = 500
-    }
-
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).apply {
-        timeZone = TimeZone.getDefault()
     }
 
     private data class RecordIdentity(
@@ -65,6 +57,52 @@ class ReadRecordRepository(
     }
 
     private fun getCurrentDeviceId(): String = currentDeviceIdProvider()
+
+    private fun formatDate(timeMillis: Long): String {
+        return Instant.ofEpochMilli(timeMillis)
+            .atZone(ZoneId.systemDefault())
+            .toLocalDate()
+            .format(DateTimeFormatter.ISO_LOCAL_DATE)
+    }
+
+    private fun minPositive(a: Long, b: Long): Long {
+        return when {
+            a <= 0L -> b
+            b <= 0L -> a
+            else -> min(a, b)
+        }
+    }
+
+    private fun mergeImportedRecord(existing: ReadRecord, incoming: ReadRecord): ReadRecord {
+        val incomingHasProgress = incoming.durChapterTitle.isNotBlank() || incoming.durChapterIndex > 0
+        val useIncomingProgress = incomingHasProgress && incoming.lastRead >= existing.lastRead
+        return existing.copy(
+            readTime = max(existing.readTime, incoming.readTime),
+            lastRead = max(existing.lastRead, incoming.lastRead),
+            durChapterTitle = if (useIncomingProgress) {
+                incoming.durChapterTitle
+            } else {
+                existing.durChapterTitle
+            },
+            durChapterIndex = if (useIncomingProgress) {
+                incoming.durChapterIndex
+            } else {
+                existing.durChapterIndex
+            }
+        )
+    }
+
+    private fun mergeImportedDetail(
+        existing: ReadRecordDetail,
+        incoming: ReadRecordDetail
+    ): ReadRecordDetail {
+        return existing.copy(
+            readTime = max(existing.readTime, incoming.readTime),
+            readWords = max(existing.readWords, incoming.readWords),
+            firstReadTime = minPositive(existing.firstReadTime, incoming.firstReadTime),
+            lastReadTime = max(existing.lastReadTime, incoming.lastReadTime)
+        )
+    }
 
     private fun normalizeBookName(bookName: String): String = bookName.trim()
 
@@ -146,7 +184,7 @@ class ReadRecordRepository(
     fun getBookTimelineDays(bookName: String, bookAuthor: String): Flow<List<ReadRecordTimelineDay>> {
         return getBookSessions(bookName, bookAuthor).map { sessions ->
             val merged = mergeCloseSessions(sessions)
-            merged.groupBy { dateFormat.format(Date(it.startTime)) }
+            merged.groupBy { formatDate(it.startTime) }
                 .toSortedMap(compareByDescending { it })
                 .map { (date, daySessions) ->
                     ReadRecordTimelineDay(
@@ -228,7 +266,7 @@ class ReadRecordRepository(
             val segmentDuration = sessionSegment.endTime - sessionSegment.startTime
             if (segmentDuration <= 0L && sessionSegment.words <= 0L) return@forEach
             dao.insertSession(sessionSegment)
-            val dateString = dateFormat.format(Date(sessionSegment.startTime))
+            val dateString = formatDate(sessionSegment.startTime)
             updateReadRecordDetail(sessionSegment, segmentDuration, sessionSegment.words, dateString)
             updateReadRecord(sessionSegment, segmentDuration)
         }
@@ -347,7 +385,7 @@ class ReadRecordRepository(
     suspend fun deleteSession(session: ReadRecordSession) {
         dao.deleteSession(session)
 
-        val dateString = dateFormat.format(Date(session.startTime))
+        val dateString = formatDate(session.startTime)
         val remainingSessions =
             dao.getSessionsByBookAndDate(
                 session.deviceId,
@@ -703,8 +741,10 @@ class ReadRecordRepository(
             normalized.bookName,
             normalized.bookAuthor
         )
-        if (existing == null || existing.readTime < normalized.readTime) {
+        if (existing == null) {
             dao.insert(normalized)
+        } else {
+            dao.insert(mergeImportedRecord(existing, normalized))
         }
     }
 
@@ -717,8 +757,10 @@ class ReadRecordRepository(
             normalized.bookAuthor,
             normalized.date
         )
-        if (existing == null || existing.readTime < normalized.readTime) {
+        if (existing == null) {
             dao.insertDetail(normalized)
+        } else {
+            dao.insertDetail(mergeImportedDetail(existing, normalized))
         }
     }
 
@@ -762,8 +804,10 @@ class ReadRecordRepository(
             .forEach { record ->
                 val identity = RecordIdentity(record.deviceId, record.bookName, record.bookAuthor)
                 val existing = prepared[identity]
-                if (existing == null || existing.readTime < record.readTime) {
+                if (existing == null) {
                     prepared[identity] = record
+                } else {
+                    prepared[identity] = mergeImportedRecord(existing, record)
                 }
             }
         return prepared.values.toList()
@@ -782,8 +826,10 @@ class ReadRecordRepository(
                     detail.date
                 )
                 val existing = prepared[identity]
-                if (existing == null || existing.readTime < detail.readTime) {
+                if (existing == null) {
                     prepared[identity] = detail
+                } else {
+                    prepared[identity] = mergeImportedDetail(existing, detail)
                 }
             }
         return prepared.values.toList()
@@ -814,9 +860,18 @@ class ReadRecordRepository(
         sessions: List<ReadRecordSession>
     ) {
         val importedBooks = linkedSetOf<Pair<String, String>>()
-        records.forEach { importedBooks.add(it.bookName to it.bookAuthor) }
-        details.forEach { importedBooks.add(it.bookName to it.bookAuthor) }
-        sessions.forEach { importedBooks.add(it.bookName to it.bookAuthor) }
+        records.asSequence()
+            .map(::normalizeRecord)
+            .filter(::isValidRecord)
+            .forEach { importedBooks.add(it.bookName to it.bookAuthor) }
+        details.asSequence()
+            .map(::normalizeDetail)
+            .filter(::isValidDetail)
+            .forEach { importedBooks.add(it.bookName to it.bookAuthor) }
+        sessions.asSequence()
+            .map(::normalizeSession)
+            .filter(::isValidSession)
+            .forEach { importedBooks.add(it.bookName to it.bookAuthor) }
         importedBooks.forEach { (bookName, bookAuthor) ->
             val current = dao.getReadRecord(getCurrentDeviceId(), bookName, bookAuthor)
             updateReadRecordTotal(

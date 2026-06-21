@@ -122,7 +122,10 @@ data class TextLine(
      * 从后向前获取指定位置的文本列
      */
     fun getColumnReverseAt(index: Int, offset: Int = 0): BaseColumn {
-        return textColumns[textColumns.lastIndex - offset - index]
+        if (textColumns.isEmpty()) return TextColumn(0f, 0f, "")
+        val position = textColumns.lastIndex - offset - index
+        if (position !in textColumns.indices) return TextColumn(0f, 0f, "")
+        return textColumns[position]
     }
 
     /**
@@ -290,7 +293,7 @@ data class TextLine(
         val paint = PaintPool.obtain()
         paint.set(ChapterProvider.contentPaint)
         paint.color = underlineColor
-        paint.strokeWidth = underlineWidth.dpToPx().toFloat()
+        paint.strokeWidth = underlineWidth.dpToPx()
         paint.style = android.graphics.Paint.Style.STROKE
         paint.isAntiAlias = true
         val underlineOffset = ReadBookConfig.durConfig.underlineOffset

@@ -82,12 +82,6 @@ object ImageProvider {
                     removeCount++
                 }
             }
-            //错误图片不能释放,占位用,防止一直重复获取图片
-            if (oldValue != errorBitmap) {
-                oldValue.recycle()
-                //putDebug("ImageProvider: trigger bitmap recycle. URI: $filePath")
-                //putDebug("ImageProvider : cacheUsage ${size()}bytes / ${maxSize()}bytes")
-            }
         }
 
     }
@@ -296,7 +290,6 @@ object ImageProvider {
             bitmap
         }.onFailure {
             //错误图片占位,防止重复获取
-            put(vFile.absolutePath, errorBitmap)
         }.getOrDefault(errorBitmap)
     }
 

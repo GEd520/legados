@@ -628,7 +628,7 @@ class TextChapterLayout(
                     emptyContent = contents.isEmpty(),
                     isVolumeTitle = bookChapter.isVolume
                 )
-                pendingTextPage.lines.last().isParagraphEnd = true
+                pendingTextPage.lines.lastOrNull()?.isParagraphEnd = true
                 stringBuilder.append("\n")
             }
             durY += titleBottomSpacing
@@ -813,7 +813,7 @@ class TextChapterLayout(
                     )
                 }
             }
-            pendingTextPage.lines.last().isParagraphEnd = true
+            pendingTextPage.lines.lastOrNull()?.isParagraphEnd = true
             stringBuilder.append("\n")
         }
         val chapterWordCount = StringUtils.wordCountFormat(wordCount.toString())
