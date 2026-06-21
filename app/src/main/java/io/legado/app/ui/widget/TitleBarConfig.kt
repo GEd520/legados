@@ -3,6 +3,7 @@ package io.legado.app.ui.widget
 import android.graphics.Bitmap
 import android.graphics.BitmapShader
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.ColorFilter
 import android.graphics.Matrix
 import android.graphics.Paint
@@ -14,15 +15,14 @@ import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
 import android.graphics.drawable.Drawable
 import android.view.View
-import android.view.ViewGroup
 import androidx.core.content.ContextCompat
-import androidx.core.view.children
 import com.google.android.material.tabs.TabLayout
 import io.legado.app.R
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.config.TopBarConfig
 import io.legado.app.lib.theme.elevation
 import io.legado.app.lib.theme.primaryColor
+import io.legado.app.lib.theme.transparentNavBar
 import io.legado.app.utils.BitmapUtils
 import java.io.File
 
@@ -31,11 +31,31 @@ fun TitleBar.applyTopBarConfig() {
     applyTopBarConfig(config)
 }
 
-private fun TitleBar.applyTopBarConfig(config: TopBarConfig.Config) {
-    if (ignoreTopBarPackageBackground) {
-        applyTopBarChildConfig(config)
+fun TitleBar.applyThemeTopBarOpacity() {
+    if (AppConfig.isEInkMode) {
+        setBackgroundResource(R.drawable.bg_eink_border_bottom)
         return
     }
+    if (!opaque && context.transparentNavBar) {
+        setBackgroundColor(Color.TRANSPARENT)
+        return
+    }
+    val config = TopBarConfig.currentConfig(context, AppConfig.isNightTheme)
+    if (ignoreTopBarOpacity) {
+        setBackgroundColor(context.primaryColor)
+        elevation = context.elevation
+        return
+    }
+    val alpha = if (config.style == TopBarConfig.STYLE_REGULAR) {
+        config.wallpaperAlpha
+    } else {
+        config.tagBarAlpha
+    }
+    setBackgroundColor(TopBarConfig.withOpacity(context.primaryColor, alpha))
+    elevation = if (alpha < 100) 0.1f else context.elevation
+}
+
+private fun TitleBar.applyTopBarConfig(config: TopBarConfig.Config) {
     val backgroundColor = if (config.style == TopBarConfig.STYLE_REGULAR) {
         TopBarConfig.resolveBackgroundColor(config)
     } else {
@@ -71,22 +91,6 @@ private fun TitleBar.applyTopBarConfig(config: TopBarConfig.Config) {
         else -> context.elevation
     }
     applyTopBarChildConfig(config)
-}
-
-fun View.refreshTopBarConfigDeep() {
-    val config = TopBarConfig.currentConfig(context, AppConfig.isNightTheme)
-    refreshTopBarConfigDeep(config)
-}
-
-private fun View.refreshTopBarConfigDeep(config: TopBarConfig.Config) {
-    if (this is TitleBar) {
-        applyTopBarConfig(config)
-        return
-    }
-    applyTopBarChildConfig(config)
-    if (this is ViewGroup) {
-        children.forEach { it.refreshTopBarConfigDeep(config) }
-    }
 }
 
 fun View.applyTopBarChildConfig() {

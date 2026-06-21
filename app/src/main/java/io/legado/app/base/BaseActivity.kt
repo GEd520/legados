@@ -33,7 +33,7 @@ import io.legado.app.ui.book.read.config.ReadAloudActivity
 import io.legado.app.ui.widget.ReadAloudMiniBarController
 import io.legado.app.ui.widget.ReadAloudMiniBarHost
 import io.legado.app.ui.widget.TitleBar
-import io.legado.app.ui.widget.refreshTopBarConfigDeep
+import io.legado.app.ui.widget.applyThemeTopBarOpacity
 import io.legado.app.ui.debuglog.DebugFloatingBallManager
 import io.legado.app.ui.debuglog.DebugLogPanelDialog
 import io.legado.app.utils.ColorUtils
@@ -113,7 +113,7 @@ abstract class BaseActivity<VB : ViewBinding>(
         }
         observeEvent<Boolean>(EventBus.TOP_BAR_CHANGED) {
             if (it == AppConfig.isNightTheme) {
-                refreshTitleBars()
+                refreshTitleBarOpacity()
             }
         }
         onActivityCreated(savedInstanceState)
@@ -258,8 +258,8 @@ abstract class BaseActivity<VB : ViewBinding>(
         readAloudMiniBarController?.refresh()
     }
 
-    private fun refreshTitleBars() {
-        findViewById<ViewGroup>(android.R.id.content)?.refreshTopBarConfigDeep()
+    private fun refreshTitleBarOpacity() {
+        findViewById<TitleBar>(R.id.title_bar)?.applyThemeTopBarOpacity()
     }
 
     protected fun hideReadAloudMiniBar() {

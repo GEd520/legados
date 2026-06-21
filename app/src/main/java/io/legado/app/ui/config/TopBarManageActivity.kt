@@ -32,7 +32,6 @@ import io.legado.app.ui.file.HandleFileContract
 import io.legado.app.ui.image.ImageCropContract
 import io.legado.app.ui.widget.number.NumberPickerDialog
 import io.legado.app.ui.widget.recycler.VerticalDivider
-import io.legado.app.ui.widget.applyTopBarConfig
 import io.legado.app.utils.ImageCropHelper
 import io.legado.app.utils.externalFiles
 import io.legado.app.utils.getClipText
@@ -479,7 +478,6 @@ class TopBarManageActivity : BaseActivity<ActivityTopBarManageBinding>(), ColorP
                 if (oldEntry?.dirName == TopBarConfig.activeDirName(it.config.isNightMode)) {
                     TopBarConfig.apply(it)
                     postEvent(EventBus.TOP_BAR_CHANGED, it.config.isNightMode)
-                    binding.titleBar.applyTopBarConfig()
                 }
                 toastOnUi(R.string.success)
                 loadPackages()
@@ -492,7 +490,6 @@ class TopBarManageActivity : BaseActivity<ActivityTopBarManageBinding>(), ColorP
     private fun applyPackage(entry: TopBarConfig.Entry) {
         TopBarConfig.apply(entry)
         postEvent(EventBus.TOP_BAR_CHANGED, entry.config.isNightMode)
-        binding.titleBar.applyTopBarConfig()
         loadPackages()
         toastOnUi(getString(R.string.applied_top_bar_config, entry.config.name))
     }

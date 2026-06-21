@@ -20,8 +20,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:theme="?attr/actionBarStyle"
+        app:ignoreTopBarOpacity="true"
         app:layout_constraintTop_toTopOf="parent"
-        app:ignoreTopBarPackageBackground="true"
         app:opaque="true" >
 
         <androidx.constraintlayout.widget.ConstraintLayout

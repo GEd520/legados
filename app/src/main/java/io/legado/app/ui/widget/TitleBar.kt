@@ -60,8 +60,8 @@ class TitleBar @JvmOverloads constructor(
     private val fitStatusBar: Boolean
     private val fitNavigationBar: Boolean
     private val attachToActivity: Boolean
-    private val opaque: Boolean
-    internal val ignoreTopBarPackageBackground: Boolean
+    internal val opaque: Boolean
+    internal val ignoreTopBarOpacity: Boolean
 
     init {
         val a = context.obtainStyledAttributes(
@@ -75,10 +75,7 @@ class TitleBar @JvmOverloads constructor(
         fitStatusBar = a.getBoolean(R.styleable.TitleBar_fitStatusBar, true)
         fitNavigationBar = a.getBoolean(R.styleable.TitleBar_fitNavigationBar, false)
         opaque = a.getBoolean(R.styleable.TitleBar_opaque, false)
-        ignoreTopBarPackageBackground = a.getBoolean(
-            R.styleable.TitleBar_ignoreTopBarPackageBackground,
-            false
-        )
+        ignoreTopBarOpacity = a.getBoolean(R.styleable.TitleBar_ignoreTopBarOpacity, false)
 
         val navigationIcon = a.getDrawable(R.styleable.TitleBar_navigationIcon)
         val navigationContentDescription =
@@ -191,10 +188,8 @@ class TitleBar @JvmOverloads constructor(
             } else if (!opaque && context.transparentNavBar) {
                 setBackgroundColor(Color.TRANSPARENT)
             } else {
-                setBackgroundColor(context.primaryColor)
-                elevation = context.elevation
+                applyThemeTopBarOpacity()
             }
-            applyTopBarConfig()
 
             stateListAnimator = null
         }
