@@ -9,10 +9,10 @@
     android:gravity="center"
     android:maxLines="2"
     android:minHeight="34dp"
-    android:minWidth="44dp"
+    android:minWidth="42dp"
     android:paddingHorizontal="8dp"
     android:paddingVertical="5dp"
     android:scrollbars="none"
     android:textColor="@color/primaryText"
-    android:textSize="15sp"
+    android:textSize="14sp"
     tools:ignore="UnusedAttribute" />

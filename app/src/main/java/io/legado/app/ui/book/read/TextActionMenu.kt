@@ -26,6 +26,7 @@ import io.legado.app.constant.PreferKey
 import io.legado.app.databinding.ItemTextBinding
 import io.legado.app.databinding.PopupActionMenuBinding
 import io.legado.app.help.config.AppConfig
+import io.legado.app.utils.dpToPx
 import io.legado.app.utils.getPrefBoolean
 import io.legado.app.utils.gone
 import io.legado.app.utils.isAbsUrl
@@ -89,6 +90,7 @@ class TextActionMenu(private val context: Context, private val callBack: CallBac
         isOutsideTouchable = false  // 点击外部不关闭
         isFocusable = false     // 不获取焦点
         elevation = dp(8).toFloat()
+        animationStyle = R.style.TextActionMenuAnimation
 
         // 设置适配器
         binding.recyclerView.adapter = adapter
@@ -148,6 +150,7 @@ class TextActionMenu(private val context: Context, private val callBack: CallBac
         val myMenu = MenuBuilder(context)      // 自定义菜单
         val otherMenu = MenuBuilder(context)    // 系统菜单（Android 6.0+）
         SupportMenuInflater(context).inflate(R.menu.content_select_action, myMenu)
+        applyBuiltInMenuIcons(myMenu)
         
         // Android 6.0+ 支持系统文本处理菜单
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -164,14 +167,27 @@ class TextActionMenu(private val context: Context, private val callBack: CallBac
         visibleMenuItems.clear()
         moreMenuItems.clear()
         
-        // 将菜单项分为可见项（前7项）和更多项（第7项之后）
-        if (menuItems.size > 7) {
-            visibleMenuItems.addAll(menuItems.subList(0, 7))
-            moreMenuItems.addAll(menuItems.subList(7, menuItems.size))
+        // 将菜单项分为可见项（前6项）和更多项（第6项之后）
+        if (menuItems.size > 6) {
+            visibleMenuItems.addAll(menuItems.subList(0, 6))
+            moreMenuItems.addAll(menuItems.subList(6, menuItems.size))
         } else {
             // 如果菜单项少于7个，全部显示在主菜单
             visibleMenuItems.addAll(menuItems)
         }
+    }
+
+    private fun applyBuiltInMenuIcons(menu: Menu) {
+        menu.findItem(R.id.menu_replace)?.setIcon(R.drawable.ic_translate)
+        menu.findItem(R.id.menu_copy)?.setIcon(R.drawable.ic_copy)
+        menu.findItem(R.id.menu_bookmark)?.setIcon(R.drawable.ic_bookmark)
+        menu.findItem(R.id.menu_aloud)?.setIcon(R.drawable.ic_volume_up)
+        menu.findItem(R.id.menu_dict)?.setIcon(R.drawable.ic_translate)
+        menu.findItem(R.id.menu_web_search)?.setIcon(R.drawable.ic_search)
+        menu.findItem(R.id.menu_text_menu_config)?.setIcon(R.drawable.ic_settings)
+        menu.findItem(R.id.menu_search_content)?.setIcon(R.drawable.ic_search_hint)
+        menu.findItem(R.id.menu_browser)?.setIcon(R.drawable.ic_web)
+        menu.findItem(R.id.menu_share_str)?.setIcon(R.drawable.ic_share)
     }
 
     /**
@@ -267,7 +283,7 @@ class TextActionMenu(private val context: Context, private val callBack: CallBac
             (request.windowHeight - margin * 2).coerceAtLeast(dp(120))
         )
         val anchorX = if (binding.recyclerViewMore.isVisible) {
-            request.startX - dp(4)
+            request.startX - popupWidth / 2
         } else {
             request.startX
         }
@@ -299,6 +315,7 @@ class TextActionMenu(private val context: Context, private val callBack: CallBac
     private fun constrainMoreMenuHeight(request: ShowRequest, margin: Int, gap: Int) {
         if (!binding.recyclerViewMore.isVisible) {
             binding.recyclerViewMore.layoutParams = binding.recyclerViewMore.layoutParams.apply {
+                width = ViewGroup.LayoutParams.WRAP_CONTENT
                 height = ViewGroup.LayoutParams.WRAP_CONTENT
             }
             return
@@ -312,6 +329,7 @@ class TextActionMenu(private val context: Context, private val callBack: CallBac
         ).coerceAtLeast(dp(160))
         val contentHeight = (moreMenuItems.size * dp(48)).coerceAtLeast(dp(48))
         binding.recyclerViewMore.layoutParams = binding.recyclerViewMore.layoutParams.apply {
+            width = dp(160)
             height = min(contentHeight, maxHeight)
         }
     }
@@ -351,17 +369,28 @@ class TextActionMenu(private val context: Context, private val callBack: CallBac
         ) {
             with(binding) {
                 textView.text = item.title
-                textView.gravity = if (this@TextActionMenu.binding.recyclerViewMore.isVisible) {
+                val isMoreList = this@TextActionMenu.binding.recyclerViewMore.isVisible
+                textView.gravity = if (isMoreList) {
                     Gravity.CENTER_VERTICAL or Gravity.START
                 } else {
                     Gravity.CENTER
                 }
                 textView.layoutParams = textView.layoutParams.apply {
-                    width = if (this@TextActionMenu.binding.recyclerViewMore.isVisible) {
+                    width = if (isMoreList) {
                         ViewGroup.LayoutParams.MATCH_PARENT
                     } else {
                         ViewGroup.LayoutParams.WRAP_CONTENT
                     }
+                }
+                if (isMoreList) {
+                    item.icon?.let { icon ->
+                        val size = 18.dpToPx()
+                        icon.setBounds(0, 0, size, size)
+                        textView.setCompoundDrawables(icon, null, null, null)
+                        textView.compoundDrawablePadding = 6.dpToPx()
+                    } ?: textView.setCompoundDrawables(null, null, null, null)
+                } else {
+                    textView.setCompoundDrawables(null, null, null, null)
                 }
             }
         }
@@ -484,7 +513,12 @@ class TextActionMenu(private val context: Context, private val callBack: CallBac
                     menu.add(
                         Menu.NONE, Menu.NONE,
                         menuItemOrder++, resolveInfo.loadLabel(context.packageManager)
-                    ).intent = createProcessTextIntentForResolveInfo(resolveInfo)
+                    ).apply {
+                        intent = createProcessTextIntentForResolveInfo(resolveInfo)
+                        icon = kotlin.runCatching {
+                            resolveInfo.loadIcon(context.packageManager)
+                        }.getOrNull()
+                    }
                 }
             }
         }.onFailure {
