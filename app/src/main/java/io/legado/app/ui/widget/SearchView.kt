@@ -14,7 +14,9 @@ import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.Gravity
 import android.widget.TextView
+import androidx.annotation.ColorInt
 import androidx.appcompat.widget.SearchView
+import androidx.core.graphics.drawable.DrawableCompat
 import io.legado.app.R
 import io.legado.app.utils.printOnDebug
 
@@ -25,6 +27,7 @@ class SearchView @JvmOverloads constructor(
 ) : SearchView(context, attrs) {
     private var mSearchHintIcon: Drawable? = null
     private var textView: TextView? = null
+    private var hintIconTint: Int? = null
 
     @SuppressLint("UseCompatLoadingForDrawables")
     override fun onLayout(
@@ -39,6 +42,7 @@ class SearchView @JvmOverloads constructor(
             if (textView == null) {
                 textView = findViewById(androidx.appcompat.R.id.search_src_text)
                 mSearchHintIcon = this.context.getDrawable(R.drawable.ic_search_hint)
+                applyHintIconTint()
             }
             // 改变字体
             textView!!.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
@@ -69,6 +73,21 @@ class SearchView @JvmOverloads constructor(
     private fun updateQueryHint() {
         textView?.let {
             it.hint = getDecoratedHint(queryHint ?: "")
+        }
+    }
+
+    fun setSearchHintIconTint(@ColorInt color: Int) {
+        hintIconTint = color
+        applyHintIconTint()
+        updateQueryHint()
+    }
+
+    private fun applyHintIconTint() {
+        val color = hintIconTint ?: return
+        mSearchHintIcon = mSearchHintIcon?.mutate()?.let {
+            DrawableCompat.wrap(it).apply {
+                DrawableCompat.setTint(this, color)
+            }
         }
     }
 

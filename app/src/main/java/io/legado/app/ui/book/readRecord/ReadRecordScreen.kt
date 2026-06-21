@@ -66,7 +66,7 @@ fun ReadRecordScreen(
     var heatmapMode by remember { mutableStateOf(HeatmapMode.TIME) }
     val listState = rememberLazyListState()
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
-    val topBarColor = readRecordTopBarContainerColor()
+    val topBarColors = readRecordTopBarColors()
     val searchFieldColor = readRecordCardContainerColor()
 
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -170,11 +170,11 @@ fun ReadRecordScreen(
             if (state.isSelectionMode) {
                 TopAppBar(
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = topBarColor,
-                        scrolledContainerColor = topBarColor,
-                        navigationIconContentColor = MaterialTheme.colorScheme.onSecondary,
-                        titleContentColor = MaterialTheme.colorScheme.onSecondary,
-                        actionIconContentColor = MaterialTheme.colorScheme.onSecondary
+                        containerColor = topBarColors.containerColor,
+                        scrolledContainerColor = topBarColors.containerColor,
+                        navigationIconContentColor = topBarColors.contentColor,
+                        titleContentColor = topBarColors.contentColor,
+                        actionIconContentColor = topBarColors.contentColor
                     ),
                     title = {
                         Text(
@@ -204,11 +204,11 @@ fun ReadRecordScreen(
             } else {
                 TopAppBar(
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = topBarColor,
-                        scrolledContainerColor = topBarColor,
-                        navigationIconContentColor = MaterialTheme.colorScheme.onSecondary,
-                        titleContentColor = MaterialTheme.colorScheme.onSecondary,
-                        actionIconContentColor = MaterialTheme.colorScheme.onSecondary
+                        containerColor = topBarColors.containerColor,
+                        scrolledContainerColor = topBarColors.containerColor,
+                        navigationIconContentColor = topBarColors.contentColor,
+                        titleContentColor = topBarColors.contentColor,
+                        actionIconContentColor = topBarColors.contentColor
                     ),
                     title = {
                         Column {
@@ -224,7 +224,7 @@ fun ReadRecordScreen(
                                     DisplayMode.READ_TIME -> "阅读时长"
                                 },
                                 style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSecondary
+                                color = topBarColors.contentColor.copy(alpha = 0.72f)
                             )
                         }
                     },

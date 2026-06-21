@@ -63,7 +63,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import io.legado.app.R
 import io.legado.app.ui.file.utils.FilePickerIcon
 import io.legado.app.ui.theme.pageCardContainerColor
-import io.legado.app.ui.theme.pageTopBarContainerColor
+import io.legado.app.ui.theme.pageTopBarColors
 import java.io.File
 
 /**
@@ -91,7 +91,7 @@ fun FileManageScreen(
     // 删除确认对话框状态
     var showDeleteDialog by remember { mutableStateOf<File?>(null) }
     
-    val topBarColor = pageTopBarContainerColor()
+    val topBarColors = pageTopBarColors()
 
     LaunchedEffect(initialPath) {
         initialPath?.let { viewModel.openPath(it) }
@@ -118,15 +118,15 @@ fun FileManageScreen(
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            Column(modifier = Modifier.background(topBarColor)) {
+            Column(modifier = Modifier.background(topBarColors.containerColor)) {
                 // 标题栏
                 TopAppBar(
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = Color.Transparent,
                         scrolledContainerColor = Color.Transparent,
-                        navigationIconContentColor = MaterialTheme.colorScheme.onSecondary,
-                        titleContentColor = MaterialTheme.colorScheme.onSecondary,
-                        actionIconContentColor = MaterialTheme.colorScheme.onSecondary
+                        navigationIconContentColor = topBarColors.contentColor,
+                        titleContentColor = topBarColors.contentColor,
+                        actionIconContentColor = topBarColors.contentColor
                     ),
                     title = {
                         Text(

@@ -72,7 +72,7 @@ import io.legado.app.ui.theme.pageCardElevatedContainerColor
 import io.legado.app.ui.theme.pageHeaderContainerColor
 import io.legado.app.ui.theme.pageMutedIconTint
 import io.legado.app.ui.theme.pageSecondaryTextColor
-import io.legado.app.ui.theme.pageTopBarContainerColor
+import io.legado.app.ui.theme.pageTopBarColors
 import io.legado.app.ui.debuglog.viewmodel.DebugLogViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.legado.app.utils.putPrefBoolean
@@ -122,7 +122,7 @@ fun DebugLogScreen(
     val selectedRssSourceUrl by viewModel.selectedRssSourceUrl.collectAsState()
     val rssExecutionRecords by viewModel.rssExecutionRecords.collectAsState()
     val rssRuleRecords by viewModel.rssRuleRecords.collectAsState()
-    val topBarColor = pageTopBarContainerColor()
+    val topBarColors = pageTopBarColors()
     val cardColor = pageCardElevatedContainerColor()
     val secondaryTextColor = pageSecondaryTextColor()
     val mutedIconTint = pageMutedIconTint()
@@ -150,11 +150,11 @@ fun DebugLogScreen(
                 // 顶部工具栏
                 TopAppBar(
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = topBarColor,
-                        scrolledContainerColor = topBarColor,
-                        navigationIconContentColor = MaterialTheme.colorScheme.onSecondary,
-                        titleContentColor = MaterialTheme.colorScheme.onSecondary,
-                        actionIconContentColor = MaterialTheme.colorScheme.onSecondary
+                        containerColor = topBarColors.containerColor,
+                        scrolledContainerColor = topBarColors.containerColor,
+                        navigationIconContentColor = topBarColors.contentColor,
+                        titleContentColor = topBarColors.contentColor,
+                        actionIconContentColor = topBarColors.contentColor
                     ),
                     title = { Text("调试日志") },
                     navigationIcon = {

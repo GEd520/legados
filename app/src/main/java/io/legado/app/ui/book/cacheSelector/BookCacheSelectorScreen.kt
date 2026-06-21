@@ -40,7 +40,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.legado.app.ui.book.cacheSelector.components.BookCacheItemCard
 import io.legado.app.ui.theme.pageCardContainerColor
-import io.legado.app.ui.theme.pageTopBarContainerColor
+import io.legado.app.ui.theme.pageTopBarColors
 import io.legado.app.utils.ConvertUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,18 +56,18 @@ fun BookCacheSelectorScreen(
     val selectedCount by viewModel.selectedCount.collectAsState()
     val totalSelectedSize by viewModel.totalSelectedSize.collectAsState()
 
-    val topBarColor = pageTopBarContainerColor()
+    val topBarColors = pageTopBarColors()
 
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = topBarColor,
-                    scrolledContainerColor = topBarColor,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onSecondary,
-                    titleContentColor = MaterialTheme.colorScheme.onSecondary,
-                    actionIconContentColor = MaterialTheme.colorScheme.onSecondary
+                    containerColor = topBarColors.containerColor,
+                    scrolledContainerColor = topBarColors.containerColor,
+                    navigationIconContentColor = topBarColors.contentColor,
+                    titleContentColor = topBarColors.contentColor,
+                    actionIconContentColor = topBarColors.contentColor
                 ),
                 title = {
                     Text(
@@ -93,7 +93,7 @@ fun BookCacheSelectorScreen(
                     }) {
                         Text(
                             text = if (viewModel.isAllSelected()) "取消全选" else "全选",
-                            color = MaterialTheme.colorScheme.onSecondary
+                            color = topBarColors.contentColor
                         )
                     }
                 }

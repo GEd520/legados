@@ -65,7 +65,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import io.legado.app.service.DownloadStatus
 import io.legado.app.service.DownloadTask
 import io.legado.app.ui.theme.pageCardContainerColor
-import io.legado.app.ui.theme.pageTopBarContainerColor
+import io.legado.app.ui.theme.pageTopBarColors
 import io.legado.app.utils.ConvertUtils
 
 /**
@@ -83,7 +83,7 @@ fun DownloadManageScreen(
     val selectedTab by viewModel.selectedTab.collectAsState()
     val context = LocalContext.current
 
-    val topBarColor = pageTopBarContainerColor()
+    val topBarColors = pageTopBarColors()
 
     val activeCount = allTasks.count { it.status == DownloadStatus.RUNNING || it.status == DownloadStatus.PENDING }
     val completedCount = allTasks.count { it.status == DownloadStatus.SUCCESSFUL }
@@ -94,11 +94,11 @@ fun DownloadManageScreen(
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = topBarColor,
-                    scrolledContainerColor = topBarColor,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onSecondary,
-                    titleContentColor = MaterialTheme.colorScheme.onSecondary,
-                    actionIconContentColor = MaterialTheme.colorScheme.onSecondary
+                    containerColor = topBarColors.containerColor,
+                    scrolledContainerColor = topBarColors.containerColor,
+                    navigationIconContentColor = topBarColors.contentColor,
+                    titleContentColor = topBarColors.contentColor,
+                    actionIconContentColor = topBarColors.contentColor
                 ),
                 title = {
                     Column {
@@ -136,8 +136,8 @@ fun DownloadManageScreen(
             val tabs = DownloadTab.values()
             TabRow(
                 selectedTabIndex = tabs.indexOf(selectedTab),
-                containerColor = topBarColor,
-                contentColor = MaterialTheme.colorScheme.onSecondary
+                containerColor = topBarColors.containerColor,
+                contentColor = topBarColors.contentColor
             ) {
                 tabs.forEach { tab ->
                     val count = when (tab) {

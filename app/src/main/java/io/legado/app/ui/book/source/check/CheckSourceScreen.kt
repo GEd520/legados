@@ -56,7 +56,7 @@ import io.legado.app.ui.theme.pageAccentColor
 import io.legado.app.ui.theme.pageMutedIconTint
 import io.legado.app.ui.theme.pageSecondaryTextColor
 import io.legado.app.ui.theme.pageSurfaceVariantColor
-import io.legado.app.ui.theme.pageTopBarContainerColor
+import io.legado.app.ui.theme.pageTopBarColors
 import io.legado.app.utils.sendToClip
 
 /**
@@ -407,7 +407,7 @@ fun CheckSourceTopBar(
     onClearClick: () -> Unit,
     onConfigClick: () -> Unit
 ) {
-    val containerColor = pageTopBarContainerColor()
+    val topBarColors = pageTopBarColors()
     val (titleText, subtitleText) = when (uiState) {
         is CheckSourceUIState.Idle -> "准备就绪" to "准备就绪"
         is CheckSourceUIState.Checking -> "检测中..." to "检测中..."
@@ -417,11 +417,11 @@ fun CheckSourceTopBar(
 
     TopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = containerColor,
-            scrolledContainerColor = containerColor,
-            navigationIconContentColor = MaterialTheme.colorScheme.onSecondary,
-            titleContentColor = MaterialTheme.colorScheme.onSecondary,
-            actionIconContentColor = MaterialTheme.colorScheme.onSecondary
+            containerColor = topBarColors.containerColor,
+            scrolledContainerColor = topBarColors.containerColor,
+            navigationIconContentColor = topBarColors.contentColor,
+            titleContentColor = topBarColors.contentColor,
+            actionIconContentColor = topBarColors.contentColor
         ),
         title = {
             Column {
@@ -435,7 +435,7 @@ fun CheckSourceTopBar(
                 Text(
                     text = subtitleText,
                     style = MaterialTheme.typography.labelMedium,
-                    color = pageSecondaryTextColor()
+                    color = topBarColors.contentColor.copy(alpha = 0.72f)
                 )
             }
         },

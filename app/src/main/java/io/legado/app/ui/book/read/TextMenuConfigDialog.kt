@@ -30,7 +30,7 @@ import androidx.fragment.app.DialogFragment
 import io.legado.app.R
 import io.legado.app.ui.theme.LegadoTheme
 import io.legado.app.ui.theme.pageCardContainerColor
-import io.legado.app.ui.theme.pageTopBarContainerColor
+import io.legado.app.ui.theme.pageTopBarColors
 import io.legado.app.utils.toastOnUi
 
 /**
@@ -73,7 +73,7 @@ fun TextMenuConfigDialogContent(
     }
     var showProcessTextConfig by remember { mutableStateOf(false) }
     
-    val topBarColor = pageTopBarContainerColor()
+    val topBarColors = pageTopBarColors()
     val cardColor = pageCardContainerColor()
 
     if (showProcessTextConfig) {
@@ -125,8 +125,8 @@ fun TextMenuConfigDialogContent(
                             }
                         },
                         colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = topBarColor,
-                            titleContentColor = MaterialTheme.colorScheme.onSurface
+                            containerColor = topBarColors.containerColor,
+                            titleContentColor = topBarColors.contentColor
                         )
                     )
 
@@ -207,7 +207,7 @@ fun ProcessTextConfigContent(
         }
     }
     
-    val topBarColor = pageTopBarContainerColor()
+    val topBarColors = pageTopBarColors()
     val cardColor = pageCardContainerColor()
 
     Dialog(
@@ -244,8 +244,8 @@ fun ProcessTextConfigContent(
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = topBarColor,
-                        titleContentColor = MaterialTheme.colorScheme.onSurface
+                        containerColor = topBarColors.containerColor,
+                        titleContentColor = topBarColors.contentColor
                     )
                 )
 

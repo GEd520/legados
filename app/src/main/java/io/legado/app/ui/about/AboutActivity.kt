@@ -42,7 +42,7 @@ import androidx.fragment.app.FragmentContainerView
 import androidx.fragment.app.FragmentManager
 import io.legado.app.R
 import io.legado.app.ui.theme.initLegadoComposeTheme
-import io.legado.app.ui.theme.pageTopBarContainerColor
+import io.legado.app.ui.theme.pageTopBarColors
 import io.legado.app.ui.theme.setLegadoContent
 import io.legado.app.utils.openUrl
 import io.legado.app.utils.share
@@ -78,17 +78,17 @@ private fun AboutScreen(
     onShareClick: () -> Unit,
     onScoringClick: () -> Unit
 ) {
-    val topBarColor = pageTopBarContainerColor()
+    val topBarColors = pageTopBarColors()
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = topBarColor,
-                    scrolledContainerColor = topBarColor,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onSecondary,
-                    titleContentColor = MaterialTheme.colorScheme.onSecondary,
-                    actionIconContentColor = MaterialTheme.colorScheme.onSecondary
+                    containerColor = topBarColors.containerColor,
+                    scrolledContainerColor = topBarColors.containerColor,
+                    navigationIconContentColor = topBarColors.contentColor,
+                    titleContentColor = topBarColors.contentColor,
+                    actionIconContentColor = topBarColors.contentColor
                 ),
                 title = { Text(text = stringResource(R.string.about)) },
                 navigationIcon = {

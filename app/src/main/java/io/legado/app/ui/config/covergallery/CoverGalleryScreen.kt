@@ -86,7 +86,7 @@ import io.legado.app.ui.theme.pageCardElevatedContainerColor
 import io.legado.app.ui.theme.pageMutedIconTint
 import io.legado.app.ui.theme.pageSecondaryTextColor
 import io.legado.app.ui.theme.pageSurfaceVariantColor
-import io.legado.app.ui.theme.pageTopBarContainerColor
+import io.legado.app.ui.theme.pageTopBarColors
 import io.legado.app.ui.widget.dialog.TextDialog
 import io.legado.app.utils.showDialogFragment
 import io.legado.app.utils.toastOnUi
@@ -100,7 +100,7 @@ fun CoverGalleryScreen(
     val groups by viewModel.groups.collectAsStateWithLifecycle()
     val messageDialog by viewModel.messageDialog.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val topBarColor = pageTopBarContainerColor()
+    val topBarColors = pageTopBarColors()
     val elevatedContainerColor = pageCardElevatedContainerColor()
     val secondaryTextColor = pageSecondaryTextColor()
 
@@ -232,11 +232,11 @@ fun CoverGalleryScreen(
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = topBarColor,
-                    scrolledContainerColor = topBarColor,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onSecondary,
-                    titleContentColor = MaterialTheme.colorScheme.onSecondary,
-                    actionIconContentColor = MaterialTheme.colorScheme.onSecondary
+                    containerColor = topBarColors.containerColor,
+                    scrolledContainerColor = topBarColors.containerColor,
+                    navigationIconContentColor = topBarColors.contentColor,
+                    titleContentColor = topBarColors.contentColor,
+                    actionIconContentColor = topBarColors.contentColor
                 ),
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {

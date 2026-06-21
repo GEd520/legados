@@ -45,7 +45,7 @@ import io.legado.app.ui.book.storage.components.ClearAllConfirmDialog
 import io.legado.app.ui.book.storage.components.ClearConfirmDialog
 import io.legado.app.ui.file.FileManageActivity
 import io.legado.app.ui.theme.pageCardContainerColor
-import io.legado.app.ui.theme.pageTopBarContainerColor
+import io.legado.app.ui.theme.pageTopBarColors
 import io.legado.app.utils.startActivity
 
 // UI层
@@ -78,7 +78,7 @@ fun StorageManageScreen(
     var showClearAllDialog by remember { mutableStateOf(false) }
     
     val containerColor = pageCardContainerColor()
-    val topBarColor = pageTopBarContainerColor()
+    val topBarColors = pageTopBarColors()
     
     showClearDialog?.let { target ->
         val targetName = target.detailId ?: viewModel.getCacheName(target.cacheType)
@@ -107,11 +107,11 @@ fun StorageManageScreen(
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = topBarColor,
-                    scrolledContainerColor = topBarColor,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onSecondary,
-                    titleContentColor = MaterialTheme.colorScheme.onSecondary,
-                    actionIconContentColor = MaterialTheme.colorScheme.onSecondary
+                    containerColor = topBarColors.containerColor,
+                    scrolledContainerColor = topBarColors.containerColor,
+                    navigationIconContentColor = topBarColors.contentColor,
+                    titleContentColor = topBarColors.contentColor,
+                    actionIconContentColor = topBarColors.contentColor
                 ),
                 title = {
                     Column {

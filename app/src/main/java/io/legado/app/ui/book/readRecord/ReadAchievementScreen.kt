@@ -71,18 +71,18 @@ fun ReadAchievementScreen(
     onBackClick: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
-    val topBarColor = readRecordTopBarContainerColor()
+    val topBarColors = readRecordTopBarColors()
 
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = topBarColor,
-                    scrolledContainerColor = topBarColor,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onSecondary,
-                    titleContentColor = MaterialTheme.colorScheme.onSecondary,
-                    actionIconContentColor = MaterialTheme.colorScheme.onSecondary
+                    containerColor = topBarColors.containerColor,
+                    scrolledContainerColor = topBarColors.containerColor,
+                    navigationIconContentColor = topBarColors.contentColor,
+                    titleContentColor = topBarColors.contentColor,
+                    actionIconContentColor = topBarColors.contentColor
                 ),
                 title = {
                     Column {
@@ -96,7 +96,7 @@ fun ReadAchievementScreen(
                         Text(
                             text = "你的阅读履历",
                             style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSecondary
+                            color = topBarColors.contentColor.copy(alpha = 0.72f)
                         )
                     }
                 },

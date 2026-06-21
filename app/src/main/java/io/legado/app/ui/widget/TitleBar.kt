@@ -62,6 +62,7 @@ class TitleBar @JvmOverloads constructor(
     private val attachToActivity: Boolean
     internal val opaque: Boolean
     internal val ignoreTopBarOpacity: Boolean
+    private var currentContentColor: Int? = null
 
     init {
         val a = context.obtainStyledAttributes(
@@ -235,6 +236,7 @@ class TitleBar @JvmOverloads constructor(
     }
 
     fun setColorFilter(@ColorInt color: Int) {
+        currentContentColor = color
         val colorFilter = PorterDuffColorFilter(color, PorterDuff.Mode.SRC_ATOP)
         toolbar.children.firstOrNull { it is ImageView }?.background?.colorFilter = colorFilter
         toolbar.navigationIcon?.colorFilter = colorFilter
@@ -242,6 +244,10 @@ class TitleBar @JvmOverloads constructor(
         toolbar.menu.children.forEach {
             it.icon?.colorFilter = colorFilter
         }
+    }
+
+    fun applyCurrentContentColorToMenu() {
+        currentContentColor?.let(::setColorFilter)
     }
 
     override fun setBackgroundColor(color: Int) {

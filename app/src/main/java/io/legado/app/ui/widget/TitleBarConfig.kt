@@ -1,5 +1,6 @@
 package io.legado.app.ui.widget
 
+import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.BitmapShader
 import android.graphics.Canvas
@@ -14,16 +15,20 @@ import android.graphics.Shader
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
 import android.graphics.drawable.Drawable
+import android.util.StateSet
 import android.view.View
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
 import com.google.android.material.tabs.TabLayout
 import io.legado.app.R
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.config.TopBarConfig
 import io.legado.app.lib.theme.elevation
 import io.legado.app.lib.theme.primaryColor
+import io.legado.app.lib.theme.primaryTextColor
 import io.legado.app.lib.theme.transparentNavBar
 import io.legado.app.utils.BitmapUtils
+import io.legado.app.utils.applyTint
 import java.io.File
 
 fun TitleBar.applyTopBarConfig() {
@@ -38,11 +43,13 @@ fun TitleBar.applyThemeTopBarOpacity() {
     }
     if (!opaque && context.transparentNavBar) {
         setBackgroundColor(Color.TRANSPARENT)
+        applyTopBarContentColor(context.primaryTextColor)
         return
     }
     val config = TopBarConfig.currentConfig(context, AppConfig.isNightTheme)
     if (ignoreTopBarOpacity) {
         setBackgroundColor(context.primaryColor)
+        applyTopBarContentColor(context.primaryTextColor)
         elevation = context.elevation
         return
     }
@@ -52,6 +59,7 @@ fun TitleBar.applyThemeTopBarOpacity() {
         config.tagBarAlpha
     }
     setBackgroundColor(TopBarConfig.withOpacity(context.primaryColor, alpha))
+    applyTopBarContentColor(context.primaryTextColor)
     elevation = if (alpha < 100) 0.1f else context.elevation
 }
 
@@ -90,7 +98,13 @@ private fun TitleBar.applyTopBarConfig(config: TopBarConfig.Config) {
         backgroundAlpha < 100 -> 0.1f
         else -> context.elevation
     }
+    applyTopBarContentColor(context.primaryTextColor)
     applyTopBarChildConfig(config)
+}
+
+private fun TitleBar.applyTopBarContentColor(color: Int) {
+    setTextColor(color)
+    setColorFilter(color)
 }
 
 fun View.applyTopBarChildConfig() {
@@ -124,15 +138,41 @@ private fun View.applyTopBarChildConfig(config: TopBarConfig.Config) {
     val tagBarColor = config.tagBarColor
         ?: ContextCompat.getColor(context, R.color.background_menu)
     val selectedColor = config.tagSelectedColor ?: context.primaryColor
+    val contentColor = context.primaryTextColor
     if (this is TabLayout && id == R.id.tab_layout) {
         setBackgroundColor(TopBarConfig.withOpacity(tagBarColor, config.tagBarAlpha))
+        setTabTextColors(tabTextColorStateList(contentColor))
         setSelectedTabIndicatorColor(
             TopBarConfig.withOpacity(selectedColor, config.tagSelectedAlpha)
         )
     }
     if (id == R.id.search_view) {
-        setBackgroundColor(TopBarConfig.withOpacity(tagBarColor, config.tagBarAlpha))
+        background = searchViewBackground()
+        applyTint(contentColor)
+        (this as? SearchView)?.setSearchHintIconTint(contentColor)
     }
+}
+
+private fun View.searchViewBackground(): Drawable {
+    val radius = 35f * resources.displayMetrics.density
+    val strokeWidth = (0.5f * resources.displayMetrics.density).coerceAtLeast(1f).toInt()
+    val color = ContextCompat.getColor(context, R.color.transparent20)
+    return GradientDrawable().apply {
+        cornerRadius = radius
+        setColor(color)
+        setStroke(strokeWidth, color)
+    }
+}
+
+private fun tabTextColorStateList(contentColor: Int): ColorStateList {
+    val normalColor = ColorUtils.setAlphaComponent(contentColor, 200)
+    return ColorStateList(
+        arrayOf(
+            intArrayOf(android.R.attr.state_selected),
+            StateSet.WILD_CARD
+        ),
+        intArrayOf(contentColor, normalColor)
+    )
 }
 
 private fun TitleBar.bitmapLayer(file: File, alphaPercent: Int): Drawable? {
