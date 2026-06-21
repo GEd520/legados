@@ -28,9 +28,11 @@ import io.legado.app.utils.isJson
 import io.legado.app.utils.normalizeFileName
 import io.legado.app.utils.removePref
 import io.legado.app.utils.toastOnUi
+import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import splitties.init.appCtx
 import java.io.File
 
@@ -71,6 +73,9 @@ object AppWebDav {
 
     /** 背景图片URL */
     private val bgWebDavUrl get() = "${rootWebDavUrl}background/"
+
+    /** 封面图集URL */
+    private val coverGalleryWebDavUrl get() = "${rootWebDavUrl}coverGallery/"
 
     /** WebDav授权信息 */
     var authorization: Authorization? = null
@@ -273,11 +278,21 @@ object AppWebDav {
         }
     }
 
+    // ==================== 封面图集同步 ====================
+
+    suspend fun uploadCoverGalleryPackage(fileName: String, zipFile: File) = withContext(IO) {
+        val authorization = authorization ?: throw NoStackTraceException("webDav没有配置")
+        if (!NetworkUtils.isAvailable()) throw NoStackTraceException("网络不可用")
+        val safeName = "${fileName.trimEnd('/').removeSuffix(".zip").normalizeFileName().ifBlank { "coverGallery" }}.zip"
+        WebDav(coverGalleryWebDavUrl, authorization).makeAsDir()
+        WebDav(coverGalleryWebDavUrl + safeName, authorization).upload(zipFile)
+    }
+
     // ==================== 背景图片同步 ====================
 
     /**
      * 获取云端所有背景图片文件列表
-     * 
+     *
      * @return Result包装的文件列表
      */
     private suspend fun getAllBgWebDavFiles(): Result<List<WebDavFile>> {

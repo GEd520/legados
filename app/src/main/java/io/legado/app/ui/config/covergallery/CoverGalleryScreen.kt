@@ -396,6 +396,22 @@ fun CoverGalleryScreen(
                                     }
                                 )
                             },
+                            onUploadZip = {
+                                if (groupWithImages.images.isEmpty()) {
+                                    context.toastOnUi("空分组不能上传")
+                                    return@CoverGalleryGroupCard
+                                }
+                                viewModel.uploadGroupZip(
+                                    context,
+                                    groupWithImages,
+                                    onSuccess = {
+                                        context.toastOnUi("上传 WebDav 成功")
+                                    },
+                                    onFailure = { message ->
+                                        context.toastOnUi("上传 WebDav 失败\n$message")
+                                    }
+                                )
+                            },
                             onRename = { editGroup = groupWithImages },
                             onDeleteGroup = { deleteGroup = groupWithImages },
                             onDeleteImage = { deleteImage = it }
@@ -444,6 +460,7 @@ private fun CoverGalleryGroupCard(
     onUnsetDefault: () -> Unit,
     onRerandomize: () -> Unit,
     onExportZip: () -> Unit,
+    onUploadZip: () -> Unit,
     onRename: () -> Unit,
     onDeleteGroup: () -> Unit,
     onDeleteImage: (CoverGalleryImage) -> Unit
@@ -542,6 +559,14 @@ private fun CoverGalleryGroupCard(
                             text = { Text("导出为zip") },
                             onClick = {
                                 onExportZip()
+                                showMenu = false
+                            },
+                            leadingIcon = { Icon(Icons.Default.FileUpload, contentDescription = null) }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("上传 WebDav") },
+                            onClick = {
+                                onUploadZip()
                                 showMenu = false
                             },
                             leadingIcon = { Icon(Icons.Default.FileUpload, contentDescription = null) }

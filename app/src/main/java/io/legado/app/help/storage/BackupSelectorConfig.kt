@@ -57,6 +57,8 @@ object BackupSelectorConfig {
 
     private var selectedMap: MutableMap<String, Boolean> = load()
 
+    private val defaultUnselectedKeys = setOf("coverGallery")
+
     private fun load(): MutableMap<String, Boolean> {
         val map = HashMap<String, Boolean>()
         val file = FileUtils.createFileIfNotExist(configPath)
@@ -70,7 +72,7 @@ object BackupSelectorConfig {
     }
 
     fun isSelected(key: String): Boolean {
-        return selectedMap[key] ?: true
+        return selectedMap[key] ?: (key !in defaultUnselectedKeys)
     }
 
     fun setSelected(key: String, selected: Boolean) {

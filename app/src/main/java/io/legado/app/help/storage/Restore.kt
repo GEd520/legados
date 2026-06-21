@@ -70,8 +70,11 @@ import io.legado.app.utils.isJsonArray
 import io.legado.app.utils.openInputStream
 import io.legado.app.utils.postEvent
 import io.legado.app.utils.toastOnUi
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers.Main
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import splitties.init.appCtx
 import java.io.File
@@ -105,6 +108,13 @@ object Restore {
     private const val bookCacheIndexFileName = "bookCacheIndex.json"
     private const val bookChapterFileName = "bookChapter.json"
     private const val legacyDirectLinkRuleFileName = "directLinkRule.json"
+    private const val restoreProgressTotal = 8
+
+    data class RestoreProgress(
+        val step: Int,
+        val total: Int,
+        val message: String
+    )
 
     private const val TAG = "Restore"
     private val themeRestorePrefKeys = arrayOf(
@@ -133,11 +143,16 @@ object Restore {
      * @param context Android Context
      * @param uri 备份文件URI
      */
-    suspend fun restore(context: Context, uri: Uri) {
+    suspend fun restore(
+        context: Context,
+        uri: Uri,
+        onProgress: (suspend (RestoreProgress) -> Unit)? = null
+    ) {
         LogUtils.d(TAG, "开始恢复备份 uri:$uri")
         var restoreStarted = false
         kotlin.runCatching {
             Backup.withStorageLock {
+                reportProgress(onProgress, 0, "读取备份文件")
                 FileUtils.delete(Backup.backupPath)
                 if (uri.isContentScheme()) {
                     val inputStream = DocumentFile.fromSingleUri(context, uri)?.openInputStream()
@@ -154,10 +169,11 @@ object Restore {
                     ZipUtils.unZipToPath(backupFile, Backup.backupPath)
                 }
                 restoreStarted = true
-                restore(Backup.backupPath)
+                restore(Backup.backupPath, onProgress)
                 LocalConfig.lastBackup = System.currentTimeMillis()
             }
         }.onFailure {
+            if (it is CancellationException) throw it
             if (restoreStarted) {
                 appCtx.toastOnUi("恢复备份出错\n${it.localizedMessage}")
                 AppLog.put("恢复备份出错\n${it.localizedMessage}", it)
@@ -174,17 +190,23 @@ object Restore {
      * 
      * @param path 备份文件解压后的目录路径
      */
-    suspend fun restoreLocked(path: String) {
+    suspend fun restoreLocked(
+        path: String,
+        onProgress: (suspend (RestoreProgress) -> Unit)? = null
+    ) {
         Backup.withStorageLock {
-            restore(path)
+            restore(path, onProgress)
         }
     }
 
     /**
      * 调用方必须已经持有 Backup.withStorageLock。
      */
-    internal suspend fun restorePreparedBackup(path: String) {
-        restore(path)
+    internal suspend fun restorePreparedBackup(
+        path: String,
+        onProgress: (suspend (RestoreProgress) -> Unit)? = null
+    ) {
+        restore(path, onProgress)
     }
 
     /**
@@ -195,12 +217,19 @@ object Restore {
      * @param path 已解压的备份目录路径
      * @param selectedFiles 选中的文件名列表
      */
-    suspend fun restoreSelected(context: Context, path: String, selectedFiles: List<String>) {
+    suspend fun restoreSelected(
+        context: Context,
+        path: String,
+        selectedFiles: List<String>,
+        onProgress: (suspend (RestoreProgress) -> Unit)? = null
+    ) {
         LogUtils.d(TAG, "开始选择性恢复备份 path:$path, files:${selectedFiles.joinToString()}")
         Backup.withStorageLock {
             try {
-                restoreSelectedFiles(path, selectedFiles)
+                restoreSelectedFiles(path, selectedFiles, onProgress)
                 LocalConfig.lastBackup = System.currentTimeMillis()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 appCtx.toastOnUi("恢复备份出错\n${e.localizedMessage}")
                 AppLog.put("选择性恢复备份出错\n${e.localizedMessage}", e)
@@ -214,7 +243,12 @@ object Restore {
      * @param path 备份文件解压后的目录路径
      * @param selectedFiles 选中的文件名列表
      */
-    private suspend fun restoreSelectedFiles(path: String, selectedFiles: List<String>) {
+    private suspend fun restoreSelectedFiles(
+        path: String,
+        selectedFiles: List<String>,
+        onProgress: (suspend (RestoreProgress) -> Unit)? = null
+    ) {
+        reportProgress(onProgress, 1, "恢复数据库")
         val aes = BackupAES()
         val selectedSet = selectedFiles.toSet()
 
@@ -340,11 +374,13 @@ object Restore {
         }
 
         if (CoverGalleryRepository.backupDirName in selectedSet) {
+            reportProgress(onProgress, 2, "恢复封面图集")
             restoreCoverGallery(path)
         }
 
         // 恢复阅读记录
         if ("readRecord.json" in selectedSet || "readRecordDetail.json" in selectedSet || "readRecordSession.json" in selectedSet) {
+            reportProgress(onProgress, 3, "恢复阅读记录")
             val readRecords = if ("readRecord.json" in selectedSet) fileToListT<ReadRecord>(path, "readRecord.json").orEmpty() else emptyList()
             val readRecordDetails = if ("readRecordDetail.json" in selectedSet) fileToListT<ReadRecordDetail>(path, "readRecordDetail.json").orEmpty() else emptyList()
             val readRecordSessions = if ("readRecordSession.json" in selectedSet) fileToListT<ReadRecordSession>(path, "readRecordSession.json").orEmpty() else emptyList()
@@ -385,6 +421,7 @@ object Restore {
         }
 
         // 恢复主题配置
+        reportProgress(onProgress, 4, "恢复主题和阅读配置")
         if (ThemeConfig.configFileName in selectedSet) {
             File(path, ThemeConfig.configFileName).takeIf { it.exists() }?.runCatching {
                 val configs = GSON.fromJsonArray<ThemeConfig.Config>(readText()).getOrNull()
@@ -425,6 +462,7 @@ object Restore {
         fixReadConfigBackgroundPaths()
 
         // 恢复SharedPreferences配置
+        reportProgress(onProgress, 5, "恢复应用配置")
         if ("config.xml" in selectedSet) {
             readBackupPrefs(path, "config")?.let { map ->
                 clearThemeRestorePrefs()
@@ -456,6 +494,7 @@ object Restore {
         }
 
         // 修正主题背景图片路径
+        reportProgress(onProgress, 6, "恢复资源和缓存")
         restoreThemeBackgrounds(
             backupPath = path,
             clearExisting = "config.xml" in selectedSet || ThemeConfig.configFileName in selectedSet
@@ -483,6 +522,7 @@ object Restore {
         }
 
         // 应用阅读配置
+        reportProgress(onProgress, 7, "应用恢复结果")
         if (runtimeSourceCacheFileName in selectedSet) {
             restoreRuntimeSourceCaches(path)
         }
@@ -511,6 +551,7 @@ object Restore {
             }
             ThemeConfig.applyDayNight(appCtx)
         }
+        reportProgress(onProgress, 8, "恢复完成")
     }
 
     /**
@@ -524,7 +565,11 @@ object Restore {
      * 
      * @param path 备份文件解压后的目录路径
      */
-    private suspend fun restore(path: String) {
+    private suspend fun restore(
+        path: String,
+        onProgress: (suspend (RestoreProgress) -> Unit)? = null
+    ) {
+        reportProgress(onProgress, 1, "恢复数据库")
         val aes = BackupAES()
 
         // 恢复书架数据
@@ -624,9 +669,11 @@ object Restore {
             appDb.keyboardAssistsDao.insert(*it.toTypedArray())
         }
 
+        reportProgress(onProgress, 2, "恢复封面图集")
         restoreCoverGallery(path)
 
         // 恢复阅读记录（先清空再导入）
+        reportProgress(onProgress, 3, "恢复阅读记录")
         val readRecords = fileToListT<ReadRecord>(path, "readRecord.json").orEmpty()
         val readRecordDetails = fileToListT<ReadRecordDetail>(path, "readRecordDetail.json").orEmpty()
         val readRecordSessions = fileToListT<ReadRecordSession>(path, "readRecordSession.json").orEmpty()
@@ -676,6 +723,7 @@ object Restore {
         }
 
         // 恢复主题配置
+        reportProgress(onProgress, 4, "恢复主题和阅读配置")
         File(path, ThemeConfig.configFileName).takeIf {
             it.exists()
         }?.runCatching {
@@ -727,6 +775,7 @@ object Restore {
         fixReadConfigBackgroundPaths()
 
         // 恢复SharedPreferences配置（应用主配置）
+        reportProgress(onProgress, 5, "恢复应用配置")
         readBackupPrefs(path, "config")?.let { map ->
             clearThemeRestorePrefs()
             val edit = appCtx.defaultSharedPreferences.edit()
@@ -764,6 +813,7 @@ object Restore {
         }
 
         // 修正主题背景图片路径
+        reportProgress(onProgress, 6, "恢复资源和缓存")
         restoreThemeBackgrounds(path, clearExisting = true)
         restoreRuntimeSourceCaches(path)
         restoreBookCache(path)
@@ -788,6 +838,7 @@ object Restore {
         }
 
         // 应用阅读配置
+        reportProgress(onProgress, 7, "应用恢复结果")
         ReadBookConfig.apply {
             comicStyleSelect = appCtx.getPrefInt(PreferKey.comicStyleSelect)
             readStyleSelect = appCtx.getPrefInt(PreferKey.readStyleSelect)
@@ -807,6 +858,22 @@ object Restore {
             }
             ThemeConfig.applyDayNight(appCtx)
         }
+        reportProgress(onProgress, 8, "恢复完成")
+    }
+
+    private suspend fun reportProgress(
+        onProgress: (suspend (RestoreProgress) -> Unit)?,
+        step: Int,
+        message: String
+    ) {
+        currentCoroutineContext().ensureActive()
+        onProgress?.invoke(
+            RestoreProgress(
+                step = step.coerceIn(0, restoreProgressTotal),
+                total = restoreProgressTotal,
+                message = message
+            )
+        )
     }
 
     /**

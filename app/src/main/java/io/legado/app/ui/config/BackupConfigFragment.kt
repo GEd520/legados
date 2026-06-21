@@ -115,11 +115,16 @@ class BackupConfigFragment : PreferenceFragment(),
             if (AppConfig.restoreShowSelector) {
                 showRestoreFileSelector(uri)
             } else {
-                waitDialog.setText("恢复中…")
+                waitDialog
+                    .setText("读取备份文件")
+                    .setProgress(0, 8)
                 waitDialog.show()
                 val task = Coroutine.async {
-                    Restore.restore(appCtx, uri)
+                    Restore.restore(appCtx, uri) { progress ->
+                        updateRestoreProgress(progress)
+                    }
                 }.onFinally {
+                    waitDialog.clearProgress()
                     waitDialog.dismiss()
                 }
                 waitDialog.setOnCancelListener {
@@ -425,7 +430,9 @@ class BackupConfigFragment : PreferenceFragment(),
     }
 
     private fun backup(backupPath: String) {
-        waitDialog.setText("备份中…")
+        waitDialog
+            .setText("准备备份")
+            .setProgress(0, 8)
         waitDialog.setOnCancelListener {
             backupJob?.cancel()
         }
@@ -433,7 +440,13 @@ class BackupConfigFragment : PreferenceFragment(),
         backupJob?.cancel()
         backupJob = lifecycleScope.launch {
             try {
-                Backup.backupLocked(requireContext(), backupPath)
+                Backup.backupLocked(requireContext(), backupPath) { progress ->
+                    withContext(Main) {
+                        waitDialog
+                            .setText(progress.message)
+                            .setProgress(progress.step, progress.total)
+                    }
+                }
                 appCtx.toastOnUi(R.string.backup_success)
             } catch (e: Throwable) {
                 ensureActive()
@@ -445,7 +458,7 @@ class BackupConfigFragment : PreferenceFragment(),
                     )
                 )
             } finally {
-                ensureActive()
+                waitDialog.clearProgress()
                 waitDialog.dismiss()
             }
         }
@@ -459,6 +472,14 @@ class BackupConfigFragment : PreferenceFragment(),
                 backup(path)
             }
             .request()
+    }
+
+    private suspend fun updateRestoreProgress(progress: Restore.RestoreProgress) {
+        withContext(Main) {
+            waitDialog
+                .setText(progress.message)
+                .setProgress(progress.step, progress.total)
+        }
     }
 
     fun restore() {
@@ -532,16 +553,22 @@ class BackupConfigFragment : PreferenceFragment(),
                 Backup.withStorageLock {
                     AppWebDav.downloadAndUnzipBackupLocked(name)
                     withContext(Main) {
-                        waitDialog.setText("恢复中…")
+                        waitDialog
+                            .setText("恢复中…")
+                            .setProgress(0, 8)
                     }
-                    Restore.restorePreparedBackup(Backup.backupPath)
+                    Restore.restorePreparedBackup(Backup.backupPath) { progress ->
+                        updateRestoreProgress(progress)
+                    }
                 }
             }.onSuccess {
+                waitDialog.clearProgress()
                 waitDialog.dismiss()
             }
         }.onError {
                 AppLog.put("WebDav恢复出错\n${it.localizedMessage}", it)
                 appCtx.toastOnUi("WebDav恢复出错\n${it.localizedMessage}")
+                waitDialog.clearProgress()
                 waitDialog.dismiss()
             }
         waitDialog.setOnCancelListener {
@@ -562,7 +589,9 @@ class BackupConfigFragment : PreferenceFragment(),
      * 解压ZIP并列出文件供用户选择
      */
     private fun showRestoreFileSelector(uri: android.net.Uri) {
-        waitDialog.setText("读取备份文件...")
+        waitDialog
+            .setText("读取备份文件...")
+            .setProgress(0, 8)
         waitDialog.show()
 
         lifecycleScope.launch {
@@ -581,6 +610,7 @@ class BackupConfigFragment : PreferenceFragment(),
 
                 showRestoreSelectorFromPath(tempPath)
             } catch (e: Exception) {
+                waitDialog.clearProgress()
                 waitDialog.dismiss()
                 AppLog.put("读取备份文件出错\n${e.localizedMessage}", e)
                 appCtx.toastOnUi("读取备份文件出错\n${e.localizedMessage}")
@@ -613,6 +643,7 @@ class BackupConfigFragment : PreferenceFragment(),
                         } ?: emptyList()
                 }
 
+                waitDialog.clearProgress()
                 waitDialog.dismiss()
 
                 if (files.isEmpty()) {
@@ -623,6 +654,7 @@ class BackupConfigFragment : PreferenceFragment(),
                 // 显示选择对话框
                 showFileSelectionDialog(files, tempPath)
             } catch (e: Exception) {
+                waitDialog.clearProgress()
                 waitDialog.dismiss()
                 AppLog.put("读取备份文件出错\n${e.localizedMessage}", e)
                 appCtx.toastOnUi("读取备份文件出错\n${e.localizedMessage}")
@@ -678,11 +710,16 @@ class BackupConfigFragment : PreferenceFragment(),
                                 dismissComposeDialog()
                                 
                                 validationJob?.cancel()
-                                waitDialog.setText("恢复中…")
+                                waitDialog
+                                    .setText("恢复中…")
+                                    .setProgress(0, 8)
                                 waitDialog.show()
                                 val task = Coroutine.async {
-                                    Restore.restoreSelected(appCtx, backupPath, selectedFiles)
+                                    Restore.restoreSelected(appCtx, backupPath, selectedFiles) { progress ->
+                                        updateRestoreProgress(progress)
+                                    }
                                 }.onFinally {
+                                    waitDialog.clearProgress()
                                     waitDialog.dismiss()
                                 }
                                 waitDialog.setOnCancelListener {

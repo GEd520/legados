@@ -122,6 +122,13 @@ object Backup {
     private const val bookCacheIndexFileName = "bookCacheIndex.json"
     private const val bookChapterFileName = "bookChapter.json"
     private const val pagedBackupSize = 500
+    private const val backupProgressTotal = 8
+
+    data class BackupProgress(
+        val step: Int,
+        val total: Int,
+        val message: String
+    )
 
     /** 备份临时目录路径，用于存放解压/压缩前的文件 */
     val backupPath: String by lazy {
@@ -408,10 +415,14 @@ object Backup {
      * @param context Android Context
      * @param path 备份目标路径，可为null（使用默认路径）
      */
-    suspend fun backupLocked(context: Context, path: String?) {
+    suspend fun backupLocked(
+        context: Context,
+        path: String?,
+        onProgress: (suspend (BackupProgress) -> Unit)? = null
+    ) {
         withStorageLock {
             withContext(IO) {
-                backup(context, path)
+                backup(context, path, onProgress)
             }
         }
     }
@@ -432,9 +443,14 @@ object Backup {
      * @param path 备份目标路径
      */
     @Suppress("DEPRECATION")
-    private suspend fun backup(context: Context, path: String?) {
+    private suspend fun backup(
+        context: Context,
+        path: String?,
+        onProgress: (suspend (BackupProgress) -> Unit)? = null
+    ) {
         LogUtils.d(TAG, "开始备份 path:$path")
         try {
+            reportProgress(onProgress, 0, "准备备份")
             val aes = BackupAES()
         MemoryPressure.trimNow(
             ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW,
@@ -445,6 +461,7 @@ object Backup {
         val selectedFiles = BackupSelectorConfig.getSelectedFileNames()
 
         // 导出数据库数据到JSON文件
+        reportProgress(onProgress, 1, "导出数据库")
         if (selectedFiles.contains("bookshelf.json")) {
             writeListToJson(appDb.bookDao.all, "bookshelf.json", backupPath)
         }
@@ -527,6 +544,7 @@ object Backup {
         currentCoroutineContext().ensureActive()
 
         // 导出阅读配置
+        reportProgress(onProgress, 2, "导出阅读与主题配置")
         if (selectedFiles.contains(ReadBookConfig.configFileName)) {
             writeJsonToFile(ReadBookConfig.getBackupConfigList(), ReadBookConfig.configFileName, backupPath)
         }
@@ -558,6 +576,7 @@ object Backup {
         MemoryPressure.trimIfNeeded()
 
         // 导出SharedPreferences配置（应用主配置）
+        reportProgress(onProgress, 3, "导出应用配置")
         if (selectedFiles.contains("config.xml")) {
             appCtx.getSharedPreferences(backupPath, "config")?.let { sp ->
                 val edit = sp.edit()
@@ -609,6 +628,7 @@ object Backup {
         currentCoroutineContext().ensureActive()
 
         // 打包成ZIP文件
+        reportProgress(onProgress, 4, "整理图片和缓存")
         if (selectedFiles.contains("bg")) {
             stageBackgroundImageFiles(backupPath)
         }
@@ -633,6 +653,7 @@ object Backup {
         FileUtils.delete(zipFilePath.replace("tmp_", ""))
 
         // 根据配置决定使用固定文件名还是带日期的文件名
+        reportProgress(onProgress, 5, "压缩备份文件")
         val backupFileName = if (AppConfig.onlyLatestBackup) {
             "backup.zip"
         } else {
@@ -648,6 +669,7 @@ object Backup {
             throw NoStackTraceException("备份ZIP文件为空")
         }
         MemoryPressure.trimIfNeeded()
+        reportProgress(onProgress, 6, "写入备份文件")
         when {
             path.isNullOrBlank() -> {
                 val externalDir = context.getExternalFilesDir(null)
@@ -667,6 +689,7 @@ object Backup {
         LocalConfig.lastBackup = System.currentTimeMillis()
 
         try {
+            reportProgress(onProgress, 7, "上传 WebDav")
             AppWebDav.backUpWebDav(zipFileName)
         } catch (e: Exception) {
             AppLog.put("上传备份至webdav失败\n$e", e)
@@ -681,10 +704,26 @@ object Backup {
 
         // 上传背景图片到WebDav
         AppWebDav.upBgs(getBackgroundImageFiles().toTypedArray())
+        reportProgress(onProgress, 8, "备份完成")
         } finally {
             FileUtils.delete(backupPath)
             FileUtils.delete(zipFilePath)
         }
+    }
+
+    private suspend fun reportProgress(
+        onProgress: (suspend (BackupProgress) -> Unit)?,
+        step: Int,
+        message: String
+    ) {
+        currentCoroutineContext().ensureActive()
+        onProgress?.invoke(
+            BackupProgress(
+                step = step.coerceIn(0, backupProgressTotal),
+                total = backupProgressTotal,
+                message = message
+            )
+        )
     }
 
     /**
