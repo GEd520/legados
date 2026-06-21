@@ -157,7 +157,6 @@ abstract class BaseActivity<VB : ViewBinding>(
     final override fun onCreateOptionsMenu(menu: Menu): Boolean {
         val bool = onCompatCreateOptionsMenu(menu)
         menu.applyTint(this, toolBarTheme)
-        findViewById<TitleBar>(R.id.title_bar)?.applyCurrentContentColorToMenu()
         return bool
     }
 
