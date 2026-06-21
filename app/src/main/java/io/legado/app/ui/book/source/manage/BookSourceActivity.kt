@@ -12,8 +12,6 @@ import androidx.appcompat.widget.PopupMenu
 import androidx.appcompat.widget.SearchView
 import androidx.core.os.bundleOf
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.ItemTouchHelper
@@ -55,7 +53,6 @@ import io.legado.app.utils.applyTint
 import io.legado.app.utils.cnCompare
 import io.legado.app.utils.dpToPx
 import io.legado.app.utils.flowWithLifecycleAndDatabaseChange
-import io.legado.app.utils.flowWithLifecycleAndDatabaseChangeFirst
 import io.legado.app.utils.isAbsUrl
 import io.legado.app.utils.launch
 import io.legado.app.utils.observeEvent
@@ -124,19 +121,6 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
         ExportResultHandler.handleExportResult(this, it) { text ->
             sendToClip(text)
         }
-    }
-    private val groupMenuLifecycleOwner = object : LifecycleOwner {
-        private val registry = LifecycleRegistry(this)
-        override val lifecycle: Lifecycle get() = registry
-
-        fun onMenuOpened() {
-            registry.handleLifecycleEvent(Lifecycle.Event.ON_START)
-        }
-
-        fun onMenuClosed() {
-            registry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
-        }
-
     }
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
@@ -439,10 +423,6 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
                     lifecycle,
                     table = AppDatabase.BOOK_SOURCE_TABLE_NAME
                 )
-                .flowWithLifecycleAndDatabaseChangeFirst(
-                    groupMenuLifecycleOwner.lifecycle,
-                    table = AppDatabase.BOOK_SOURCE_TABLE_NAME
-                )
                 .conflate()
                 .distinctUntilChanged()
                 .collect {
@@ -484,20 +464,6 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
         alert(titleResource = R.string.draw, messageResource = R.string.sure_del) {
             yesButton { viewModel.del(adapter.selection) }
             noButton()
-        }
-    }
-
-    override fun onMenuOpened(featureId: Int, menu: Menu): Boolean {
-        if (menu === groupMenu) {
-            groupMenuLifecycleOwner.onMenuOpened()
-        }
-        return super.onMenuOpened(featureId, menu)
-    }
-
-    override fun onPanelClosed(featureId: Int, menu: Menu) {
-        super.onPanelClosed(featureId, menu)
-        if (menu === groupMenu) {
-            groupMenuLifecycleOwner.onMenuClosed()
         }
     }
 
