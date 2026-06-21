@@ -6,7 +6,7 @@
     android:background="@drawable/bg_text_action_menu"
     android:elevation="8dp"
     android:orientation="vertical"
-    android:padding="6dp">
+    android:padding="4dp">
 
     <LinearLayout
         android:layout_width="wrap_content"
@@ -28,10 +28,10 @@
         <androidx.appcompat.widget.AppCompatImageView
             android:id="@+id/iv_menu_more"
             android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/more_menu"
-            android:padding="8dp"
+        android:layout_height="40dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/more_menu"
+        android:padding="8dp"
             android:src="@drawable/ic_more_vert"
             android:tint="@color/primaryText"
             android:visibility="gone" />
@@ -40,10 +40,10 @@
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recycler_view_more"
+        android:layout_marginTop="4dp"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:minWidth="176dp"
         android:orientation="vertical"
         android:overScrollMode="never"
         android:visibility="gone"
