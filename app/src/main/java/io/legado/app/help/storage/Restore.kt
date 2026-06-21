@@ -151,7 +151,7 @@ object Restore {
     ) {
         LogUtils.d(TAG, "开始恢复备份 uri:$uri")
         var restoreStarted = false
-        kotlin.runCatching {
+        try {
             Backup.withStorageLock {
                 reportProgress(onProgress, 0, "读取备份文件")
                 FileUtils.delete(Backup.backupPath)
@@ -173,14 +173,15 @@ object Restore {
                 restore(Backup.backupPath, onProgress)
                 LocalConfig.lastBackup = System.currentTimeMillis()
             }
-        }.onFailure {
-            if (it is CancellationException) throw it
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
             if (restoreStarted) {
-                appCtx.toastOnUi("恢复备份出错\n${it.localizedMessage}")
-                AppLog.put("恢复备份出错\n${it.localizedMessage}", it)
+                appCtx.toastOnUi("恢复备份出错\n${e.localizedMessage}")
+                AppLog.put("恢复备份出错\n${e.localizedMessage}", e)
             } else {
-                appCtx.toastOnUi("打开备份文件出错\n${it.localizedMessage}")
-                AppLog.put("复制解压文件出错\n${it.localizedMessage}", it)
+                appCtx.toastOnUi("打开备份文件出错\n${e.localizedMessage}")
+                AppLog.put("复制解压文件出错\n${e.localizedMessage}", e)
             }
         }
     }

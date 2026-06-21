@@ -44,6 +44,7 @@ import io.legado.app.utils.normalizeFileName
 import io.legado.app.utils.openOutputStream
 import io.legado.app.utils.outputStream
 import io.legado.app.utils.writeToOutputStream
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -192,57 +193,35 @@ object Backup {
     /** 获取所有背景图片文件 */
     fun getBackgroundImageFiles(): List<File> {
         val files = mutableListOf<File>()
-        
-        // 阅读界面背景图片
-        val bgStrList = ReadBookConfig.getAllPicBgStr()
-        LogUtils.d(TAG, "阅读背景 getAllPicBgStr 返回: $bgStrList")
-        bgStrList.mapNotNull { bg ->
-            LogUtils.d(TAG, "处理阅读背景: $bg")
-            val file = if (bg.contains(File.separator)) {
-                File(bg)
-            } else {
-                appCtx.externalFiles.getFile(READ_BG_DIR, bg)
-            }
-            LogUtils.d(TAG, "阅读背景文件路径: ${file.absolutePath}, 存在: ${file.exists()}, 是文件: ${file.isFile}")
-            file.takeIf { it.exists() && it.isFile }
-        }.let { files.addAll(it) }
-        
-        // 主题背景图片
-        val themeBgPath = appCtx.getPrefString(PreferKey.bgImage)
-        LogUtils.d(TAG, "主题白天背景路径: $themeBgPath")
-        themeBgPath?.let { path ->
-            val file = if (path.startsWith("http")) {
-                val name = ThemeConfig.getUrlToFile(path)
-                appCtx.externalFiles.getFile(PreferKey.bgImage, name)
-            } else if (path.contains(File.separator)) {
-                File(path)
-            } else {
-                appCtx.externalFiles.getFile(PreferKey.bgImage, path)
-            }
-            LogUtils.d(TAG, "主题白天背景文件: ${file.absolutePath}, 存在: ${file.exists()}, 是文件: ${file.isFile}")
-            if (file.exists() && file.isFile) {
-                files.add(file)
-            }
-        }
-        
-        val themeBgNightPath = appCtx.getPrefString(PreferKey.bgImageN)
-        LogUtils.d(TAG, "主题夜间背景路径: $themeBgNightPath")
-        themeBgNightPath?.let { path ->
-            val file = if (path.startsWith("http")) {
-                val name = ThemeConfig.getUrlToFile(path)
-                appCtx.externalFiles.getFile(PreferKey.bgImageN, name)
-            } else if (path.contains(File.separator)) {
-                File(path)
-            } else {
-                appCtx.externalFiles.getFile(PreferKey.bgImageN, path)
-            }
-            LogUtils.d(TAG, "主题夜间背景文件: ${file.absolutePath}, 存在: ${file.exists()}, 是文件: ${file.isFile}")
-            if (file.exists() && file.isFile) {
-                files.add(file)
-            }
-        }
-        
+        files.addAll(getReadBackgroundImageFiles())
+        files.addAll(getThemeBackgroundFiles().map { it.second })
         return files.distinctBy { it.absolutePath }
+    }
+
+    private fun getWebDavBackgroundImageFiles(): Array<File> {
+        val files = getBackgroundImageFiles()
+        files.groupBy { it.name }
+            .filterValues { it.size > 1 }
+            .forEach { (name, sameNameFiles) ->
+                LogUtils.d(
+                    TAG,
+                    "WebDav背景图存在同名文件，仅上传第一个: $name, ${sameNameFiles.joinToString { it.absolutePath }}"
+                )
+            }
+        return files.distinctBy { it.name }.toTypedArray()
+    }
+
+    private fun getThemeBackgroundFiles(): List<Pair<String, File>> {
+        val files = mutableListOf<Pair<String, File>>()
+        listOf(PreferKey.bgImage, PreferKey.bgImageN).forEach { prefKey ->
+            appCtx.getPrefString(prefKey)?.let { path ->
+                resolveThemeBackgroundFile(path, prefKey)?.let { bgFile ->
+                    files.add(prefKey to bgFile)
+                }
+            }
+        }
+        files.addAll(getThemeConfigBackgroundFiles())
+        return files.distinctBy { "${it.first}:${it.second.absolutePath}" }
     }
 
     private fun getReadBackgroundImageFiles(): List<File> {
@@ -289,15 +268,7 @@ object Backup {
         getReadBackgroundImageFiles().forEach { bgFile ->
             bgFile.copyTo(File(rootPath, bgFile.name), overwrite = true)
         }
-        listOf(PreferKey.bgImage, PreferKey.bgImageN).forEach { prefKey ->
-            appCtx.getPrefString(prefKey)?.let { path ->
-                resolveThemeBackgroundFile(path, prefKey)
-            }?.let { bgFile ->
-                val targetDir = File(rootPath, prefKey).createFolderIfNotExist()
-                bgFile.copyTo(File(targetDir, bgFile.name), overwrite = true)
-            }
-        }
-        getThemeConfigBackgroundFiles().forEach { (prefKey, bgFile) ->
+        getThemeBackgroundFiles().forEach { (prefKey, bgFile) ->
             val targetDir = File(rootPath, prefKey).createFolderIfNotExist()
             bgFile.copyTo(File(targetDir, bgFile.name), overwrite = true)
         }
@@ -707,22 +678,26 @@ object Backup {
 
         LocalConfig.lastBackup = System.currentTimeMillis()
 
+        reportProgress(onProgress, 7, "上传 WebDav")
         try {
-            reportProgress(onProgress, 7, "上传 WebDav")
             AppWebDav.backUpWebDav(zipFileName)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             AppLog.put("上传备份至webdav失败\n$e", e)
         }
 
-        // 清理临时文件
-        FileUtils.delete(backupPath)
-        FileUtils.delete(zipFilePath)
-
         currentCoroutineContext().ensureActive()
         MemoryPressure.trimNow(ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE)
 
-        // 上传背景图片到WebDav
-        AppWebDav.upBgs(getBackgroundImageFiles().toTypedArray())
+        // 上传背景图片到WebDav（容错：失败仅记录日志，不影响主流程与进度）
+        try {
+            AppWebDav.upBgs(getWebDavBackgroundImageFiles())
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            AppLog.put("上传背景图片至webdav失败\n$e", e)
+        }
         reportProgress(onProgress, 8, "备份完成")
         } finally {
             FileUtils.delete(backupPath)
