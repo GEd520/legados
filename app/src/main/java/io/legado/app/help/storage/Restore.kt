@@ -43,6 +43,7 @@ import io.legado.app.help.book.getFolderNameNoCache
 import io.legado.app.help.config.LocalConfig
 import io.legado.app.help.config.ReadBookConfig
 import io.legado.app.help.config.ThemeConfig
+import io.legado.app.help.config.BubblePackageManager
 import io.legado.app.model.VideoPlay.VIDEO_PREF_NAME
 import io.legado.app.model.BookCover
 import io.legado.app.model.localBook.LocalBook
@@ -499,6 +500,9 @@ object Restore {
             backupPath = path,
             clearExisting = "config.xml" in selectedSet || ThemeConfig.configFileName in selectedSet
         )
+        if (BubblePackageManager.backupDirName in selectedSet) {
+            restoreBubblePackages(path)
+        }
         fixThemeBackgroundPaths()
         fixThemeConfigBackgroundPaths()
 
@@ -815,6 +819,7 @@ object Restore {
         // 修正主题背景图片路径
         reportProgress(onProgress, 6, "恢复资源和缓存")
         restoreThemeBackgrounds(path, clearExisting = true)
+        restoreBubblePackages(path)
         restoreRuntimeSourceCaches(path)
         restoreBookCache(path)
         fixThemeBackgroundPaths()
@@ -913,6 +918,21 @@ object Restore {
         if (caches.isNotEmpty()) {
             appDb.cacheDao.insert(*caches.toTypedArray())
         }
+    }
+
+    private fun restoreBubblePackages(path: String) {
+        val backupDir = File(path, BubblePackageManager.backupDirName)
+        if (!backupDir.exists() || !backupDir.isDirectory) return
+        val targetRoot = BubblePackageManager.rootDir
+        FileUtils.delete(targetRoot, deleteRootDir = true)
+        targetRoot.mkdirs()
+        backupDir.listFiles()
+            ?.filter { it.isDirectory && it.name != "temp" && it.name != BubblePackageManager.BUILTIN_DIR_NAME }
+            .orEmpty()
+            .forEach { packageDir ->
+                packageDir.copyRecursively(File(targetRoot, packageDir.name), overwrite = true)
+            }
+        BubblePackageManager.invalidateCurrentEntry()
     }
 
     private fun restoreBookChapters(path: String) {

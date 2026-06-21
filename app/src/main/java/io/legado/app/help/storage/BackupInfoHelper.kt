@@ -6,6 +6,7 @@ import io.legado.app.help.book.BookHelp
 import io.legado.app.help.book.getFolderNameNoCache
 import io.legado.app.help.config.ReadBookConfig
 import io.legado.app.help.config.ThemeConfig
+import io.legado.app.help.config.BubblePackageManager
 import io.legado.app.data.repository.CoverGalleryRepository
 import io.legado.app.model.BookCover
 import io.legado.app.model.upload.DirectLinkUploadRepository
@@ -51,7 +52,7 @@ object BackupInfoHelper {
         CategoryDef("源相关", "📡", listOf("bookSource", "rssSource", "rssStar", "sourceSub", "runtimeSourceCache")),
         CategoryDef("规则相关", "🔧", listOf("replaceRule", "highlightRule", "txtTocRule", "dictRule", "keyboardAssist")),
         CategoryDef("语音相关", "🔊", listOf("httpTTS")),
-        CategoryDef("配置相关", "⚙️", listOf("config", "videoConfig", "readConfig", "shareConfig", "coverConfig", "servers"))
+        CategoryDef("配置相关", "⚙️", listOf("config", "videoConfig", "readConfig", "shareConfig", "coverConfig", "bubblePackage", "servers"))
     )
 
     val displayNameMap = mapOf(
@@ -81,6 +82,7 @@ object BackupInfoHelper {
         ReadBookConfig.shareConfigFileName to "共享阅读配置",
         ThemeConfig.configFileName to "主题配置",
         BookCover.configFileName to "封面规则",
+        BubblePackageManager.backupDirName to "气泡管理",
         "config.xml" to "应用设置",
         "videoConfig.xml" to "视频配置"
     )
@@ -237,6 +239,21 @@ object BackupInfoHelper {
                     selected
                 )
             )
+        }
+
+        run {
+            val selected = BackupSelectorConfig.isSelected("bubblePackages")
+            val size = BubblePackageManager.rootDir
+                .takeIf { it.exists() && it.isDirectory }
+                ?.listFiles()
+                ?.filter { it.isDirectory && it.name != "temp" && it.name != BubblePackageManager.BUILTIN_DIR_NAME }
+                ?.sumOf { packageDir ->
+                    packageDir.walkTopDown().filter { it.isFile }.sumOf { it.length() }
+                }
+                ?: 0L
+            totalSize += size
+            if (selected) selectedSize += size
+            items.add(BackupFileInfo(BubblePackageManager.backupDirName, "气泡管理", size, selected))
         }
 
         return BackupOverview(items, totalSize, selectedSize)

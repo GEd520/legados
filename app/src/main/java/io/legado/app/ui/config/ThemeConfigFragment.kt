@@ -127,30 +127,24 @@ class ThemeConfigFragment : PreferenceFragment(),
 
     override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
         menuInflater.inflate(R.menu.theme_config, menu)
-        menu.applyTint(requireContext())
-        // 更新菜单图标显示
         updateThemeModeMenuItem(menu)
+        menu.applyTint(requireContext())
     }
 
-    // 更新日间/夜间模式菜单项图标
     private fun updateThemeModeMenuItem(menu: Menu) {
-        val themeModeItem = menu.findItem(R.id.menu_theme_mode)
-        if (themeModeItem != null) {
-            // 根据当前主题模式设置图标
-            val iconRes = if (AppConfig.isNightTheme) {
-                R.drawable.ic_daytime  // 夜间模式时显示日间图标（点击切换到日间）
-            } else {
-                R.drawable.ic_moon  // 日间模式时显示夜间图标（点击切换到夜间）
-            }
-            themeModeItem.setIcon(iconRes)
-            // 设置提示文本
-            val titleRes = if (AppConfig.isNightTheme) {
-                R.string.day
-            } else {
-                R.string.night
-            }
-            themeModeItem.setTitle(titleRes)
+        val themeModeItem = menu.findItem(R.id.menu_theme_mode) ?: return
+        val iconRes = if (AppConfig.isNightTheme) {
+            R.drawable.ic_daytime
+        } else {
+            R.drawable.ic_moon
         }
+        val titleRes = if (AppConfig.isNightTheme) {
+            R.string.day
+        } else {
+            R.string.night
+        }
+        themeModeItem.setIcon(iconRes)
+        themeModeItem.setTitle(titleRes)
     }
 
     override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
@@ -158,7 +152,6 @@ class ThemeConfigFragment : PreferenceFragment(),
             R.id.menu_theme_mode -> {
                 AppConfig.isNightTheme = !AppConfig.isNightTheme
                 ThemeConfig.applyDayNight(requireContext())
-                // 更新菜单图标
                 activity?.invalidateMenu()
                 return true
             }

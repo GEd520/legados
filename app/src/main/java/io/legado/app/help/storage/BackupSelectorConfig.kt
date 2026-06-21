@@ -5,6 +5,7 @@ import io.legado.app.utils.GSON
 import io.legado.app.utils.fromJsonObject
 import io.legado.app.data.repository.CoverGalleryRepository
 import io.legado.app.help.DirectLinkUpload
+import io.legado.app.help.config.BubblePackageManager
 import splitties.init.appCtx
 
 @Suppress("ConstPropertyName")
@@ -44,6 +45,7 @@ object BackupSelectorConfig {
         BackupItem("readShareConfig", "readShareConfig.json", "阅读分享配置", "配置"),
         BackupItem("themeConfig", "themeConfig.json", "主题配置", "配置"),
         BackupItem("coverRule", "coverRule.json", "封面规则", "配置"),
+        BackupItem("bubblePackages", BubblePackageManager.backupDirName, "气泡管理", "配置"),
         BackupItem("directLinkRule", "directLinkRule.json", "直链规则", "配置"),
         BackupItem("appConfig", "config.xml", "应用配置", "配置"),
         BackupItem("videoConfig", "videoConfig.xml", "视频配置", "配置"),

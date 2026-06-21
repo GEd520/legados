@@ -16,6 +16,7 @@ import java.io.File
 
 object BubblePackageManager {
 
+    const val backupDirName = "bubblePackages"
     const val BUILTIN_DIR_NAME = "builtin_default"
     const val DEFAULT_EMPHASIS_COLOR = "#FF0000"
     const val DEFAULT_NORMAL_COLOR = "#808080"
@@ -32,7 +33,7 @@ object BubblePackageManager {
     private var cachedDirName: String? = null
 
     val rootDir: File
-        get() = appCtx.externalFiles.getFile("bubblePackages")
+        get() = appCtx.externalFiles.getFile(backupDirName)
 
     private val tempDir: File
         get() = rootDir.getFile("temp").apply { mkdirs() }

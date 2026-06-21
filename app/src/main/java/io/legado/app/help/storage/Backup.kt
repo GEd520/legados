@@ -20,6 +20,7 @@ import io.legado.app.help.MemoryPressure
 import io.legado.app.help.book.BookHelp
 import io.legado.app.help.book.getFolderNameNoCache
 import io.legado.app.help.config.AppConfig
+import io.legado.app.help.config.BubblePackageManager
 import io.legado.app.help.config.LocalConfig
 import io.legado.app.help.config.ReadBookConfig
 import io.legado.app.help.config.ThemeConfig
@@ -183,6 +184,7 @@ object Backup {
             BookCover.configFileName,
             "config.xml",
             "videoConfig.xml",
+            BubblePackageManager.backupDirName,
             CoverGalleryRepository.backupDirName
         )
     }
@@ -325,6 +327,18 @@ object Backup {
                 .forEach { imageFile ->
                     imageFile.copyTo(File(groupDir, imageFile.name), overwrite = true)
                 }
+        }
+    }
+
+    private fun stageBubblePackages(rootPath: String) {
+        val sourceRoot = BubblePackageManager.rootDir
+        val targetRoot = File(rootPath, BubblePackageManager.backupDirName).createFolderIfNotExist()
+        if (!sourceRoot.exists() || !sourceRoot.isDirectory) return
+        val localPackages = sourceRoot.listFiles()
+            ?.filter { it.isDirectory && it.name != "temp" && it.name != BubblePackageManager.BUILTIN_DIR_NAME }
+            .orEmpty()
+        localPackages.forEach { packageDir ->
+            packageDir.copyRecursively(File(targetRoot, packageDir.name), overwrite = true)
         }
     }
 
@@ -527,6 +541,9 @@ object Backup {
         }
         if (selectedFiles.contains(CoverGalleryRepository.backupDirName)) {
             stageCoverGallery(backupPath)
+        }
+        if (selectedFiles.contains(BubblePackageManager.backupDirName)) {
+            stageBubblePackages(backupPath)
         }
 
         // 服务器配置需要加密存储
