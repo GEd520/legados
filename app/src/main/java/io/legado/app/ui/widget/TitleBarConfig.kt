@@ -156,7 +156,7 @@ private fun View.applyTopBarChildConfig(config: TopBarConfig.Config) {
 private fun View.searchViewBackground(): Drawable {
     val radius = 35f * resources.displayMetrics.density
     val strokeWidth = (0.5f * resources.displayMetrics.density).coerceAtLeast(1f).toInt()
-    val color = ContextCompat.getColor(context, R.color.transparent20)
+    val color = ContextCompat.getColor(context, R.color.transparent10)
     return GradientDrawable().apply {
         cornerRadius = radius
         setColor(color)
