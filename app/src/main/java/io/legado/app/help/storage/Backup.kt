@@ -304,8 +304,10 @@ object Backup {
     }
 
     fun stageHighlightRuleBackgroundFiles(rootPath: String) {
+        val bgFiles = HighlightRuleStore.getUsedBgImageFiles(appCtx)
+        if (bgFiles.isEmpty()) return
         val targetDir = File(rootPath, HighlightRuleStore.backupBgDirName).createFolderIfNotExist()
-        HighlightRuleStore.getUsedBgImageFiles(appCtx).forEach { bgFile ->
+        bgFiles.forEach { bgFile ->
             bgFile.copyTo(File(targetDir, bgFile.name), overwrite = true)
         }
     }
