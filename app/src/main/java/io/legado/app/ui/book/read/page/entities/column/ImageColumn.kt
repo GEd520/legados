@@ -86,8 +86,8 @@ data class ImageColumn(
             RectF(start, 0f, end, height)
         } else {
             /*以宽度为基准保持图片的原始比例叠加，当div为负数时，允许高度比字符更高*/
-            val imageWidth = drawable?.intrinsicWidth ?: bitmap!!.width
-            val imageHeight = drawable?.intrinsicHeight ?: bitmap!!.height
+            val imageWidth = drawable?.intrinsicWidth ?: bitmap?.width ?: return
+            val imageHeight = drawable?.intrinsicHeight ?: bitmap?.height ?: return
             val h = (end - start) / imageWidth * imageHeight
             val div = (height - h) / 2
             RectF(start, div, end, height - div)
@@ -101,8 +101,8 @@ data class ImageColumn(
                     rectF.bottom.toInt()
                 )
                 drawable.draw(canvas)
-            } else {
-                canvas.drawBitmap(bitmap!!, null, rectF, view.imagePaint)
+            } else if (bitmap != null && !bitmap.isRecycled) {
+                canvas.drawBitmap(bitmap, null, rectF, view.imagePaint)
             }
         }.onFailure { e ->
             appCtx.toastOnUi(e.localizedMessage)

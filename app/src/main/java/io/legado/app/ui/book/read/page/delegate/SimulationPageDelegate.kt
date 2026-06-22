@@ -341,6 +341,11 @@ class SimulationPageDelegate(readView: ReadView) : HorizontalPageDelegate(readVi
             mCornerX - mBezierControl1.x.toDouble(),
             mBezierControl2.y - mCornerY.toDouble()
         ).toFloat()
+        if (dis < EPSILON) {
+            mPaint.colorFilter = null
+            canvas.restore()
+            return
+        }
         val f8 = (mCornerX - mBezierControl1.x) / dis
         val f9 = (mBezierControl2.y - mCornerY) / dis
         mMatrixArray[0] = 1 - 2 * f9 * f9
@@ -565,7 +570,7 @@ class SimulationPageDelegate(readView: ReadView) : HorizontalPageDelegate(readVi
         mBezierControl2.x = mCornerX.toFloat()
 
         val f4 = mCornerY - mMiddleY
-        if (f4 == 0f) {
+        if (abs(f4) < EPSILON) {
             mBezierControl2.y =
                 mMiddleY - (mCornerX - mMiddleX) * (mCornerX - mMiddleX) / EPSILON
 
@@ -601,7 +606,7 @@ class SimulationPageDelegate(readView: ReadView) : HorizontalPageDelegate(readVi
                 mBezierControl2.x = mCornerX.toFloat()
 
                 val f5 = mCornerY - mMiddleY
-                if (f5 == 0f) {
+                if (abs(f5) < EPSILON) {
                     mBezierControl2.y =
                         mMiddleY - (mCornerX - mMiddleX) * (mCornerX - mMiddleX) / EPSILON
                 } else {

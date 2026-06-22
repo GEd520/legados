@@ -26,7 +26,7 @@ fun Menu.applyTint(context: Context, theme: Theme = Theme.Auto): Menu = this.let
     val defaultTextColor = context.getCompatColor(R.color.primaryText)
     val tintColor = MenuExtensions.getMenuColor(context, theme)
     menu.forEach { item ->
-        (item as MenuItemImpl).let { impl ->
+        (item as? MenuItemImpl)?.let { impl ->
             //overflow：展开的item
             impl.icon?.setTintMutate(
                 if (impl.requiresOverflow()) defaultTextColor else tintColor
@@ -98,12 +98,8 @@ object MenuExtensions {
 
     fun getMenuColor(
         context: Context,
-        theme: Theme = Theme.Auto,
-        requiresOverflow: Boolean = false
+        theme: Theme = Theme.Auto
     ): Int {
-        val defaultTextColor = context.getCompatColor(R.color.primaryText)
-        if (requiresOverflow)
-            return defaultTextColor
         val primaryTextColor = context.primaryTextColor
         return when (theme) {
             Theme.Dark -> context.getCompatColor(R.color.md_white_1000)

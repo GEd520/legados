@@ -11,6 +11,7 @@ import io.legado.app.ui.book.read.page.provider.LayoutProgressListener
 import io.legado.app.ui.book.read.page.provider.TextChapterLayout
 import io.legado.app.utils.fastBinarySearchBy
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.channels.Channel
 import kotlin.math.abs
 import kotlin.math.min
 
@@ -40,7 +41,10 @@ data class TextChapter(
     var lazyContent: LazyContentManager? = null
     var useLazyLoading: Boolean = false
 
-    val layoutChannel get() = layout!!.channel
+    val layoutChannel
+        get() = layout?.channel ?: Channel<TextPage>(Channel.BUFFERED).apply {
+            close()
+        }
 
     fun appendContent(newContents: List<String>) {
         layout?.appendContent(newContents)
@@ -318,7 +322,7 @@ data class TextChapter(
         if (isCompleted) {
             // no op
         } else if (layout?.exception != null) {
-            l?.onLayoutException(layout?.exception!!)
+            l?.onLayoutException(layout?.exception ?: return)
         } else {
             listener = l
         }

@@ -41,6 +41,9 @@ class TTSReadAloudService : BaseReadAloudService(), TextToSpeech.OnInitListener 
     @Volatile
     private var speakingToken = 0
 
+    @Volatile
+    private var ttsRetryCount = 0
+
     private val TAG = "TTSReadAloudService"
 
     override fun onCreate() {
@@ -146,15 +149,31 @@ class TTSReadAloudService : BaseReadAloudService(), TextToSpeech.OnInitListener 
             }
             if (result == TextToSpeech.ERROR) {
                 utteranceWaiters.remove(utteranceId)
-                AppLog.put("tts出错, 尝试重新初始化")
-                clearTTS()
-                initTts()
+                retryTts()
                 return
             }
-            waitCurrentParagraphDone(utteranceId, waiter, token, text.length)
+            val completed = waitCurrentParagraphDone(utteranceId, waiter, token, text.length)
             if (token != speakingToken || pause || !coroutineContext.isActive) return
+            if (!completed) {
+                retryTts()
+                return
+            }
+            ttsRetryCount = 0
             if (!moveToNextParagraph()) return
         }
+    }
+
+    private fun retryTts() {
+        if (ttsRetryCount >= 3) {
+            AppLog.put("tts连续出错, 停止重试")
+            toastOnUi(R.string.tts_init_failed)
+            pauseReadAloud(false)
+            return
+        }
+        ttsRetryCount++
+        AppLog.put("tts出错, 尝试重新初始化($ttsRetryCount/3)")
+        clearTTS()
+        initTts()
     }
 
     private suspend fun waitCurrentParagraphDone(
@@ -162,7 +181,7 @@ class TTSReadAloudService : BaseReadAloudService(), TextToSpeech.OnInitListener 
         waiter: CompletableDeferred<Boolean>,
         token: Int,
         textLength: Int
-    ) {
+    ): Boolean {
         val timeout = (60_000L + textLength * 120L).coerceIn(90_000L, 600_000L)
         val result = withTimeoutOrNull(timeout) {
             waiter.await()
@@ -171,6 +190,7 @@ class TTSReadAloudService : BaseReadAloudService(), TextToSpeech.OnInitListener 
         if (result == null && token == speakingToken && !pause && coroutineContext.isActive) {
             AppLog.put("tts朗读等待超时:$utteranceId")
         }
+        return result == true
     }
 
     private fun upParagraphStartProgress() {
@@ -271,6 +291,7 @@ class TTSReadAloudService : BaseReadAloudService(), TextToSpeech.OnInitListener 
     }
 
     override fun playStop() {
+        ttsRetryCount = 0
         speakingToken++
         completeAllUtterances(false)
         textToSpeech?.runCatching {
@@ -298,6 +319,7 @@ class TTSReadAloudService : BaseReadAloudService(), TextToSpeech.OnInitListener 
      */
     override fun pauseReadAloud(abandonFocus: Boolean) {
         super.pauseReadAloud(abandonFocus)
+        ttsRetryCount = 0
         speakJob?.cancel()
         speakingToken++
         completeAllUtterances(false)
@@ -310,6 +332,7 @@ class TTSReadAloudService : BaseReadAloudService(), TextToSpeech.OnInitListener 
      * 恢复朗读
      */
     override fun resumeReadAloud() {
+        ttsRetryCount = 0
         super.resumeReadAloud()
         play()
     }

@@ -49,8 +49,6 @@ class ExploreShowViewModel(application: Application) : BaseViewModel(application
                 val keys = arrayListOf<String>()
                 books.filterNot { it.isNotShelf }
                     .forEach {
-                        keys.add("${it.name}-${it.author}")
-                        keys.add(it.name)
                         keys.add(it.bookUrl)
                     }
                 keys
@@ -157,11 +155,7 @@ class ExploreShowViewModel(application: Application) : BaseViewModel(application
     }
 
     fun isInBookShelf(book: SearchBook): Boolean {
-        val name = book.name
-        val author = book.author
-        val bookUrl = book.bookUrl
-        val key = if (author.isNotBlank()) "$name-$author" else name
-        return bookshelf.contains(key) || bookshelf.contains(bookUrl)
+        return bookshelf.contains(book.bookUrl)
     }
 
     fun addAllToShelf(groupId: Long) {
@@ -182,8 +176,6 @@ class ExploreShowViewModel(application: Application) : BaseViewModel(application
             appDb.bookDao.insert(*bookEntities.toTypedArray())
             
             bookEntities.forEach { book ->
-                val key = if (book.author.isNotBlank()) "${book.name}-${book.author}" else book.name
-                bookshelf.add(key)
                 bookshelf.add(book.bookUrl)
             }
             

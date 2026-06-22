@@ -113,6 +113,7 @@ data class TextLine(
      * 获取指定位置的文本列，越界时返回最后一个
      */
     fun getColumn(index: Int): BaseColumn {
+        if (textColumns.isEmpty()) return TextColumn(0f, 0f, "")
         return textColumns.getOrElse(index) {
             textColumns.last()
         }
@@ -277,7 +278,7 @@ data class TextLine(
         canvas.drawText(text, indentSize, text.length, startX + offsetX, lineBase - lineTop, paint)
         PaintPool.recycle(paint)
         for (i in columns.indices) {
-            val column = columns[i] as TextColumn
+            val column = columns[i] as? TextColumn ?: continue
             if (column.selected && !column.isSearchResult) {
                 canvas.drawRect(column.start, 0f, column.end, height, view.selectedPaint)
             }
@@ -392,18 +393,25 @@ data class TextLine(
         var currentBgImageFit = 0
         var currentBgImageScale = 1f
         var active = false
+        fun flushActive() {
+            if (!active) return
+            drawBgImageSegment(canvas, rangeStart, rangeEnd, currentBgImage, currentBgImageFit, currentBgImageScale)
+            active = false
+        }
         columns.forEachIndexed { index, column ->
-            val textColumn = column as? TextBaseColumn
-            val bgImage = textColumn?.bgImage ?: ""
-            val bgImageFit = textColumn?.bgImageFit ?: 0
-            val bgImageScale = textColumn?.bgImageScale ?: 1f
+            val textColumn = column as? TextBaseColumn ?: run {
+                flushActive()
+                return@forEachIndexed
+            }
+            val bgImage = textColumn.bgImage
+            val bgImageFit = textColumn.bgImageFit
+            val bgImageScale = textColumn.bgImageScale
             when {
                 bgImage.isEmpty() && active -> {
-                    drawBgImageSegment(canvas, rangeStart, rangeEnd, currentBgImage, currentBgImageFit, currentBgImageScale)
-                    active = false
+                    flushActive()
                 }
                 bgImage.isNotEmpty() && !active -> {
-                    rangeStart = textColumn!!.start
+                    rangeStart = textColumn.start
                     rangeEnd = textColumn.end
                     currentBgImage = bgImage
                     currentBgImageFit = bgImageFit
@@ -411,11 +419,11 @@ data class TextLine(
                     active = true
                 }
                 bgImage.isNotEmpty() && bgImage == currentBgImage && bgImageFit == currentBgImageFit && bgImageScale == currentBgImageScale -> {
-                    rangeEnd = textColumn!!.end
+                    rangeEnd = textColumn.end
                 }
                 bgImage.isNotEmpty() -> {
                     drawBgImageSegment(canvas, rangeStart, rangeEnd, currentBgImage, currentBgImageFit, currentBgImageScale)
-                    rangeStart = textColumn!!.start
+                    rangeStart = textColumn.start
                     rangeEnd = textColumn.end
                     currentBgImage = bgImage
                     currentBgImageFit = bgImageFit
@@ -423,7 +431,7 @@ data class TextLine(
                 }
             }
             if (active && index == columns.lastIndex) {
-                drawBgImageSegment(canvas, rangeStart, rangeEnd, currentBgImage, currentBgImageFit, currentBgImageScale)
+                flushActive()
             }
         }
     }
@@ -442,15 +450,23 @@ data class TextLine(
         var offset = 2f
         var svgPath = ""
         var active = false
+        fun flushActive() {
+            if (!active) return
+            drawUnderlineSegment(canvas, rangeStart, rangeEnd, mode, color, width, offset, svgPath)
+            active = false
+        }
         columns.forEachIndexed { index, column ->
-            val textColumn = column as? TextBaseColumn
-            val currentMode = textColumn?.underlineMode ?: 0
-            val currentColor = textColumn?.underlineColor
-                ?: textColumn?.textColor
+            val textColumn = column as? TextBaseColumn ?: run {
+                flushActive()
+                return@forEachIndexed
+            }
+            val currentMode = textColumn.underlineMode
+            val currentColor = textColumn.underlineColor
+                ?: textColumn.textColor
                 ?: ReadBookConfig.textColor
-            val currentWidth = textColumn?.underlineWidth ?: 1f
-            val currentOffset = textColumn?.underlineOffset ?: 2f
-            val currentSvgPath = textColumn?.underlineSvgPath ?: ""
+            val currentWidth = textColumn.underlineWidth
+            val currentOffset = textColumn.underlineOffset
+            val currentSvgPath = textColumn.underlineSvgPath
             val shouldContinue = active &&
                 currentMode == mode &&
                 currentColor == color &&
@@ -459,11 +475,10 @@ data class TextLine(
                 currentSvgPath == svgPath
             when {
                 currentMode == 0 && active -> {
-                    drawUnderlineSegment(canvas, rangeStart, rangeEnd, mode, color, width, offset, svgPath)
-                    active = false
+                    flushActive()
                 }
                 currentMode != 0 && !active -> {
-                    rangeStart = textColumn!!.start
+                    rangeStart = textColumn.start
                     rangeEnd = textColumn.end
                     mode = currentMode
                     color = currentColor
@@ -473,11 +488,11 @@ data class TextLine(
                     active = true
                 }
                 currentMode != 0 && shouldContinue -> {
-                    rangeEnd = textColumn!!.end
+                    rangeEnd = textColumn.end
                 }
                 currentMode != 0 -> {
                     drawUnderlineSegment(canvas, rangeStart, rangeEnd, mode, color, width, offset, svgPath)
-                    rangeStart = textColumn!!.start
+                    rangeStart = textColumn.start
                     rangeEnd = textColumn.end
                     mode = currentMode
                     color = currentColor
@@ -487,7 +502,7 @@ data class TextLine(
                 }
             }
             if (active && index == columns.lastIndex) {
-                drawUnderlineSegment(canvas, rangeStart, rangeEnd, mode, color, width, offset, svgPath)
+                flushActive()
             }
         }
     }
@@ -720,7 +735,10 @@ data class TextLine(
 
         fun getBgBitmap(path: String): Bitmap? {
             if (path.isBlank()) return null
-            bgBitmapCache.get(path)?.let { return it }
+            bgBitmapCache.get(path)?.let {
+                if (!it.isRecycled) return it
+                bgBitmapCache.remove(path)
+            }
             val bitmap = loadBgBitmap(path) ?: return null
             bgBitmapCache.put(path, bitmap)
             return bitmap

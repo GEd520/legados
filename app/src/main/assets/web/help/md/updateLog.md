@@ -4,6 +4,31 @@
 ### cronet版本: 128.0.6613.40
 ### Kotlin版本: 2.3.10 | Rhino版本: 1.8.1 | Compose版本: 2025.04.01 | Compose UI 版本:  1.7.x | Material3 版本: 1.3.x | okhttp版本: 5.3.2
 
+**2026/06/22**
+- 修复缓存管理 `put()` 将值转为字符串后写入内存缓存导致 `getInt` 等方法类型解析失败的问题，内存缓存现在保留原始类型
+- 修复缓存管理 `get()` 从数据库回填内存时用字符串覆盖原始类型对象的问题，仅在内存无值时才回填
+- 修复带过期时间的运行时缓存从内存读取时未校验 deadline，可能超过 `saveTime` 后仍返回旧值的问题
+- 修复图片加载器解码失败后未缓存错误占位图导致同一坏图反复触发解码重试的问题
+- 修复图片加载器 `errorBitmap` 多 key 共享同一实例导致 LruCache 容量虚报、过早驱逐有效缓存的问题，同时为错误占位设置固定缓存权重，避免大量坏图 key 零成本堆积
+- 修复封面视图 `bmp.also { bmp = null }` 逻辑错误导致 WebView 渲染成功后 bitmap 被置空并回收、封面永远无法显示的问题
+- 修复 Compose 顶栏 `rememberTopBarConfigVersion()` 返回值未读取导致状态变更不触发重组的问题
+- 修复 `buttonDisabledColor` 暗色主题下返回浅色禁用色与所有其他文本颜色函数逻辑相反的问题
+- 修复阅读菜单非沉浸模式首次初始化时 TitleBar 着色缺失的问题
+- 修复仿真翻页 `calcPoints` 中浮点数精确比较 `f4 == 0f` 在极小值时未触发保护分支的问题，改为阈值比较
+- 修复仿真翻页 `drawCurrentBackArea` 中 `dis` 为零时除零导致矩阵计算异常的问题，同时修复提前返回时跳过 `canvas.restore()` 导致 Canvas 状态栈泄漏的问题
+- 修复 `TextLine.getColumn()` 空列表时 `last()` 抛 `NoSuchElementException` 的问题
+- 修复 `TextLine` 绘制选中高亮时 `as TextColumn` 强制转换遇到图片列会 `ClassCastException` 崩溃的问题
+- 修复 `TextChapter.layoutChannel` 和 `setProgressListener` 中非空断言在 layout 未初始化时崩溃的问题，layout 缺失时返回已关闭通道，避免章节加载或朗读预排版协程挂起
+- 修复 `TextLine` 高亮规则背景图和下划线遇到行内图片列时未结束当前样式区间，导致背景或下划线跨图片误绘的问题
+- 修复本地 TTS 朗读 `speak()` 立即失败、异步 `onError` 或等待超时时可能静默跳过段落的问题，失败会统一重试初始化，连续失败后暂停朗读并提示
+- 修复目录页返回异常结果时可能误跳到第 0 章的问题，异常结果现在会被忽略
+- 修复搜索结果和发现列表使用书名/作者判断是否已加入书架，导致同名同作者但不同来源的书籍被误标为已在书架的问题，现在改为按书籍 URL 精确判断
+- 修复菜单着色 `item as MenuItemImpl` 强制转换在定制 ROM 上可能 `ClassCastException` 崩溃的问题
+- 修复封面视图和阅读页背景图从 LruCache 取出 bitmap 后未检查 `isRecycled` 可能导致绘制崩溃的问题
+- 清理阅读菜单 `initView` 中无用的 `reset` 参数和局部变量遮蔽实例变量的问题
+- 清理封面视图中未使用的 `nameHeight`/`authorHeight` 死变量
+- 清理菜单着色 `getMenuColor` 中从未使用的 `requiresOverflow` 死参数
+
 **2026/06/21**
 - 修复封面视图复用时可能沿用上一条书名或作者导致兜底封面文字显示错误的问题，封面加载现在会按当前参数同步重置书名作者状态
 - 修复阅读记录导入时较新的空章节进度可能覆盖本地有效进度的问题，并优化非清表导入后的阅读总量重算，避免备份数据书名作者带空格时漏重算

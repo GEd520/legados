@@ -184,6 +184,7 @@ class TextChapterLayout(
 
     fun cancel() {
         job.cancel()
+        channel.cancel()
         appendJobs.toList().forEach { it.cancel() }
         appendJobs.clear()
         listener = null

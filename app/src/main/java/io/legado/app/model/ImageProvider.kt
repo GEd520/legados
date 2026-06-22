@@ -68,7 +68,7 @@ object ImageProvider {
         val count get() = putCount() + createCount() - evictionCount() - removeCount
 
         override fun sizeOf(key: String, value: Bitmap): Int {
-            return value.byteCount
+            return if (value === errorBitmap) 256 else value.byteCount
         }
 
         override fun entryRemoved(
@@ -290,6 +290,7 @@ object ImageProvider {
             bitmap
         }.onFailure {
             //错误图片占位,防止重复获取
+            put(vFile.absolutePath, errorBitmap)
         }.getOrDefault(errorBitmap)
     }
 

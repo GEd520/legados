@@ -174,7 +174,7 @@ class ReadMenu @JvmOverloads constructor(
         bindEvent()
     }
 
-    private fun initView(reset: Boolean = false) = binding.run {
+    private fun initView() = binding.run {
         if (AppConfig.isNightTheme) {
             fabNightTheme.setImageResource(R.drawable.ic_daytime)
         } else {
@@ -190,15 +190,15 @@ class ReadMenu @JvmOverloads constructor(
             titleBar.toolbar.menu.applyTint(context, Theme.Dark)
             tvChapterName.setTextColor(lightTextColor)
             tvChapterUrl.setTextColor(lightTextColor)
-        } else if (reset) {
-            val bgColor = context.primaryColor
-            val textColor = context.primaryTextColor
-            titleBar.setTextColor(textColor)
-            titleBar.setBackgroundColor(bgColor)
-            titleBar.setColorFilter(textColor)
+        } else {
+            val titleBgColor = context.primaryColor
+            val titleTextColor = context.primaryTextColor
+            titleBar.setTextColor(titleTextColor)
+            titleBar.setBackgroundColor(titleBgColor)
+            titleBar.setColorFilter(titleTextColor)
             titleBar.toolbar.menu.applyTint(context)
-            tvChapterName.setTextColor(textColor)
-            tvChapterUrl.setTextColor(textColor)
+            tvChapterName.setTextColor(titleTextColor)
+            tvChapterUrl.setTextColor(titleTextColor)
         }
         val brightnessBackground = GradientDrawable()
         brightnessBackground.cornerRadius = 5F.dpToPx()
@@ -247,7 +247,7 @@ class ReadMenu @JvmOverloads constructor(
 
     fun reset() {
         upColorConfig()
-        initView(true)
+        initView()
     }
 
     fun refreshMenuColorFilter() {

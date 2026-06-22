@@ -14,6 +14,14 @@ private const val M = 1024 * 1024
 
 private val queryTTFMap = LruCache<String, QueryTTF>(4)
 
+private data class MemoryCacheValue(
+    val value: Any,
+    val deadline: Long = 0L
+) {
+    val isExpired: Boolean
+        get() = deadline != 0L && deadline <= System.currentTimeMillis()
+}
+
 private fun memoryCacheSize(): Int {
     return (MemoryPressure.maxMemory / 16)
         .coerceIn(8L * M, 50L * M)
@@ -23,10 +31,10 @@ private fun memoryCacheSize(): Int {
 /**
  * 最多只缓存50M的数据,防止OOM
  */
-private val memoryLruCache = object : LruCache<String, Any>(memoryCacheSize()) {
+private val memoryLruCache = object : LruCache<String, MemoryCacheValue>(memoryCacheSize()) {
 
-    override fun sizeOf(key: String, value: Any): Int {
-        return value.toString().memorySize()
+    override fun sizeOf(key: String, value: MemoryCacheValue): Int {
+        return value.value.toString().memorySize()
     }
 
 }
@@ -93,21 +101,29 @@ object CacheManager {
         when (value) {
             is ByteArray -> ACache.get().put(key, value, saveTime)
             else -> {
-                val valueStr = value.toString()
-                putMemory(key, valueStr)
-                val cache = Cache(key, valueStr, deadline)
+                putMemory(key, value, deadline)
+                val cache = Cache(key, value.toString(), deadline)
                 appDb.cacheDao.insert(cache)
             }
         }
     }
 
     fun putMemory(key: String, value: Any) {
-        memoryLruCache.put(key, value)
+        putMemory(key, value, 0L)
+    }
+
+    private fun putMemory(key: String, value: Any, deadline: Long) {
+        memoryLruCache.put(key, MemoryCacheValue(value, deadline))
     }
 
     //从内存中获取数据 使用lruCache
     fun getFromMemory(key: String): Any? {
-        return memoryLruCache[key]
+        val cacheValue = memoryLruCache[key] ?: return null
+        if (cacheValue.isExpired) {
+            memoryLruCache.remove(key)
+            return null
+        }
+        return cacheValue.value
     }
 
     fun deleteMemory(key: String) {
@@ -121,7 +137,9 @@ object CacheManager {
         val cache = appDb.cacheDao.get(key)
         if (cache != null && (cache.deadline == 0L || cache.deadline > System.currentTimeMillis())) {
             return cache.value?.also {
-                putMemory(key, it)
+                if (getFromMemory(key) == null) {
+                    putMemory(key, it, cache.deadline)
+                }
             }
         }
         return null
@@ -203,11 +221,11 @@ object WebCacheManager {
     }
     @JavascriptInterface
     fun putMemory(key: String, value: String) {
-        memoryLruCache.put(key, value)
+        CacheManager.putMemory(key, value)
     }
     @JavascriptInterface
     fun getFromMemory(key: String): String? {
-        return memoryLruCache[key]?.toString()
+        return CacheManager.getFromMemory(key)?.toString()
     }
     @JavascriptInterface
     fun deleteMemory(key: String) {

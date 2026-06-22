@@ -136,8 +136,6 @@ class CoverImageView @JvmOverloads constructor(
         private set
     private var name: String? = null
     private var author: String? = null
-    private var nameHeight = 0f
-    private var authorHeight = 0f
     private var isHtmlCover = false
     private val drawBookName = BookCover.drawBookName
     private val drawBookAuthor by lazy { BookCover.drawBookAuthor }
@@ -186,7 +184,7 @@ class CoverImageView @JvmOverloads constructor(
                 currentName
             }
             val cacheBitmap =  nameBitmapCache[pathName + width]
-            if (cacheBitmap != null) {
+            if (cacheBitmap != null && !cacheBitmap.isRecycled) {
                 canvas.drawBitmap(cacheBitmap, 0f, 0f, null)
                 return
             }
@@ -501,7 +499,7 @@ class CoverImageView @JvmOverloads constructor(
 
                 val cacheKey = "${htmlTemplate.id}-$bookName-$author"
                 val cachedBitmap = htmlCoverCache[cacheKey]
-                if (cachedBitmap != null) {
+                if (cachedBitmap != null && !cachedBitmap.isRecycled) {
                     setImageDrawable(cachedBitmap.toDrawable(resources))
                     onLoadFinish?.invoke()
                     return@launch
@@ -590,13 +588,17 @@ class CoverImageView @JvmOverloads constructor(
                     )
                     wv.layout(0, 0, renderWidth, renderHeight)
                     MemoryPressure.trimIfNeeded()
+                    var success = false
                     try {
                         bmp = createBitmap(renderWidth, renderHeight)
                         val canvas = Canvas(bmp)
                         wv.draw(canvas)
-                        bmp.also { bmp = null }
+                        success = true
+                        bmp
                     } finally {
-                        bmp?.recycle()
+                        if (!success) {
+                            bmp?.recycle()
+                        }
                     }
                 } catch (_: OutOfMemoryError) {
                     MemoryPressure.trimIfNeeded()
