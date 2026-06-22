@@ -48,6 +48,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -72,6 +73,7 @@ import io.legado.app.ui.theme.pageCardElevatedContainerColor
 import io.legado.app.ui.theme.pageHeaderContainerColor
 import io.legado.app.ui.theme.pageMutedIconTint
 import io.legado.app.ui.theme.pageSecondaryTextColor
+import io.legado.app.ui.theme.pageTopBarBackground
 import io.legado.app.ui.theme.pageTopBarColors
 import io.legado.app.ui.debuglog.viewmodel.DebugLogViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -146,12 +148,12 @@ fun DebugLogScreen(
 
     Scaffold(
         topBar = {
-            Column {
+            Column(modifier = Modifier.pageTopBarBackground(topBarColors)) {
                 // 顶部工具栏
                 TopAppBar(
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = topBarColors.containerColor,
-                        scrolledContainerColor = topBarColors.containerColor,
+                        containerColor = Color.Transparent,
+                        scrolledContainerColor = Color.Transparent,
                         navigationIconContentColor = topBarColors.contentColor,
                         titleContentColor = topBarColors.contentColor,
                         actionIconContentColor = topBarColors.contentColor

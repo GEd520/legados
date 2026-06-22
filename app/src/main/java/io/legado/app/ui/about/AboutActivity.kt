@@ -41,6 +41,7 @@ import android.view.View
 import androidx.fragment.app.FragmentContainerView
 import androidx.fragment.app.FragmentManager
 import io.legado.app.R
+import io.legado.app.ui.theme.PageTopBarContainer
 import io.legado.app.ui.theme.initLegadoComposeTheme
 import io.legado.app.ui.theme.pageTopBarColors
 import io.legado.app.ui.theme.setLegadoContent
@@ -82,38 +83,40 @@ private fun AboutScreen(
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = topBarColors.containerColor,
-                    scrolledContainerColor = topBarColors.containerColor,
-                    navigationIconContentColor = topBarColors.contentColor,
-                    titleContentColor = topBarColors.contentColor,
-                    actionIconContentColor = topBarColors.contentColor
-                ),
-                title = { Text(text = stringResource(R.string.about)) },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.back)
-                        )
+            PageTopBarContainer(colors = topBarColors) {
+                TopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent,
+                        scrolledContainerColor = Color.Transparent,
+                        navigationIconContentColor = topBarColors.contentColor,
+                        titleContentColor = topBarColors.contentColor,
+                        actionIconContentColor = topBarColors.contentColor
+                    ),
+                    title = { Text(text = stringResource(R.string.about)) },
+                    navigationIcon = {
+                        IconButton(onClick = onBackClick) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.back)
+                            )
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = onShareClick) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = stringResource(R.string.share)
+                            )
+                        }
+                        IconButton(onClick = onScoringClick) {
+                            Icon(
+                                imageVector = Icons.Outlined.StarBorder,
+                                contentDescription = stringResource(R.string.scoring)
+                            )
+                        }
                     }
-                },
-                actions = {
-                    IconButton(onClick = onShareClick) {
-                        Icon(
-                            imageVector = Icons.Default.Share,
-                            contentDescription = stringResource(R.string.share)
-                        )
-                    }
-                    IconButton(onClick = onScoringClick) {
-                        Icon(
-                            imageVector = Icons.Outlined.StarBorder,
-                            contentDescription = stringResource(R.string.scoring)
-                        )
-                    }
-                }
-            )
+                )
+            }
         },
         content = { innerPadding ->
             Column(

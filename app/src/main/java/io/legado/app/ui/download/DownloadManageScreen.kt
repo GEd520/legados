@@ -65,6 +65,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import io.legado.app.service.DownloadStatus
 import io.legado.app.service.DownloadTask
 import io.legado.app.ui.theme.pageCardContainerColor
+import io.legado.app.ui.theme.pageTopBarBackground
 import io.legado.app.ui.theme.pageTopBarColors
 import io.legado.app.utils.ConvertUtils
 
@@ -93,9 +94,10 @@ fun DownloadManageScreen(
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
+                modifier = Modifier.pageTopBarBackground(topBarColors),
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = topBarColors.containerColor,
-                    scrolledContainerColor = topBarColors.containerColor,
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent,
                     navigationIconContentColor = topBarColors.contentColor,
                     titleContentColor = topBarColors.contentColor,
                     actionIconContentColor = topBarColors.contentColor
@@ -113,7 +115,7 @@ fun DownloadManageScreen(
                             Text(
                                 text = "下载中: $activeCount  已完成: $completedCount  失败: $failedCount",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = topBarColors.contentColor.copy(alpha = 0.72f)
                             )
                         }
                     }
@@ -136,8 +138,8 @@ fun DownloadManageScreen(
             val tabs = DownloadTab.values()
             TabRow(
                 selectedTabIndex = tabs.indexOf(selectedTab),
-                containerColor = topBarColors.containerColor,
-                contentColor = topBarColors.contentColor
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface
             ) {
                 tabs.forEach { tab ->
                     val count = when (tab) {

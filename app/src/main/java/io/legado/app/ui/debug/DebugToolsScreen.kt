@@ -27,6 +27,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.legado.app.R
+import io.legado.app.ui.theme.pageTopBarBackground
+import io.legado.app.ui.theme.pageTopBarColors
 
 data class DebugTool(
     val titleRes: Int,
@@ -41,6 +43,7 @@ fun DebugToolsScreen(
     onBackClick: () -> Unit
 ) {
     val context = LocalContext.current
+    val topBarColors = pageTopBarColors()
 
     val tools = listOf(
         DebugTool(
@@ -85,12 +88,13 @@ fun DebugToolsScreen(
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
+                modifier = Modifier.pageTopBarBackground(topBarColors),
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.secondary,
-                    scrolledContainerColor = MaterialTheme.colorScheme.secondary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onSecondary,
-                    titleContentColor = MaterialTheme.colorScheme.onSecondary,
-                    actionIconContentColor = MaterialTheme.colorScheme.onSecondary
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent,
+                    navigationIconContentColor = topBarColors.contentColor,
+                    titleContentColor = topBarColors.contentColor,
+                    actionIconContentColor = topBarColors.contentColor
                 ),
                 title = {
                     Column {
@@ -101,7 +105,7 @@ fun DebugToolsScreen(
                         Text(
                             text = stringResource(R.string.debug_tools_desc),
                             style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = topBarColors.contentColor.copy(alpha = 0.72f)
                         )
                     }
                 },

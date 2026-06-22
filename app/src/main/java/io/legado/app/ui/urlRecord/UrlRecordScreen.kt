@@ -54,6 +54,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import io.legado.app.data.entities.UrlRecord
 import io.legado.app.ui.theme.pageCardContainerColor
+import io.legado.app.ui.theme.pageTopBarBackground
 import io.legado.app.ui.theme.pageTopBarColors
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -134,9 +135,10 @@ fun UrlRecordScreen(
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
+                modifier = Modifier.pageTopBarBackground(topBarColors),
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = topBarColors.containerColor,
-                    scrolledContainerColor = topBarColors.containerColor,
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent,
                     navigationIconContentColor = topBarColors.contentColor,
                     titleContentColor = topBarColors.contentColor,
                     actionIconContentColor = topBarColors.contentColor

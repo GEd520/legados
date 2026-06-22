@@ -63,6 +63,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import io.legado.app.R
 import io.legado.app.ui.file.utils.FilePickerIcon
 import io.legado.app.ui.theme.pageCardContainerColor
+import io.legado.app.ui.theme.pageTopBarBackground
 import io.legado.app.ui.theme.pageTopBarColors
 import java.io.File
 
@@ -118,7 +119,7 @@ fun FileManageScreen(
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            Column(modifier = Modifier.background(topBarColors.containerColor)) {
+            Column(modifier = Modifier.pageTopBarBackground(topBarColors)) {
                 // 标题栏
                 TopAppBar(
                     colors = TopAppBarDefaults.topAppBarColors(

@@ -21,6 +21,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import io.legado.app.R
+import io.legado.app.ui.theme.pageTopBarBackground
+import io.legado.app.ui.theme.pageTopBarColors
 import io.legado.app.help.DefaultData
 import io.legado.app.help.config.CoverHtmlTemplateConfig
 import io.legado.app.constant.EventBus
@@ -41,8 +43,8 @@ fun CoverHtmlCodeScreen(
     onShowTemplateList: () -> Unit
 ) {
     val context = LocalContext.current
+    val topBarColors = pageTopBarColors()
     val containerColor = coverHtmlCardContainerColor()
-    val topBarColor = coverHtmlTopBarContainerColor()
     
     var templateName by remember { mutableStateOf("") }
     var htmlCode by remember { mutableStateOf("") }
@@ -163,12 +165,13 @@ fun CoverHtmlCodeScreen(
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
             TopAppBar(
+                modifier = Modifier.pageTopBarBackground(topBarColors),
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = topBarColor,
-                    scrolledContainerColor = topBarColor,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface,
-                    actionIconContentColor = MaterialTheme.colorScheme.onSurface
+                    containerColor = androidx.compose.ui.graphics.Color.Transparent,
+                    scrolledContainerColor = androidx.compose.ui.graphics.Color.Transparent,
+                    navigationIconContentColor = topBarColors.contentColor,
+                    titleContentColor = topBarColors.contentColor,
+                    actionIconContentColor = topBarColors.contentColor
                 ),
                 title = {
                     Text(

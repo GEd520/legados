@@ -86,6 +86,7 @@ import io.legado.app.ui.theme.pageCardElevatedContainerColor
 import io.legado.app.ui.theme.pageMutedIconTint
 import io.legado.app.ui.theme.pageSecondaryTextColor
 import io.legado.app.ui.theme.pageSurfaceVariantColor
+import io.legado.app.ui.theme.pageTopBarBackground
 import io.legado.app.ui.theme.pageTopBarColors
 import io.legado.app.ui.widget.dialog.TextDialog
 import io.legado.app.utils.showDialogFragment
@@ -231,9 +232,10 @@ fun CoverGalleryScreen(
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
+                modifier = Modifier.pageTopBarBackground(topBarColors),
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = topBarColors.containerColor,
-                    scrolledContainerColor = topBarColors.containerColor,
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent,
                     navigationIconContentColor = topBarColors.contentColor,
                     titleContentColor = topBarColors.contentColor,
                     actionIconContentColor = topBarColors.contentColor

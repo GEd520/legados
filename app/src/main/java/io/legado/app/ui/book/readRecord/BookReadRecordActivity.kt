@@ -70,6 +70,8 @@ import io.legado.app.lib.theme.ThemeStore
 import io.legado.app.lib.theme.backgroundColor
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.ui.theme.LegadoTheme
+import io.legado.app.ui.theme.pageTopBarBackground
+import io.legado.app.ui.theme.pageTopBarColors
 import io.legado.app.utils.ColorUtils
 import io.legado.app.utils.formatReadDuration
 import io.legado.app.utils.fullScreen
@@ -225,10 +227,12 @@ fun BookReadRecordScreen(
     val totalReadTime = repository.getBookReadTime(bookName, bookAuthor)
         .collectAsStateWithLifecycle(0L)
         .value
+    val topBarColors = pageTopBarColors()
 
     Scaffold(
         topBar = {
             TopAppBar(
+                modifier = Modifier.pageTopBarBackground(topBarColors),
                 title = {
                     Text(
                         text = bookName,
@@ -245,7 +249,11 @@ fun BookReadRecordScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = androidx.compose.ui.graphics.Color.Transparent,
+                    scrolledContainerColor = androidx.compose.ui.graphics.Color.Transparent,
+                    navigationIconContentColor = topBarColors.contentColor,
+                    titleContentColor = topBarColors.contentColor,
+                    actionIconContentColor = topBarColors.contentColor
                 )
             )
         }

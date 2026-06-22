@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.legado.app.ui.book.cacheSelector.components.BookCacheItemCard
 import io.legado.app.ui.theme.pageCardContainerColor
+import io.legado.app.ui.theme.pageTopBarBackground
 import io.legado.app.ui.theme.pageTopBarColors
 import io.legado.app.utils.ConvertUtils
 
@@ -62,9 +63,10 @@ fun BookCacheSelectorScreen(
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
+                modifier = Modifier.pageTopBarBackground(topBarColors),
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = topBarColors.containerColor,
-                    scrolledContainerColor = topBarColors.containerColor,
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent,
                     navigationIconContentColor = topBarColors.contentColor,
                     titleContentColor = topBarColors.contentColor,
                     actionIconContentColor = topBarColors.contentColor

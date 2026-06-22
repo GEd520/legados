@@ -19,6 +19,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -30,6 +31,7 @@ import androidx.fragment.app.DialogFragment
 import io.legado.app.R
 import io.legado.app.ui.theme.LegadoTheme
 import io.legado.app.ui.theme.pageCardContainerColor
+import io.legado.app.ui.theme.pageTopBarBackground
 import io.legado.app.ui.theme.pageTopBarColors
 import io.legado.app.utils.toastOnUi
 
@@ -99,6 +101,7 @@ fun TextMenuConfigDialogContent(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     TopAppBar(
+                        modifier = Modifier.pageTopBarBackground(topBarColors),
                         title = {
                             Text(
                                 text = stringResource(R.string.text_menu_config),
@@ -125,7 +128,7 @@ fun TextMenuConfigDialogContent(
                             }
                         },
                         colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = topBarColors.containerColor,
+                            containerColor = Color.Transparent,
                             titleContentColor = topBarColors.contentColor
                         )
                     )
@@ -228,6 +231,7 @@ fun ProcessTextConfigContent(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 TopAppBar(
+                    modifier = Modifier.pageTopBarBackground(topBarColors),
                     title = {
                         Text(
                             text = stringResource(R.string.process_text_menu_config),
@@ -244,7 +248,7 @@ fun ProcessTextConfigContent(
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = topBarColors.containerColor,
+                        containerColor = Color.Transparent,
                         titleContentColor = topBarColors.contentColor
                     )
                 )

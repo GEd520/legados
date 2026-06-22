@@ -56,6 +56,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import io.legado.app.ui.theme.pageTopBarBackground
 import io.legado.app.data.entities.readRecord.ReadRecord
 import io.legado.app.ui.book.readRecord.components.HeatmapCalendarSection
 import io.legado.app.ui.book.readRecord.components.HeatmapMode
@@ -77,9 +78,10 @@ fun ReadAchievementScreen(
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
+                modifier = Modifier.pageTopBarBackground(topBarColors),
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = topBarColors.containerColor,
-                    scrolledContainerColor = topBarColors.containerColor,
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent,
                     navigationIconContentColor = topBarColors.contentColor,
                     titleContentColor = topBarColors.contentColor,
                     actionIconContentColor = topBarColors.contentColor

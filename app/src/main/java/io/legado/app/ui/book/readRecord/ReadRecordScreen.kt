@@ -34,6 +34,7 @@ import io.legado.app.data.entities.readRecord.ReadRecord
 import io.legado.app.data.entities.readRecord.ReadRecordDetail
 import io.legado.app.data.entities.readRecord.ReadRecordSession
 import io.legado.app.help.glide.ImageLoader
+import io.legado.app.ui.theme.PageTopBarContainer
 import io.legado.app.ui.book.readRecord.components.HeatmapCalendarBottomSheet
 import io.legado.app.ui.book.readRecord.components.HeatmapMode
 import io.legado.app.ui.book.readRecord.components.SummaryCard
@@ -170,101 +171,105 @@ fun ReadRecordScreen(
         containerColor = Color.Transparent,
         topBar = {
             if (state.isSelectionMode) {
-                TopAppBar(
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = topBarColors.containerColor,
-                        scrolledContainerColor = topBarColors.containerColor,
-                        navigationIconContentColor = topBarColors.contentColor,
-                        titleContentColor = topBarColors.contentColor,
-                        actionIconContentColor = topBarColors.contentColor
-                    ),
-                    title = {
-                        Text(
-                            text = "已选择 ${state.selectedRecords.size} 项",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = { viewModel.exitSelectionMode() }) {
-                            Icon(Icons.Default.Close, contentDescription = "取消选择")
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = { viewModel.selectAllRecords(displayMode) }) {
-                            Icon(Icons.Default.SelectAll, contentDescription = "全选")
-                        }
-                        IconButton(onClick = {
-                            if (state.selectedRecords.isNotEmpty()) {
-                                pendingDeleteAction = { viewModel.deleteSelectedRecords() }
-                                showDeleteConfirm = true
+                PageTopBarContainer(colors = topBarColors) {
+                    TopAppBar(
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = Color.Transparent,
+                            scrolledContainerColor = Color.Transparent,
+                            navigationIconContentColor = topBarColors.contentColor,
+                            titleContentColor = topBarColors.contentColor,
+                            actionIconContentColor = topBarColors.contentColor
+                        ),
+                        title = {
+                            Text(
+                                text = "已选择 ${state.selectedRecords.size} 项",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = { viewModel.exitSelectionMode() }) {
+                                Icon(Icons.Default.Close, contentDescription = "取消选择")
                             }
-                        }) {
-                            Icon(Icons.Default.Delete, contentDescription = "删除选中")
-                        }
-                    }
-                )
-            } else {
-                TopAppBar(
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = topBarColors.containerColor,
-                        scrolledContainerColor = topBarColors.containerColor,
-                        navigationIconContentColor = topBarColors.contentColor,
-                        titleContentColor = topBarColors.contentColor,
-                        actionIconContentColor = topBarColors.contentColor
-                    ),
-                    title = {
-                        Column {
-                            Text(
-                                text = "阅读记录",
-                                style = MaterialTheme.typography.titleLarge.copy(fontSize = 20.sp, fontWeight = FontWeight.Medium)
-                            )
-                            Text(
-                                text = when (displayMode) {
-                                    DisplayMode.AGGREGATE -> "汇总视图"
-                                    DisplayMode.TIMELINE -> "时间线视图"
-                                    DisplayMode.LATEST -> "最后阅读"
-                                    DisplayMode.READ_TIME -> "阅读时长"
-                                },
-                                style = MaterialTheme.typography.labelMedium,
-                                color = topBarColors.contentColor.copy(alpha = 0.72f)
-                            )
-                        }
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onBackClick) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "返回")
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = { showSearch = !showSearch }) {
-                            Icon(Icons.Default.Search, contentDescription = "搜索")
-                        }
-                        IconButton(onClick = { showCalendar = true }) {
-                            Icon(Icons.Default.CalendarMonth, contentDescription = "日历")
-                        }
-                        IconButton(onClick = {
-                            viewModel.setDisplayMode(
-                                when (displayMode) {
-                                    DisplayMode.AGGREGATE -> DisplayMode.TIMELINE
-                                    DisplayMode.TIMELINE -> DisplayMode.LATEST
-                                    DisplayMode.LATEST -> DisplayMode.READ_TIME
-                                    DisplayMode.READ_TIME -> DisplayMode.AGGREGATE
+                        },
+                        actions = {
+                            IconButton(onClick = { viewModel.selectAllRecords(displayMode) }) {
+                                Icon(Icons.Default.SelectAll, contentDescription = "全选")
+                            }
+                            IconButton(onClick = {
+                                if (state.selectedRecords.isNotEmpty()) {
+                                    pendingDeleteAction = { viewModel.deleteSelectedRecords() }
+                                    showDeleteConfirm = true
                                 }
-                            )
-                        }) {
-                            Icon(
-                                imageVector = when (displayMode) {
-                                    DisplayMode.AGGREGATE -> Icons.Default.Timeline
-                                    DisplayMode.TIMELINE -> Icons.Default.List
-                                    DisplayMode.LATEST -> Icons.Default.AutoAwesome
-                                    DisplayMode.READ_TIME -> Icons.Default.Schedule
-                                },
-                                contentDescription = "切换视图"
-                            )
+                            }) {
+                                Icon(Icons.Default.Delete, contentDescription = "删除选中")
+                            }
                         }
-                    },
-                    scrollBehavior = scrollBehavior
-                )
+                    )
+                }
+            } else {
+                PageTopBarContainer(colors = topBarColors) {
+                    TopAppBar(
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = Color.Transparent,
+                            scrolledContainerColor = Color.Transparent,
+                            navigationIconContentColor = topBarColors.contentColor,
+                            titleContentColor = topBarColors.contentColor,
+                            actionIconContentColor = topBarColors.contentColor
+                        ),
+                        title = {
+                            Column {
+                                Text(
+                                    text = "阅读记录",
+                                    style = MaterialTheme.typography.titleLarge.copy(fontSize = 20.sp, fontWeight = FontWeight.Medium)
+                                )
+                                Text(
+                                    text = when (displayMode) {
+                                        DisplayMode.AGGREGATE -> "汇总视图"
+                                        DisplayMode.TIMELINE -> "时间线视图"
+                                        DisplayMode.LATEST -> "最后阅读"
+                                        DisplayMode.READ_TIME -> "阅读时长"
+                                    },
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = topBarColors.contentColor.copy(alpha = 0.72f)
+                                )
+                            }
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = onBackClick) {
+                                Icon(Icons.Default.ArrowBack, contentDescription = "返回")
+                            }
+                        },
+                        actions = {
+                            IconButton(onClick = { showSearch = !showSearch }) {
+                                Icon(Icons.Default.Search, contentDescription = "搜索")
+                            }
+                            IconButton(onClick = { showCalendar = true }) {
+                                Icon(Icons.Default.CalendarMonth, contentDescription = "日历")
+                            }
+                            IconButton(onClick = {
+                                viewModel.setDisplayMode(
+                                    when (displayMode) {
+                                        DisplayMode.AGGREGATE -> DisplayMode.TIMELINE
+                                        DisplayMode.TIMELINE -> DisplayMode.LATEST
+                                        DisplayMode.LATEST -> DisplayMode.READ_TIME
+                                        DisplayMode.READ_TIME -> DisplayMode.AGGREGATE
+                                    }
+                                )
+                            }) {
+                                Icon(
+                                    imageVector = when (displayMode) {
+                                        DisplayMode.AGGREGATE -> Icons.Default.Timeline
+                                        DisplayMode.TIMELINE -> Icons.Default.List
+                                        DisplayMode.LATEST -> Icons.Default.AutoAwesome
+                                        DisplayMode.READ_TIME -> Icons.Default.Schedule
+                                    },
+                                    contentDescription = "切换视图"
+                                )
+                            }
+                        },
+                        scrollBehavior = scrollBehavior
+                    )
+                }
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }

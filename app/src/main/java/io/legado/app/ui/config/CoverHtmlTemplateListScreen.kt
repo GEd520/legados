@@ -21,6 +21,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.legado.app.R
+import io.legado.app.ui.theme.pageTopBarBackground
+import io.legado.app.ui.theme.pageTopBarColors
 import io.legado.app.help.config.CoverHtmlTemplateConfig
 import io.legado.app.constant.EventBus
 import io.legado.app.ui.widget.image.CoverImageView
@@ -34,11 +36,11 @@ fun CoverHtmlTemplateListScreen(
     onEditTemplate: (CoverHtmlTemplateConfig.Template?) -> Unit
 ) {
     val context = LocalContext.current
+    val topBarColors = pageTopBarColors()
     var templateList by remember { mutableStateOf(CoverHtmlTemplateConfig.templateList.toList()) }
     var selectedId by remember { mutableStateOf(CoverHtmlTemplateConfig.getSelectedTemplate().id) }
     
     val containerColor = coverHtmlCardContainerColor()
-    val topBarColor = coverHtmlTopBarContainerColor()
     
     fun refreshList() {
         templateList = CoverHtmlTemplateConfig.templateList.toList()
@@ -49,12 +51,13 @@ fun CoverHtmlTemplateListScreen(
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
+                modifier = Modifier.pageTopBarBackground(topBarColors),
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = topBarColor,
-                    scrolledContainerColor = topBarColor,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface,
-                    actionIconContentColor = MaterialTheme.colorScheme.onSurface
+                    containerColor = androidx.compose.ui.graphics.Color.Transparent,
+                    scrolledContainerColor = androidx.compose.ui.graphics.Color.Transparent,
+                    navigationIconContentColor = topBarColors.contentColor,
+                    titleContentColor = topBarColors.contentColor,
+                    actionIconContentColor = topBarColors.contentColor
                 ),
                 title = {
                     Text(

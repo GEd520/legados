@@ -36,6 +36,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.legado.app.R
+import io.legado.app.ui.theme.pageTopBarBackground
+import io.legado.app.ui.theme.pageTopBarColors
 import io.legado.app.utils.sendToClip
 import io.legado.app.utils.toastOnUi
 import java.text.SimpleDateFormat
@@ -69,6 +71,7 @@ fun TimestampConvertScreen(
     onBackClick: () -> Unit
 ) {
     val context = LocalContext.current
+    val topBarColors = pageTopBarColors()
     
     var timestamp by remember { mutableStateOf("") }
     // 日期字符串输入
@@ -92,12 +95,13 @@ fun TimestampConvertScreen(
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
+                modifier = Modifier.pageTopBarBackground(topBarColors),
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.secondary,
-                    scrolledContainerColor = MaterialTheme.colorScheme.secondary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onSecondary,
-                    titleContentColor = MaterialTheme.colorScheme.onSecondary,
-                    actionIconContentColor = MaterialTheme.colorScheme.onSecondary
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent,
+                    navigationIconContentColor = topBarColors.contentColor,
+                    titleContentColor = topBarColors.contentColor,
+                    actionIconContentColor = topBarColors.contentColor
                 ),
                 title = {
                     Text(

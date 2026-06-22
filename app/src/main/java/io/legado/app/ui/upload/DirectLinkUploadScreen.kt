@@ -23,6 +23,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.legado.app.R
+import io.legado.app.ui.theme.pageTopBarBackground
+import io.legado.app.ui.theme.pageTopBarColors
 import io.legado.app.data.entities.DirectLinkUploadRule
 import io.legado.app.data.entities.UploadHistory
 import io.legado.app.data.entities.UploadHistoryWithRule
@@ -37,6 +39,7 @@ fun DirectLinkUploadScreen(
     onBackClick: () -> Unit
 ) {
     val context = LocalContext.current
+    val topBarColors = pageTopBarColors()
     val clipboardManager = remember {
         context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     }
@@ -60,6 +63,7 @@ fun DirectLinkUploadScreen(
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
+                modifier = Modifier.pageTopBarBackground(topBarColors),
                 title = {
                     Text(
                         text = "直链上传配置",
@@ -67,11 +71,11 @@ fun DirectLinkUploadScreen(
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.secondary,
-                    scrolledContainerColor = MaterialTheme.colorScheme.secondary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onSecondary,
-                    titleContentColor = MaterialTheme.colorScheme.onSecondary,
-                    actionIconContentColor = MaterialTheme.colorScheme.onSecondary
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent,
+                    navigationIconContentColor = topBarColors.contentColor,
+                    titleContentColor = topBarColors.contentColor,
+                    actionIconContentColor = topBarColors.contentColor
                 ),
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
