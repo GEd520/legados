@@ -195,16 +195,16 @@ class TextChapterLayout(
         
         launchAppendJob {
             try {
-                AppLog.put("懒加载排版: 请求追加内容，共${newContents.size}段，排版完成状态=${isCompleted}")
+                AppLog.putDebug("懒加载排版: 请求追加内容，共${newContents.size}段，排版完成状态=${isCompleted}")
                 appendMutex.withLock {
                     if (!isCompleted) {
-                        AppLog.put("懒加载排版: 初始排版未完成，内容入队等待")
+                        AppLog.putDebug("懒加载排版: 初始排版未完成，内容入队等待")
                         pendingLazyContents.addAll(newContents)
                         return@withLock
                     }
                     appendContentInternal(newContents)
                 }
-                AppLog.put("懒加载排版: 追加内容完成")
+                AppLog.putDebug("懒加载排版: 追加内容完成")
             } catch (e: Exception) {
                 AppLog.put("追加内容失败: ${e.localizedMessage}", e)
             }
@@ -221,7 +221,7 @@ class TextChapterLayout(
             val lastLine = lastPage.lines.lastOrNull()
             if (lastLine != null && !lastLine.isParagraphEnd) {
                 // 最后一行不是段落结尾，说明页面没排满，摘回来续排
-                AppLog.put("懒加载排版: 最后一页未排满，摘回续排，当前页行数=${lastPage.lines.size}")
+                AppLog.putDebug("懒加载排版: 最后一页未排满，摘回续排，当前页行数=${lastPage.lines.size}")
                 pendingTextPage = lastPage
                 pendingTextPage.isResumed = true
                 textPages.removeAt(textPages.lastIndex)
@@ -235,7 +235,7 @@ class TextChapterLayout(
                 }
             } else if (lastLine != null && lastLine.isParagraphEnd && lastPage.height < visibleHeight) {
                 // 段落结束了但页面还有空间，也摘回来续排
-                AppLog.put("懒加载排版: 最后一页有剩余空间，摘回续排，当前高度=${lastPage.height}, 可视高度=${visibleHeight}")
+                AppLog.putDebug("懒加载排版: 最后一页有剩余空间，摘回续排，当前高度=${lastPage.height}, 可视高度=${visibleHeight}")
                 pendingTextPage = lastPage
                 textPages.removeAt(textPages.lastIndex)
                 durY = lastPage.height
@@ -482,7 +482,7 @@ class TextChapterLayout(
                 try {
                     appendMutex.withLock {
                         if (pendingLazyContents.isNotEmpty()) {
-                            AppLog.put("懒加载排版: 初始排版完成，处理排队内容${pendingLazyContents.size}段")
+                            AppLog.putDebug("懒加载排版: 初始排版完成，处理排队内容${pendingLazyContents.size}段")
                             appendContentInternal(pendingLazyContents)
                             pendingLazyContents.clear()
                         }

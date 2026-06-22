@@ -119,18 +119,18 @@ class LazyContentManager(
             loadingPages[nextIdx] = AtomicBoolean(true)
         }
         
-        AppLog.put("懒加载: 开始预加载第${nextIdx + 1}页")
+        AppLog.putDebug("懒加载: 开始预加载第${nextIdx + 1}页")
         callback?.onPageLoading(nextIdx)
         
         prefetchJob?.cancel()
-        prefetchJob = kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
+        prefetchJob = scope.launch(Dispatchers.IO) {
             try {
                 val currentIdx = nextIdx - 1
                 val currentPage = pages[currentIdx] ?: return@launch
                 val nextUrl = currentPage.nextUrl
                 
                 if (nextUrl.isNullOrBlank()) {
-                    AppLog.put("懒加载: 无下一页URL，标记完成")
+                    AppLog.putDebug("懒加载: 无下一页URL，标记完成")
                     isCompleted.set(true)
                     saveToCache()
                     totalPages.set(currentIdx + 1)
@@ -141,7 +141,7 @@ class LazyContentManager(
                     NetworkUtils.getAbsoluteURL(redirectUrl, nextUrl) ==
                     NetworkUtils.getAbsoluteURL(redirectUrl, nextChapterUrl)
                 ) {
-                    AppLog.put("懒加载: 下一页URL等于下一章URL，标记完成")
+                    AppLog.putDebug("懒加载: 下一页URL等于下一章URL，标记完成")
                     isCompleted.set(true)
                     saveToCache()
                     totalPages.set(currentIdx + 1)
@@ -150,7 +150,7 @@ class LazyContentManager(
                 
                 ensureActive()
                 
-                AppLog.put("懒加载: 请求第${nextIdx + 1}页 URL: $nextUrl")
+                AppLog.putDebug("懒加载: 请求第${nextIdx + 1}页 URL: $nextUrl")
                 val analyzeUrl = AnalyzeUrl(
                     mUrl = nextUrl,
                     source = bookSource,
@@ -193,7 +193,7 @@ class LazyContentManager(
                     pages[nextIdx] = pageContent
                     contentChannel.trySend(pageContent)
                     
-                    AppLog.put("懒加载: 第${nextIdx + 1}页加载成功，内容长度=${content.length}")
+                    AppLog.putDebug("懒加载: 第${nextIdx + 1}页加载成功，内容长度=${content.length}")
                     
                     callback?.onPageLoaded(nextIdx, content)
                 }
@@ -299,7 +299,7 @@ class LazyContentManager(
             val fullContent = getAllLoadedContent()
             if (fullContent.isNotBlank()) {
                 io.legado.app.help.book.BookHelp.saveText(book, bookChapter, fullContent)
-                io.legado.app.constant.AppLog.put("懒加载: 已保存完整内容到缓存，章节${bookChapter.index}，长度=${fullContent.length}")
+                io.legado.app.constant.AppLog.putDebug("懒加载: 已保存完整内容到缓存，章节${bookChapter.index}，长度=${fullContent.length}")
             }
         } catch (e: Exception) {
             io.legado.app.constant.AppLog.put("懒加载保存缓存失败: ${e.localizedMessage}", e)

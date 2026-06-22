@@ -13,8 +13,8 @@ import android.os.Build
 import android.text.TextPaint
 import androidx.annotation.Keep
 import androidx.core.graphics.toColorInt
-import io.legado.app.help.PaintPool
 import io.legado.app.help.MemoryPressure
+import io.legado.app.help.PaintPool
 import io.legado.app.help.book.isImage
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.config.ReadBookConfig
@@ -663,10 +663,16 @@ data class TextLine(
                 canvas.restore()
             }
             else -> {
-                val shader = BitmapShader(bitmap, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT)
+                val tileBitmap = if (scale != 1f) {
+                    val sw = (bitmap.width * scale).toInt().coerceAtLeast(1)
+                    val sh = (bitmap.height * scale).toInt().coerceAtLeast(1)
+                    getScaledBitmap("${bgImage}_s${scale}", bitmap, sw, sh)
+                } else {
+                    bitmap
+                }
+                val shader = BitmapShader(tileBitmap, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT)
                 val matrix = android.graphics.Matrix()
-                matrix.setScale(scale, scale)
-                matrix.postTranslate(startX, top)
+                matrix.setTranslate(startX, top)
                 shader.setLocalMatrix(matrix)
                 paint.shader = shader
                 canvas.drawRect(startX, top, endX, bottom, paint)
@@ -717,11 +723,21 @@ data class TextLine(
         private val einkUnderlineWidth = 1.dpToPx().toFloat()
         private const val M = 1024 * 1024
         private fun bgBitmapCacheSize(): Int {
-            return (MemoryPressure.maxMemory / 32)
-                .coerceIn(4L * M, 16L * M)
+            return (MemoryPressure.maxMemory / 8)
+                .coerceIn(32L * M, 128L * M)
+                .toInt()
+        }
+        private fun bgScaledBitmapCacheSize(): Int {
+            return (MemoryPressure.maxMemory / 16)
+                .coerceIn(16L * M, 64L * M)
                 .toInt()
         }
         private val bgBitmapCache = object : android.util.LruCache<String, Bitmap>(bgBitmapCacheSize()) {
+            override fun sizeOf(key: String, value: Bitmap): Int {
+                return value.byteCount.coerceAtLeast(1)
+            }
+        }
+        private val bgScaledBitmapCache = object : android.util.LruCache<String, Bitmap>(bgScaledBitmapCacheSize()) {
             override fun sizeOf(key: String, value: Bitmap): Int {
                 return value.byteCount.coerceAtLeast(1)
             }
@@ -740,8 +756,24 @@ data class TextLine(
                 bgBitmapCache.remove(path)
             }
             val bitmap = loadBgBitmap(path) ?: return null
-            bgBitmapCache.put(path, bitmap)
+            if (bitmap.byteCount <= bgBitmapCache.maxSize()) {
+                bgBitmapCache.put(path, bitmap)
+            }
             return bitmap
+        }
+
+        private fun getScaledBitmap(path: String, source: Bitmap, width: Int, height: Int): Bitmap {
+            if (width <= 0 || height <= 0) return source
+            val key = "${path}_${width}_${height}"
+            bgScaledBitmapCache.get(key)?.let {
+                if (!it.isRecycled) return it
+                bgScaledBitmapCache.remove(key)
+            }
+            val scaled = Bitmap.createScaledBitmap(source, width, height, true)
+            if (scaled.byteCount <= bgScaledBitmapCache.maxSize()) {
+                bgScaledBitmapCache.put(key, scaled)
+            }
+            return scaled
         }
 
         private fun loadBgBitmap(path: String): Bitmap? {
@@ -749,10 +781,14 @@ data class TextLine(
                 val ctx = appCtx
                 if (path.startsWith("assets://")) {
                     val assetPath = path.removePrefix("assets://")
-                    decodeSampledBitmap { ctx.assets.open(assetPath) }
+                    ctx.assets.open(assetPath).use { input ->
+                        decodeSampledBitmap(input.readBytes())
+                    }
                 } else if (path.startsWith("content://")) {
                     val uri = android.net.Uri.parse(path)
-                    decodeSampledBitmap { ctx.contentResolver.openInputStream(uri) }
+                    ctx.contentResolver.openInputStream(uri)?.use { input ->
+                        decodeSampledBitmap(input.readBytes())
+                    }
                 } else {
                     val file = java.io.File(path)
                     if (file.exists()) {
@@ -760,7 +796,9 @@ data class TextLine(
                     } else {
                         val assetPath = if (path.startsWith("bg/")) path else "bg/$path"
                         kotlin.runCatching {
-                            decodeSampledBitmap { ctx.assets.open(assetPath) }
+                            ctx.assets.open(assetPath).use { input ->
+                                decodeSampledBitmap(input.readBytes())
+                            }
                         }.getOrNull()
                     }
                 }
@@ -772,17 +810,13 @@ data class TextLine(
             }
         }
 
-        private fun decodeSampledBitmap(openInputStream: () -> java.io.InputStream?): Bitmap? {
+        private fun decodeSampledBitmap(bytes: ByteArray): Bitmap? {
             val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            openInputStream()?.use { input ->
-                BitmapFactory.decodeStream(input, null, options)
-            } ?: return null
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
             if (options.outWidth <= 0 || options.outHeight <= 0) return null
             options.inSampleSize = calculateInSampleSize(options, bgSampleWidth, bgSampleHeight)
             options.inJustDecodeBounds = false
-            return openInputStream()?.use { input ->
-                BitmapFactory.decodeStream(input, null, options)
-            }
+            return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
         }
 
         private fun decodeSampledBitmapFile(path: String): Bitmap? {
@@ -812,6 +846,7 @@ data class TextLine(
 
         fun clearBgBitmapCache() {
             bgBitmapCache.evictAll()
+            bgScaledBitmapCache.evictAll()
         }
 
         @Suppress("DEPRECATION")
@@ -825,6 +860,7 @@ data class TextLine(
                 || level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE
             ) {
                 bgBitmapCache.trimToSize(bgBitmapCache.maxSize() / 2)
+                bgScaledBitmapCache.trimToSize(bgScaledBitmapCache.maxSize() / 2)
             }
         }
 
