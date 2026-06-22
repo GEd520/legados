@@ -9,7 +9,6 @@ import io.legado.app.data.entities.BookSource
 import io.legado.app.exception.NoStackTraceException
 import io.legado.app.help.ConcurrentRateLimiter.Companion.concurrentRecordMap
 import io.legado.app.help.RuleComplete
-import io.legado.app.help.config.SourceConfig
 import io.legado.app.help.http.CookieStore
 import io.legado.app.help.http.newCallStrResponse
 import io.legado.app.help.http.okHttpClient
@@ -64,15 +63,15 @@ class BookSourceEditViewModel(application: Application) : BaseViewModel(applicat
                     SharedJsScope.remove(oldSource.jsLib)
                 }
             }
-            bookSource?.let {
-                if (it.bookSourceUrl != source.bookSourceUrl) {
+            val oldBookSource = bookSource
+            if (oldBookSource != null && oldBookSource.bookSourceUrl == source.bookSourceUrl) {
+                appDb.bookSourceDao.update(source)
+            } else {
+                oldBookSource?.let {
                     SourceHelp.deleteBookSource(it.bookSourceUrl)
-                } else {
-                    appDb.bookSourceDao.delete(it)
-                    SourceConfig.removeSource(it.bookSourceUrl)
                 }
+                appDb.bookSourceDao.insert(source)
             }
-            appDb.bookSourceDao.insert(source)
             bookSource = source
             concurrentRecordMap.remove(source.bookSourceUrl) //删除并发限制缓存
             source

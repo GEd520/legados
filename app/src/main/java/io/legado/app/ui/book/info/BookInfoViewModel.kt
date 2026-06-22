@@ -3,6 +3,7 @@ package io.legado.app.ui.book.info
 import android.app.Application
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
@@ -17,6 +18,7 @@ import io.legado.app.data.appDb
 import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookChapter
 import io.legado.app.data.entities.BookSource
+import io.legado.app.data.entities.SearchBook
 import io.legado.app.exception.NoBooksDirException
 import io.legado.app.exception.NoStackTraceException
 import io.legado.app.help.AppWebDav
@@ -94,6 +96,10 @@ class BookInfoViewModel(application: Application) : BaseViewModel(application) {
                     upBook(it)
                     return@execute
                 }
+                intent.getSearchBookExtra()?.takeIf { it.bookUrl == bookUrl }?.toBook()?.let {
+                    upBook(it)
+                    return@execute
+                }
             }
             appDb.searchBookDao.getFirstByNameAuthor(name, author)?.toBook()?.let {
                 upBook(it)
@@ -103,6 +109,15 @@ class BookInfoViewModel(application: Application) : BaseViewModel(application) {
         }.onError {
             AppLog.put(it.localizedMessage, it)
             context.toastOnUi(it.localizedMessage)
+        }
+    }
+
+    private fun Intent.getSearchBookExtra(): SearchBook? {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            getParcelableExtra(BookInfoActivity.EXTRA_SEARCH_BOOK, SearchBook::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            getParcelableExtra(BookInfoActivity.EXTRA_SEARCH_BOOK)
         }
     }
 

@@ -134,6 +134,10 @@ class BookInfoActivity :
     ChangeCoverDialog.CallBack,
     VariableDialog.Callback {
 
+    companion object {
+        const val EXTRA_SEARCH_BOOK = "searchBook"
+    }
+
     private val tocActivityResult = registerForActivityResult(TocActivityResult()) {
         it?.let {
             viewModel.getBook(false)?.let { book ->

@@ -203,6 +203,7 @@ class ExploreShowActivity : VMBaseActivity<ActivityExploreShowBinding, ExploreSh
             putExtra("name", book.name)
             putExtra("author", book.author)
             putExtra("bookUrl", book.bookUrl)
+            putExtra(BookInfoActivity.EXTRA_SEARCH_BOOK, book)
         }
     }
 
