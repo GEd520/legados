@@ -16,6 +16,8 @@
 - 修复阅读菜单非沉浸模式首次初始化时 TitleBar 着色缺失的问题
 - 修复仿真翻页 `calcPoints` 中浮点数精确比较 `f4 == 0f` 在极小值时未触发保护分支的问题，改为阈值比较
 - 修复仿真翻页 `drawCurrentBackArea` 中 `dis` 为零时除零导致矩阵计算异常的问题，同时修复提前返回时跳过 `canvas.restore()` 导致 Canvas 状态栈泄漏的问题
+- 优化仿真翻页拖动和自动滚动刷新节奏，改为按屏幕刷新帧调度重绘，减少无效刷新带来的卡顿感
+- 优化仿真翻页曲线交点计算，复用临时坐标对象，降低连续拖动时的小对象分配和 GC 抖动
 - 修复 `TextLine.getColumn()` 空列表时 `last()` 抛 `NoSuchElementException` 的问题
 - 修复 `TextLine` 绘制选中高亮时 `as TextColumn` 强制转换遇到图片列会 `ClassCastException` 崩溃的问题
 - 修复 `TextChapter.layoutChannel` 和 `setProgressListener` 中非空断言在 layout 未初始化时崩溃的问题，layout 缺失时返回已关闭通道，避免章节加载或朗读预排版协程挂起

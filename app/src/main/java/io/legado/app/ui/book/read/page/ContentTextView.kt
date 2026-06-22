@@ -207,7 +207,7 @@ class ContentTextView(context: Context, attrs: AttributeSet?) : View(context, at
             }
             if (invalidate) {
                 postInvalidate()
-                pageDelegate?.postInvalidate()
+                pageDelegate?.postInvalidateOnAnimation()
             }
         }
     }

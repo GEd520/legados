@@ -49,7 +49,7 @@ class SimulationPageDelegate(readView: ReadView) : HorizontalPageDelegate(readVi
     private val mBezierVertex1 = PointF()
 
     // 贝塞尔曲线结束点
-    private var mBezierEnd1 = PointF()
+    private val mBezierEnd1 = PointF()
 
     // 另一条贝塞尔曲线
     // 贝塞尔曲线起始点
@@ -62,7 +62,8 @@ class SimulationPageDelegate(readView: ReadView) : HorizontalPageDelegate(readVi
     private val mBezierVertex2 = PointF()
 
     // 贝塞尔曲线结束点
-    private var mBezierEnd2 = PointF()
+    private val mBezierEnd2 = PointF()
+    private val mTouchPoint = PointF()
 
     private var mMiddleX = 0f
     private var mMiddleY = 0f
@@ -625,13 +626,14 @@ class SimulationPageDelegate(readView: ReadView) : HorizontalPageDelegate(readVi
             (mTouchY - mCornerY).toDouble()
         ).toFloat()
 
-        mBezierEnd1 = getCross(
-            PointF(mTouchX, mTouchY), mBezierControl1, mBezierStart1,
-            mBezierStart2
+        mTouchPoint.set(mTouchX, mTouchY)
+        getCross(
+            mTouchPoint, mBezierControl1, mBezierStart1,
+            mBezierStart2, mBezierEnd1
         )
-        mBezierEnd2 = getCross(
-            PointF(mTouchX, mTouchY), mBezierControl2, mBezierStart1,
-            mBezierStart2
+        getCross(
+            mTouchPoint, mBezierControl2, mBezierStart1,
+            mBezierStart2, mBezierEnd2
         )
 
         mBezierVertex1.x = (mBezierStart1.x + 2 * mBezierControl1.x + mBezierEnd1.x) / 4
@@ -643,15 +645,16 @@ class SimulationPageDelegate(readView: ReadView) : HorizontalPageDelegate(readVi
     /**
      * 求解直线P1P2和直线P3P4的交点坐标
      */
-    private fun getCross(P1: PointF, P2: PointF, P3: PointF, P4: PointF): PointF {
+    private fun getCross(P1: PointF, P2: PointF, P3: PointF, P4: PointF, out: PointF) {
         val denominator = (P1.x - P2.x) * (P3.y - P4.y) -
             (P1.y - P2.y) * (P3.x - P4.x)
         if (abs(denominator) < EPSILON) {
-            return PointF(P2.x, P2.y)
+            out.set(P2.x, P2.y)
+            return
         }
         val d1 = P1.x * P2.y - P1.y * P2.x
         val d2 = P3.x * P4.y - P3.y * P4.x
-        return PointF(
+        out.set(
             (d1 * (P3.x - P4.x) - (P1.x - P2.x) * d2) / denominator,
             (d1 * (P3.y - P4.y) - (P1.y - P2.y) * d2) / denominator
         )

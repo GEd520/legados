@@ -54,8 +54,6 @@ abstract class PageDelegate(protected val readView: ReadView) {
     var isRunning = false
     var isStarted = false
 
-    private var selectedOnDown = false
-
     init {
         curPage.resetPageOffset()
     }
@@ -67,7 +65,7 @@ abstract class PageDelegate(protected val readView: ReadView) {
         scroller.fling(startX, startY, velocityX, velocityY, minX, maxX, minY, maxY)
         isRunning = true
         isStarted = true
-        readView.invalidate()
+        readView.postInvalidateOnAnimation()
     }
 
     protected fun startScroll(startX: Int, startY: Int, dx: Int, dy: Int, animationSpeed: Int) {
@@ -79,7 +77,7 @@ abstract class PageDelegate(protected val readView: ReadView) {
         scroller.startScroll(startX, startY, dx, dy, duration)
         isRunning = true
         isStarted = true
-        readView.invalidate()
+        readView.postInvalidateOnAnimation()
     }
 
     protected fun stopScroll() {
@@ -87,7 +85,7 @@ abstract class PageDelegate(protected val readView: ReadView) {
         readView.post {
             isMoved = false
             isRunning = false
-            readView.invalidate()
+            readView.postInvalidateOnAnimation()
         }
     }
 
@@ -197,12 +195,12 @@ abstract class PageDelegate(protected val readView: ReadView) {
         }
     }
 
-    fun postInvalidate() {
+    fun postInvalidateOnAnimation() {
         if (isStarted && isRunning && this is HorizontalPageDelegate) {
             readView.post {
                 if (isStarted && isRunning) {
                     setBitmap()
-                    readView.invalidate()
+                    readView.postInvalidateOnAnimation()
                 }
             }
         }

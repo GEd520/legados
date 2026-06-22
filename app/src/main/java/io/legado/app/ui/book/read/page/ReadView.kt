@@ -342,7 +342,7 @@ class ReadView(context: Context, attrs: AttributeSet) :
         touchX = x
         touchY = y
         if (invalidate) {
-            invalidate()
+            postInvalidateOnAnimation()
         }
         pageDelegate?.onScroll()
         val offset = touchY - lastY
