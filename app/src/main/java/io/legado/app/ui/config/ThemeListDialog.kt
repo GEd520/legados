@@ -531,6 +531,11 @@ class ThemeListDialog : BaseDialogFragment(R.layout.dialog_theme_list),
     private fun refreshThemeEditDialog() {
         val config = editingTheme ?: return
         val root = editingDialog ?: return
+        root.findViewWithTag<EditText>("themeName")
+            ?.text
+            ?.toString()
+            ?.trim()
+            ?.let { config.themeName = it }
         root.removeAllViews()
         buildThemeEditView(config).let { rebuilt ->
             while (rebuilt.childCount > 0) {

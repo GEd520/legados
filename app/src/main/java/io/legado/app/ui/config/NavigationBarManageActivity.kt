@@ -362,6 +362,11 @@ class NavigationBarManageActivity : BaseActivity<ActivityNavigationBarManageBind
     private fun refreshEditDialog() {
         val config = editingConfig ?: return
         val root = editingDialog ?: return
+        root.findViewWithTag<EditText>("name")
+            ?.text
+            ?.toString()
+            ?.trim()
+            ?.let { config.name = it }
         root.removeAllViews()
         buildEditView(config).let { rebuilt ->
             while (rebuilt.childCount > 0) {

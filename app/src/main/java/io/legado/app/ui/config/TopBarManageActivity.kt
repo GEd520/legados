@@ -332,6 +332,11 @@ class TopBarManageActivity : BaseActivity<ActivityTopBarManageBinding>(), ColorP
 
     private fun refreshEditDialog() {
         val root = editingDialog ?: return
+        root.findViewWithTag<EditText>("name")
+            ?.text
+            ?.toString()
+            ?.trim()
+            ?.let { pendingConfig?.name = it }
         root.removeAllViews()
         val rebuilt = buildEditView()
         while (rebuilt.childCount > 0) {
