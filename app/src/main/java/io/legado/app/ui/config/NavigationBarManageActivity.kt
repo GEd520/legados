@@ -433,36 +433,6 @@ class NavigationBarManageActivity : BaseActivity<ActivityNavigationBarManageBind
         }
     }
 
-    private fun selectLayoutMode(config: NavigationBarConfig) {
-        val modes = listOf(
-            NavigationBarConfig.LAYOUT_FLOATING,
-            NavigationBarConfig.LAYOUT_STANDARD,
-            NavigationBarConfig.LAYOUT_SIDEBAR
-        )
-        val labels = listOf("悬浮底栏", "常规底栏", "侧边栏")
-        selector(items = labels) { _, i ->
-            config.layoutMode = modes[i]
-            if (config.layoutMode == NavigationBarConfig.LAYOUT_STANDARD) {
-                config.effectMode = NavigationBarConfig.EFFECT_SOLID
-                config.opacity = 100
-            }
-            refreshEditDialog()
-        }
-    }
-
-    private fun selectEffectMode(config: NavigationBarConfig) {
-        val modes = listOf(
-            NavigationBarConfig.EFFECT_SOLID,
-            NavigationBarConfig.EFFECT_GLASS,
-            NavigationBarConfig.EFFECT_FROSTED
-        )
-        val labels = listOf("实色", "玻璃", "磨砂")
-        selector(items = labels) { _, i ->
-            config.effectMode = modes[i]
-            refreshEditDialog()
-        }
-    }
-
     private fun editOpacity(config: NavigationBarConfig) {
         NumberPickerDialog(this)
             .setTitle(getString(R.string.opacity))

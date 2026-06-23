@@ -19,6 +19,7 @@ import android.widget.Switch
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.toColorInt
+import androidx.core.view.children
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.jaredrummler.android.colorpicker.ColorPickerDialog
 import com.jaredrummler.android.colorpicker.ColorPickerDialogListener
@@ -39,6 +40,7 @@ import io.legado.app.ui.widget.number.NumberPickerDialog
 import io.legado.app.ui.widget.recycler.VerticalDivider
 import io.legado.app.utils.FileUtils
 import io.legado.app.utils.GSON
+import io.legado.app.utils.MenuExtensions
 import io.legado.app.utils.applyTint
 import io.legado.app.utils.externalFiles
 import io.legado.app.utils.getClipText
@@ -82,6 +84,7 @@ class ThemeManageActivity : BaseActivity<ActivityThemeManageBinding>(),
             menu
         )
         menu.applyTint(this)
+        updateActionTextColor(menu.findItem(R.id.menu_import))
         return true
     }
 
@@ -104,6 +107,24 @@ class ThemeManageActivity : BaseActivity<ActivityThemeManageBinding>(),
         tvAddTheme.setOnClickListener {
             showAddOptions()
         }
+    }
+
+    private fun updateActionTextColor(item: MenuItem?) {
+        if (item == null) return
+        binding.titleBar.toolbar.post {
+            val title = item.title?.toString() ?: return@post
+            val color = MenuExtensions.getMenuColor(this, binding.titleBar.topBarTheme)
+            findActionTextView(binding.titleBar.toolbar, title)?.setTextColor(color)
+        }
+    }
+
+    private fun findActionTextView(view: View, title: String): TextView? {
+        if (view is TextView && view.text?.toString() == title) {
+            return view
+        }
+        return (view as? ViewGroup)
+            ?.children
+            ?.firstNotNullOfOrNull { findActionTextView(it, title) }
     }
 
     private fun initTabs() = binding.run {

@@ -226,24 +226,6 @@ data class NavigationBarConfig(
             if (recreate) postEvent(EventBus.RECREATE, "")
         }
 
-        fun resolveForTheme(
-            context: Context,
-            isNight: Boolean,
-            baseBottomColor: Int,
-            baseTransparentNavBar: Boolean
-        ): Resolved {
-            val config = activeConfig(context, isNight)
-            if (config.isBuiltin) {
-                return Resolved(ColorUtils.withAlpha(baseBottomColor, 1f), baseTransparentNavBar)
-            }
-            return Resolved(
-                bottomBackground = resolveBottomColor(baseBottomColor, config),
-                transparentNavBar = baseTransparentNavBar ||
-                        config.layoutMode != LAYOUT_STANDARD ||
-                        config.opacity < 100
-            )
-        }
-
         fun resolveBottomColor(baseColor: Int, config: NavigationBarConfig): Int {
             val alpha = config.opacity.coerceIn(0, 100) / 100f
             if (config.isBuiltin) return ColorUtils.withAlpha(baseColor, 1f)
@@ -289,9 +271,4 @@ data class NavigationBarConfig(
             return drawable
         }
     }
-
-    data class Resolved(
-        val bottomBackground: Int,
-        val transparentNavBar: Boolean
-    )
 }
