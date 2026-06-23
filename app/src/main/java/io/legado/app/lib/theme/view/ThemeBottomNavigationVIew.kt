@@ -43,8 +43,7 @@ class ThemeBottomNavigationVIew(context: Context, attrs: AttributeSet) :
         ViewCompat.setOnApplyWindowInsetsListener(this, null)
     }
 
-    fun createThemeColorStateList(): ColorStateList {
-        val bgColor = context.bottomBackground
+    fun createThemeColorStateList(bgColor: Int = context.bottomBackground): ColorStateList {
         val textIsDark = ColorUtils.isColorLight(bgColor)
         val textColor = context.getSecondaryTextColor(textIsDark)
         return Selector.colorBuild()
@@ -53,8 +52,8 @@ class ThemeBottomNavigationVIew(context: Context, attrs: AttributeSet) :
             .create()
     }
 
-    fun restoreThemeIconTint() {
-        val colorStateList = createThemeColorStateList()
+    fun restoreThemeIconTint(bgColor: Int = context.bottomBackground) {
+        val colorStateList = createThemeColorStateList(bgColor)
         itemIconTintList = colorStateList
         itemTextColor = colorStateList
     }

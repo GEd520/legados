@@ -18,6 +18,7 @@ import io.legado.app.R
 import io.legado.app.base.BaseActivity
 import io.legado.app.base.adapter.ItemViewHolder
 import io.legado.app.base.adapter.RecyclerAdapter
+import io.legado.app.constant.PreferKey
 import io.legado.app.databinding.ActivityNavigationBarManageBinding
 import io.legado.app.databinding.ItemNavBarConfigBinding
 import io.legado.app.help.config.AppConfig
@@ -32,7 +33,9 @@ import io.legado.app.ui.widget.recycler.VerticalDivider
 import io.legado.app.utils.externalFiles
 import io.legado.app.utils.getFile
 import io.legado.app.utils.getClipText
+import io.legado.app.utils.getCompatColor
 import io.legado.app.utils.getPrefBoolean
+import io.legado.app.utils.getPrefInt
 import io.legado.app.utils.putPrefBoolean
 import io.legado.app.utils.share
 import io.legado.app.utils.toastOnUi
@@ -60,6 +63,7 @@ class NavigationBarManageActivity : BaseActivity<ActivityNavigationBarManageBind
     companion object {
         private const val PREF_KEY_IS_NIGHT = "navBarIsNight"
         private const val COLOR_DIALOG_BORDER = 1
+        private const val COLOR_DIALOG_BACKGROUND = 2
     }
 
     private val selectIcon = registerForActivityResult(HandleFileContract()) { result ->
@@ -258,6 +262,10 @@ class NavigationBarManageActivity : BaseActivity<ActivityNavigationBarManageBind
                     selectEffectModeClean(config)
                 })
             }
+            val backgroundColor = config.backgroundColor ?: defaultBottomBackground()
+            addView(optionRow(getString(R.string.bottom_background_color), backgroundColorText(config), backgroundColor) {
+                selectBackgroundColor(config)
+            })
             if (config.layoutMode != NavigationBarConfig.LAYOUT_SIDEBAR) {
                 addView(optionRow(getString(R.string.opacity), "${config.opacity}%") {
                     editOpacity(config)
@@ -278,6 +286,10 @@ class NavigationBarManageActivity : BaseActivity<ActivityNavigationBarManageBind
     }
 
     private fun optionRow(title: String, value: String, onClick: () -> Unit): View {
+        return optionRow(title, value, null, onClick)
+    }
+
+    private fun optionRow(title: String, value: String, colorPreview: Int?, onClick: () -> Unit): View {
         return LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -293,6 +305,12 @@ class NavigationBarManageActivity : BaseActivity<ActivityNavigationBarManageBind
                 setTextColor(ContextCompat.getColor(context, R.color.primaryText))
                 layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
             })
+            colorPreview?.let { color ->
+                addView(View(context).apply {
+                    setBackgroundColor(color)
+                    layoutParams = LinearLayout.LayoutParams(20.dp, 20.dp).apply { marginEnd = 8.dp }
+                })
+            }
             addView(TextView(context).apply {
                 text = value
                 textSize = 13f
@@ -333,7 +351,7 @@ class NavigationBarManageActivity : BaseActivity<ActivityNavigationBarManageBind
             contentDescription = getString(if (selected) R.string.navigation_icon_selected else R.string.navigation_icon_normal)
             setPadding(8.dp, 8.dp, 8.dp, 8.dp)
             scaleType = ImageView.ScaleType.CENTER_INSIDE
-            setImageDrawable(NavigationBarConfig.previewDrawable(this@NavigationBarManageActivity, config, item, selected))
+            setImageDrawable(NavigationBarConfig.previewDrawable(this@NavigationBarManageActivity, config, item, selected, previewBottomBackground(config)))
             background = ContextCompat.getDrawable(context, R.drawable.bg_action_button)
             layoutParams = LinearLayout.LayoutParams(44.dp, 44.dp).apply { marginStart = 8.dp }
             setOnClickListener {
@@ -457,6 +475,44 @@ class NavigationBarManageActivity : BaseActivity<ActivityNavigationBarManageBind
             }
     }
 
+    private fun selectBackgroundColor(config: NavigationBarConfig) {
+        val actions = listOf(
+            getString(R.string.bottom_bar_follow_theme),
+            getString(R.string.accent_color),
+            getString(R.string.custom)
+        )
+        selector(getString(R.string.bottom_background_color), actions) { _, index ->
+            when (index) {
+                0 -> {
+                    config.backgroundColor = null
+                    refreshEditDialog()
+                }
+                1 -> {
+                    config.backgroundColor = accentColor
+                    refreshEditDialog()
+                }
+                2 -> showBackgroundColorPicker(config)
+            }
+        }
+    }
+
+    private fun showBackgroundColorPicker(config: NavigationBarConfig) {
+        editingConfig = config
+        val dialog = ColorPickerDialog.newBuilder()
+            .setDialogType(ColorPickerDialog.TYPE_CUSTOM)
+            .setColor(config.backgroundColor ?: defaultBottomBackground())
+            .setShowAlphaSlider(false)
+            .setAllowPresets(true)
+            .setAllowCustom(true)
+            .setDialogId(COLOR_DIALOG_BACKGROUND)
+            .create()
+        dialog.setColorPickerDialogListener(this)
+        supportFragmentManager
+            .beginTransaction()
+            .add(dialog, "navigation_bar_background_color")
+            .commitAllowingStateLoss()
+    }
+
     private fun selectBorderColor(config: NavigationBarConfig) {
         val actions = listOf(
             getString(R.string.transparent),
@@ -509,11 +565,17 @@ class NavigationBarManageActivity : BaseActivity<ActivityNavigationBarManageBind
     }
 
     override fun onColorSelected(dialogId: Int, color: Int) {
-        if (dialogId == COLOR_DIALOG_BORDER) {
-            editingConfig?.let {
-                it.borderColor = color
-                it.borderAlpha = it.borderAlpha.coerceIn(1, 100)
-                refreshEditDialog()
+        editingConfig?.let {
+            when (dialogId) {
+                COLOR_DIALOG_BORDER -> {
+                    it.borderColor = color
+                    it.borderAlpha = it.borderAlpha.coerceIn(1, 100)
+                    refreshEditDialog()
+                }
+                COLOR_DIALOG_BACKGROUND -> {
+                    it.backgroundColor = color
+                    refreshEditDialog()
+                }
             }
         }
     }
@@ -523,6 +585,26 @@ class NavigationBarManageActivity : BaseActivity<ActivityNavigationBarManageBind
     private fun NavigationBarConfig.borderColorText(): String {
         return borderColor?.let { String.format("#%06X", 0xFFFFFF and it) }
             ?: getString(R.string.transparent)
+    }
+
+    private fun backgroundColorText(config: NavigationBarConfig): String {
+        return when (val color = config.backgroundColor) {
+            null -> getString(R.string.bottom_bar_follow_theme)
+            accentColor -> getString(R.string.accent_color)
+            else -> String.format("#%06X", 0xFFFFFF and color)
+        }
+    }
+
+    private fun defaultBottomBackground(): Int {
+        return if (isNightMode) {
+            getPrefInt(PreferKey.cNBBackground, getCompatColor(R.color.default_night_bottom_background))
+        } else {
+            getPrefInt(PreferKey.cBBackground, getCompatColor(R.color.default_bottom_background))
+        }
+    }
+
+    private fun previewBottomBackground(config: NavigationBarConfig): Int {
+        return NavigationBarConfig.resolveBottomColor(defaultBottomBackground(), config)
     }
 
     private fun getNextConfigName(): String {

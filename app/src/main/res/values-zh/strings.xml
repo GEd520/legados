@@ -1577,6 +1577,7 @@
     <string name="bottom_bar_effect_mode">底栏材质模式</string>
     <string name="bottom_bar_border_color">底栏边框颜色</string>
     <string name="bottom_bar_border_alpha">底栏边框透明度</string>
+    <string name="bottom_bar_follow_theme">跟随主题底栏色</string>
     <string name="opacity">不透明度</string>
     <string name="navigation_icon_normal">普通图标</string>
     <string name="navigation_icon_selected">选中图标</string>

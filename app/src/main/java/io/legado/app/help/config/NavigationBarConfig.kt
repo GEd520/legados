@@ -32,6 +32,7 @@ data class NavigationBarConfig(
     var isBuiltin: Boolean = false,
     var layoutMode: String = LAYOUT_FLOATING,
     var effectMode: String = EFFECT_GLASS,
+    var backgroundColor: Int? = null,
     var opacity: Int = 76,
     var borderColor: Int? = null,
     var borderAlpha: Int = 100,
@@ -209,6 +210,7 @@ data class NavigationBarConfig(
                 config.id,
                 config.layoutMode,
                 config.effectMode,
+                config.backgroundColor,
                 config.opacity,
                 config.borderColor,
                 config.borderAlpha,
@@ -245,10 +247,10 @@ data class NavigationBarConfig(
         fun resolveBottomColor(baseColor: Int, config: NavigationBarConfig): Int {
             val alpha = config.opacity.coerceIn(0, 100) / 100f
             if (config.isBuiltin) return ColorUtils.withAlpha(baseColor, 1f)
-            return ColorUtils.withAlpha(baseColor, alpha)
+            return ColorUtils.withAlpha(config.backgroundColor ?: baseColor, alpha)
         }
 
-        fun applyToMenu(menu: Menu, context: Context, isNight: Boolean): Boolean {
+        fun applyToMenu(menu: Menu, context: Context, isNight: Boolean, bgColor: Int? = null): Boolean {
             val config = activeConfig(context, isNight)
             var hasCustom = false
             items.forEach { item ->
@@ -256,19 +258,19 @@ data class NavigationBarConfig(
                 val selected = loadIconDrawable(context, config.icons[iconKey(item.key, STATE_SELECTED)])
                 if (normal != null || selected != null) hasCustom = true
                 menu.findItem(item.menuId)?.icon = StateListDrawable().apply {
-                    addState(intArrayOf(android.R.attr.state_checked), selected ?: normal ?: defaultDrawable(context, item.defaultIconRes, true))
-                    addState(intArrayOf(android.R.attr.state_selected), selected ?: normal ?: defaultDrawable(context, item.defaultIconRes, true))
-                    addState(intArrayOf(), normal ?: defaultDrawable(context, item.defaultIconRes, false))
+                    addState(intArrayOf(android.R.attr.state_checked), selected ?: normal ?: defaultDrawable(context, item.defaultIconRes, true, bgColor))
+                    addState(intArrayOf(android.R.attr.state_selected), selected ?: normal ?: defaultDrawable(context, item.defaultIconRes, true, bgColor))
+                    addState(intArrayOf(), normal ?: defaultDrawable(context, item.defaultIconRes, false, bgColor))
                 }
             }
             return hasCustom
         }
 
-        fun previewDrawable(context: Context, config: NavigationBarConfig, item: NavItem, selected: Boolean): Drawable? {
+        fun previewDrawable(context: Context, config: NavigationBarConfig, item: NavItem, selected: Boolean, bgColor: Int? = null): Drawable? {
             val state = if (selected) STATE_SELECTED else STATE_NORMAL
             return loadIconDrawable(context, config.icons[iconKey(item.key, state)])
                 ?: loadIconDrawable(context, config.icons[iconKey(item.key, STATE_NORMAL)])
-                ?: defaultDrawable(context, item.defaultIconRes, selected)
+                ?: defaultDrawable(context, item.defaultIconRes, selected, bgColor)
         }
 
         fun iconKey(itemKey: String, state: String): String = "${itemKey}_$state"
@@ -278,9 +280,9 @@ data class NavigationBarConfig(
             return Drawable.createFromPath(path)
         }
 
-        private fun defaultDrawable(context: Context, @DrawableRes resId: Int, selected: Boolean): Drawable {
+        private fun defaultDrawable(context: Context, @DrawableRes resId: Int, selected: Boolean, bgColor: Int? = null): Drawable {
             val drawable = ContextCompat.getDrawable(context, resId)!!.mutate()
-            val bg = ThemeStore.bottomBackground(context)
+            val bg = bgColor ?: ThemeStore.bottomBackground(context)
             val textIsDark = ColorUtils.isColorLight(bg)
             val color = if (selected) ThemeStore.accentColor(context) else context.getSecondaryTextColor(textIsDark)
             DrawableCompat.setTint(drawable, color)

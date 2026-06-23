@@ -274,12 +274,13 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
         val hasCustomIcons = NavigationBarConfig.applyToMenu(
             bottomNavigationView.menu,
             this@MainActivity,
-            AppConfig.isNightTheme
+            AppConfig.isNightTheme,
+            bgColor
         )
         if (hasCustomIcons) {
             bottomNavigationView.itemIconTintList = null
         } else {
-            bottomNavigationView.restoreThemeIconTint()
+            bottomNavigationView.restoreThemeIconTint(bgColor)
         }
         bottomNavigationView.itemBackground = Color.TRANSPARENT.toDrawable()
         applyBottomNavigationShell(config, bgColor)
@@ -355,7 +356,8 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
             bottomNavigationShellOverlay.background = createLiquidGlassShellDrawable(
                 glassLevel = config.opacity.coerceIn(0, 100) / 100f,
                 cornerRadius = if (floating) 24f.dpToPx() else 0f,
-                effectMode = config.effectMode
+                effectMode = config.effectMode,
+                bgColor = bgColor
             )
         } else {
             bottomNavigationGlassView.invisible()
@@ -402,9 +404,10 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
     private fun createLiquidGlassShellDrawable(
         glassLevel: Float,
         cornerRadius: Float,
-        effectMode: String
+        effectMode: String,
+        bgColor: Int
     ): GradientDrawable {
-        val baseColor = bottomBackground
+        val baseColor = bgColor
         val isLight = ColorUtils.isColorLight(baseColor)
         val surfaceColor = if (isLight) Color.WHITE else Color.rgb(22, 24, 28)
         val fallbackBoost = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) 0.08f else 0f
@@ -848,7 +851,7 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
             pagePosition = position
             binding.bottomNavigationView.menu[realPositions[position]].isChecked = true
             val config = NavigationBarConfig.activeConfig(this@MainActivity, AppConfig.isNightTheme)
-            applyBottomNavigationSelectedIndicator(config, bottomBackground)
+            applyBottomNavigationSelectedIndicator(config, resolveNavigationBarBackground(config))
         }
 
     }

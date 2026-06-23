@@ -1751,6 +1751,7 @@
     <string name="bottom_bar_effect_mode">Bottom bar effect mode</string>
     <string name="bottom_bar_border_color">Bottom bar border color</string>
     <string name="bottom_bar_border_alpha">Bottom bar border opacity</string>
+    <string name="bottom_bar_follow_theme">Follow theme bottom color</string>
     <string name="opacity">Opacity</string>
     <string name="navigation_icon_normal">Normal icon</string>
     <string name="navigation_icon_selected">Selected icon</string>
