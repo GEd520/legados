@@ -18,6 +18,7 @@ import androidx.core.view.children
 import com.google.android.material.appbar.AppBarLayout
 import io.legado.app.R
 import io.legado.app.constant.Theme
+import io.legado.app.utils.MenuExtensions
 import io.legado.app.utils.activity
 import io.legado.app.utils.setOnApplyWindowInsetsListenerCompat
 import splitties.views.bottomPadding
@@ -266,6 +267,7 @@ class TitleBar @JvmOverloads constructor(
             activity?.let {
                 it.setSupportActionBar(toolbar)
                 it.supportActionBar?.setDisplayHomeAsUpEnabled(displayHomeAsUp)
+                setColorFilter(MenuExtensions.getMenuColor(context, topBarTheme))
             }
         }
     }

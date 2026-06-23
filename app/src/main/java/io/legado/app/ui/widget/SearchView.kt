@@ -13,9 +13,11 @@ import android.text.style.ImageSpan
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.Gravity
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.annotation.ColorInt
 import androidx.appcompat.widget.SearchView
+import androidx.core.graphics.ColorUtils
 import androidx.core.graphics.drawable.DrawableCompat
 import io.legado.app.R
 import io.legado.app.utils.printOnDebug
@@ -29,6 +31,7 @@ class SearchView @JvmOverloads constructor(
     private var mOriginalHintIcon: Drawable? = null
     private var textView: TextView? = null
     private var hintIconTint: Int? = null
+    private var contentTint: Int? = null
 
     @SuppressLint("UseCompatLoadingForDrawables")
     override fun onLayout(
@@ -45,6 +48,7 @@ class SearchView @JvmOverloads constructor(
                 mOriginalHintIcon = this.context.getDrawable(R.drawable.ic_search_hint)
                 mSearchHintIcon = mOriginalHintIcon
                 applyHintIconTint()
+                applyContentTint()
                 // 改变字体（只需初始化一次）
                 textView!!.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
                 textView!!.gravity = Gravity.CENTER_VERTICAL
@@ -80,6 +84,31 @@ class SearchView @JvmOverloads constructor(
         hintIconTint = color
         applyHintIconTint()
         updateQueryHint()
+    }
+
+    fun setContentTint(@ColorInt color: Int) {
+        contentTint = color
+        hintIconTint = color
+        applyHintIconTint()
+        applyContentTint()
+        updateQueryHint()
+    }
+
+    private fun applyContentTint() {
+        val color = contentTint ?: return
+        textView?.let {
+            it.setTextColor(color)
+            it.setHintTextColor(ColorUtils.setAlphaComponent(color, 180))
+        }
+        listOf(
+            androidx.appcompat.R.id.search_button,
+            androidx.appcompat.R.id.search_close_btn,
+            androidx.appcompat.R.id.search_go_btn,
+            androidx.appcompat.R.id.search_mag_icon,
+            androidx.appcompat.R.id.search_voice_btn
+        ).forEach { id ->
+            findViewById<ImageView?>(id)?.setColorFilter(color)
+        }
     }
 
     private fun applyHintIconTint() {

@@ -42,7 +42,7 @@ fun TitleBar.applyTopBarConfig() {
     if (!opaque && context.transparentNavBar) {
         setBackgroundColor(Color.TRANSPARENT)
         applyTopBarContentColor()
-        applyTopBarChildConfig()
+        applyTransparentTopBarChildConfig()
         return
     }
     if (ignoreTopBarOpacity) {
@@ -96,10 +96,14 @@ private fun TitleBar.applyTopBarConfig(config: TopBarConfig.Config) {
 }
 
 private fun TitleBar.applyTopBarContentColor() {
-    val color = MenuExtensions.getMenuColor(context, topBarTheme)
+    val color = topBarContentColor()
     setTextColor(color)
     setColorFilter(color)
     toolbar.menu.applyTint(context, topBarTheme)
+}
+
+private fun TitleBar.topBarContentColor(): Int {
+    return MenuExtensions.getMenuColor(context, topBarTheme)
 }
 
 fun View.applyTopBarChildConfig() {
@@ -128,14 +132,31 @@ private fun TitleBar.applyTopBarChildConfig(config: TopBarConfig.Config) {
     findViewById<View?>(R.id.search_view)?.applyTopBarChildConfig(config)
 }
 
+private fun TitleBar.applyTransparentTopBarChildConfig() {
+    val config = TopBarConfig.currentConfig(context, AppConfig.isNightTheme)
+    val contentColor = topBarContentColor()
+    findViewById<TabLayout?>(R.id.tab_layout)?.apply {
+        setBackgroundColor(Color.TRANSPARENT)
+        setTabTextColors(tabTextColorStateList(contentColor))
+        setSelectedTabIndicatorColor(
+            TopBarConfig.withOpacity(
+                config.tagSelectedColor ?: context.primaryColor,
+                config.tagSelectedAlpha
+            )
+        )
+    }
+    findViewById<View?>(R.id.search_view)?.applyTopBarChildConfig(config)
+}
+
 private fun View.applyTopBarChildConfig(config: TopBarConfig.Config) {
     if (this !is TabLayout && id != R.id.search_view) return
     val tagBarColor = config.tagBarColor
         ?: ContextCompat.getColor(context, R.color.background_menu)
     val selectedColor = config.tagSelectedColor ?: context.primaryColor
-    val contentColor = context.primaryTextColor
+    val contentColor = if (context.transparentNavBar) MenuExtensions.getMenuColor(context) else context.primaryTextColor
     if (this is TabLayout && id == R.id.tab_layout) {
-        setBackgroundColor(TopBarConfig.withOpacity(tagBarColor, config.tagBarAlpha))
+        val tagBarAlpha = if (context.transparentNavBar) 0 else config.tagBarAlpha
+        setBackgroundColor(TopBarConfig.withOpacity(tagBarColor, tagBarAlpha))
         setTabTextColors(tabTextColorStateList(contentColor))
         setSelectedTabIndicatorColor(
             TopBarConfig.withOpacity(selectedColor, config.tagSelectedAlpha)
@@ -144,7 +165,7 @@ private fun View.applyTopBarChildConfig(config: TopBarConfig.Config) {
     if (id == R.id.search_view) {
         background = searchViewBackground()
         applyTint(contentColor)
-        (this as? SearchView)?.setSearchHintIconTint(contentColor)
+        (this as? SearchView)?.setContentTint(contentColor)
     }
 }
 

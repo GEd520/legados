@@ -236,7 +236,9 @@ data class NavigationBarConfig(
             }
             return Resolved(
                 bottomBackground = resolveBottomColor(baseBottomColor, config),
-                transparentNavBar = config.layoutMode != LAYOUT_STANDARD || config.opacity < 100
+                transparentNavBar = baseTransparentNavBar ||
+                        config.layoutMode != LAYOUT_STANDARD ||
+                        config.opacity < 100
             )
         }
 

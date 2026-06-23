@@ -32,9 +32,12 @@ import io.legado.app.R
 import io.legado.app.constant.EventBus
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.config.TopBarConfig
+import io.legado.app.lib.theme.backgroundColor
 import io.legado.app.lib.theme.elevation
+import io.legado.app.lib.theme.getPrimaryTextColor
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.lib.theme.primaryTextColor
+import io.legado.app.lib.theme.transparentNavBar
 import io.legado.app.utils.BitmapUtils
 import io.legado.app.utils.eventObservable
 import java.io.File
@@ -55,12 +58,15 @@ fun pageTopBarColors(): PageTopBarColors {
     val topBarConfigVersion = rememberTopBarConfigVersion()
     val context = LocalContext.current
     val config = TopBarConfig.currentConfig(context, AppConfig.isNightTheme)
+    val transparentNavBar = context.transparentNavBar
     val backgroundColor = if (config.style == TopBarConfig.STYLE_REGULAR) {
         TopBarConfig.resolveBackgroundColor(config)
     } else {
         config.tagBarColor ?: context.primaryColor
     }
-    val alphaPercent = if (config.style == TopBarConfig.STYLE_REGULAR) {
+    val alphaPercent = if (transparentNavBar) {
+        0
+    } else if (config.style == TopBarConfig.STYLE_REGULAR) {
         config.wallpaperAlpha
     } else {
         config.tagBarAlpha
@@ -73,18 +79,25 @@ fun pageTopBarColors(): PageTopBarColors {
         0.dp
     }
     val shadowElevation = when {
+        transparentNavBar -> 0.dp
         config.style == TopBarConfig.STYLE_REGULAR && config.cornerScale != 0f -> 0.dp
         alphaPercent < 100 -> 0.1.dp
         else -> with(LocalDensity.current) { context.elevation.toDp() }
     }
     val containerColor = TopBarConfig.withOpacity(backgroundColor, alphaPercent)
+    val contentColor = if (transparentNavBar) {
+        val isBackgroundLight = Color(context.backgroundColor).luminance() > 0.5f
+        Color(context.getPrimaryTextColor(isBackgroundLight))
+    } else {
+        Color(context.primaryTextColor)
+    }
     return PageTopBarColors(
         containerColor = Color(containerColor),
-        contentColor = Color(context.primaryTextColor),
+        contentColor = contentColor,
         cornerRadius = cornerRadius,
         shadowElevation = shadowElevation,
         wallpaperFile = TopBarConfig.currentWallpaperFile(context, AppConfig.isNightTheme)
-            ?.takeIf { config.style == TopBarConfig.STYLE_REGULAR },
+            ?.takeIf { !transparentNavBar && config.style == TopBarConfig.STYLE_REGULAR },
         wallpaperAlpha = TopBarConfig.opacityToAlpha(alphaPercent) / 255f
     )
 }
