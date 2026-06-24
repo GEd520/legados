@@ -8,10 +8,9 @@ import io.legado.app.BuildConfig
 import io.legado.app.base.BaseViewModel
 import io.legado.app.constant.AppLog
 import io.legado.app.data.appDb
-import io.legado.app.data.entities.Book
+import io.legado.app.data.dao.BookShelfIdentity
 import io.legado.app.data.entities.BookSource
 import io.legado.app.data.entities.SearchBook
-import io.legado.app.help.book.isNotShelf
 import io.legado.app.model.webBook.WebBook
 import io.legado.app.utils.printOnDebug
 import io.legado.app.utils.stackTraceStr
@@ -45,11 +44,11 @@ class ExploreShowViewModel(application: Application) : BaseViewModel(application
     //实时监听数据库对比书名作者，判断书是否在书架上
     init {
         execute {
-            appDb.bookDao.flowAll().mapLatest { books ->
+            appDb.bookDao.flowShelfIdentities().mapLatest { books ->
                 val keys = arrayListOf<String>()
                 books.filterNot { it.isNotShelf }
                     .forEach {
-                        keys.add(it.bookUrl)
+                        keys.addAll(it.shelfKeys())
                     }
                 keys
             }.catch {
@@ -155,7 +154,7 @@ class ExploreShowViewModel(application: Application) : BaseViewModel(application
     }
 
     fun isInBookShelf(book: SearchBook): Boolean {
-        return bookshelf.contains(book.bookUrl)
+        return book.shelfKeys().any { bookshelf.contains(it) }
     }
 
     fun addAllToShelf(groupId: Long) {
@@ -176,7 +175,14 @@ class ExploreShowViewModel(application: Application) : BaseViewModel(application
             appDb.bookDao.insert(*bookEntities.toTypedArray())
             
             bookEntities.forEach { book ->
-                bookshelf.add(book.bookUrl)
+                bookshelf.addAll(
+                    BookShelfIdentity(
+                        bookUrl = book.bookUrl,
+                        name = book.name,
+                        author = book.author,
+                        isNotShelf = false
+                    ).shelfKeys()
+                )
             }
             
             addAllToShelfResult.postValue(booksToAdd.size)
@@ -186,4 +192,24 @@ class ExploreShowViewModel(application: Application) : BaseViewModel(application
         }
     }
 
+}
+
+private fun BookShelfIdentity.shelfKeys(): List<String> {
+    return shelfKeys(name, author, bookUrl)
+}
+
+private fun SearchBook.shelfKeys(): List<String> {
+    return shelfKeys(name, author, bookUrl)
+}
+
+private fun shelfKeys(name: String, author: String, bookUrl: String): List<String> {
+    val trimName = name.trim()
+    val trimAuthor = author.trim()
+    return buildList {
+        if (trimAuthor.isNotBlank()) {
+            add("$trimName-$trimAuthor")
+        }
+        add(trimName)
+        add(bookUrl)
+    }
 }

@@ -8,9 +8,9 @@ import androidx.lifecycle.viewModelScope
 import io.legado.app.base.BaseViewModel
 import io.legado.app.constant.AppLog
 import io.legado.app.data.appDb
+import io.legado.app.data.dao.BookShelfIdentity
 import io.legado.app.data.entities.SearchBook
 import io.legado.app.data.entities.SearchKeyword
-import io.legado.app.help.book.isNotShelf
 import io.legado.app.help.config.AppConfig
 import io.legado.app.model.webBook.SearchModel
 import io.legado.app.utils.ConflateLiveData
@@ -70,11 +70,11 @@ class SearchViewModel(application: Application) : BaseViewModel(application) {
 
     init {
         execute {
-            appDb.bookDao.flowAll().mapLatest { books ->
+            appDb.bookDao.flowShelfIdentities().mapLatest { books ->
                 val keys = arrayListOf<String>()
                 books.filterNot { it.isNotShelf }
                     .forEach {
-                        keys.add(it.bookUrl)
+                        keys.addAll(it.shelfKeys())
                     }
                 keys
             }.catch {
@@ -90,7 +90,7 @@ class SearchViewModel(application: Application) : BaseViewModel(application) {
     }
 
     fun isInBookShelf(book: SearchBook): Boolean {
-        return bookshelf.contains(book.bookUrl)
+        return book.shelfKeys().any { bookshelf.contains(it) }
     }
 
     /**
@@ -160,4 +160,24 @@ class SearchViewModel(application: Application) : BaseViewModel(application) {
         searchModel.close()
     }
 
+}
+
+private fun BookShelfIdentity.shelfKeys(): List<String> {
+    return shelfKeys(name, author, bookUrl)
+}
+
+private fun SearchBook.shelfKeys(): List<String> {
+    return shelfKeys(name, author, bookUrl)
+}
+
+private fun shelfKeys(name: String, author: String, bookUrl: String): List<String> {
+    val trimName = name.trim()
+    val trimAuthor = author.trim()
+    return buildList {
+        if (trimAuthor.isNotBlank()) {
+            add("$trimName-$trimAuthor")
+        }
+        add(trimName)
+        add(bookUrl)
+    }
 }

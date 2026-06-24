@@ -47,6 +47,9 @@ interface BookDao {
     @Query("SELECT * FROM books order by durChapterTime desc")
     fun flowAll(): Flow<List<Book>>
 
+    @Query("SELECT bookUrl, name, author, (type & ${BookType.notShelf}) > 0 AS isNotShelf FROM books")
+    fun flowShelfIdentities(): Flow<List<BookShelfIdentity>>
+
     @Query("SELECT * FROM books WHERE type & ${BookType.audio} > 0")
     fun flowAudio(): Flow<List<Book>>
 
@@ -182,3 +185,10 @@ interface BookDao {
     @Query("delete from books where type & ${BookType.notShelf} > 0")
     fun deleteNotShelfBook()
 }
+
+data class BookShelfIdentity(
+    val bookUrl: String,
+    val name: String,
+    val author: String,
+    val isNotShelf: Boolean
+)
