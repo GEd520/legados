@@ -81,14 +81,25 @@ class BookInfoViewModel(application: Application) : BaseViewModel(application) {
             val name = intent.getStringExtra("name") ?: ""
             val author = intent.getStringExtra("author") ?: ""
             val bookUrl = intent.getStringExtra("bookUrl") ?: ""
-            appDb.bookDao.getBook(name, author)?.let {
-                inBookshelf = !it.isNotShelf
-                upBook(it)
-                return@execute
+            val intentSearchBook = intent.getSearchBookExtra()?.takeIf {
+                bookUrl.isBlank() || it.bookUrl == bookUrl
             }
             if (bookUrl.isNotBlank()) {
                 appDb.bookDao.getBook(bookUrl)?.let {
-                    inBookshelf = !it.isNotShelf
+                    val isSameSourceAsIntent = intentSearchBook == null
+                            || intentSearchBook.origin == it.origin
+                    if (!it.isNotShelf || isSameSourceAsIntent) {
+                        inBookshelf = !it.isNotShelf
+                        upBook(it)
+                        return@execute
+                    }
+                }
+                appDb.bookDao.getBook(name, author)?.takeIf { !it.isNotShelf }?.let {
+                    inBookshelf = true
+                    upBook(it)
+                    return@execute
+                }
+                intentSearchBook?.toBook()?.let {
                     upBook(it)
                     return@execute
                 }
@@ -96,7 +107,9 @@ class BookInfoViewModel(application: Application) : BaseViewModel(application) {
                     upBook(it)
                     return@execute
                 }
-                intent.getSearchBookExtra()?.takeIf { it.bookUrl == bookUrl }?.toBook()?.let {
+            } else {
+                appDb.bookDao.getBook(name, author)?.takeIf { !it.isNotShelf }?.let {
+                    inBookshelf = true
                     upBook(it)
                     return@execute
                 }
@@ -125,7 +138,16 @@ class BookInfoViewModel(application: Application) : BaseViewModel(application) {
         execute {
             val name = intent.getStringExtra("name") ?: ""
             val author = intent.getStringExtra("author") ?: ""
-            appDb.bookDao.getBook(name, author)?.let { book ->
+            val bookUrl = intent.getStringExtra("bookUrl") ?: ""
+            if (bookUrl.isNotBlank()) {
+                appDb.bookDao.getBook(bookUrl)?.let { book ->
+                    inBookshelf = !book.isNotShelf
+                    upBook(book)
+                    return@execute
+                }
+            }
+            appDb.bookDao.getBook(name, author)?.takeIf { !it.isNotShelf }?.let { book ->
+                inBookshelf = true
                 upBook(book)
             }
         }

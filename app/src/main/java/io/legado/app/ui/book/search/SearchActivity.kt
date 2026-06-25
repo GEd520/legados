@@ -29,6 +29,7 @@ import io.legado.app.data.entities.BookSourcePart
 import io.legado.app.data.entities.SearchBook
 import io.legado.app.data.entities.SearchKeyword
 import io.legado.app.databinding.ActivityBookSearchBinding
+import io.legado.app.help.book.isNotShelf
 import io.legado.app.help.config.AppConfig
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.theme.Selector
@@ -410,14 +411,15 @@ class SearchActivity : VMBaseActivity<ActivityBookSearchBinding, SearchViewModel
                 binding.rvBookshelfSearch.gone()
             } else {
                 appDb.bookDao.flowSearch(key).conflate().collect {
-                    if (it.isEmpty()) {
+                    val shelfBooks = it.filterNot { book -> book.isNotShelf }
+                    if (shelfBooks.isEmpty()) {
                         binding.tvBookShow.gone()
                         binding.rvBookshelfSearch.gone()
                     } else {
                         binding.tvBookShow.visible()
                         binding.rvBookshelfSearch.visible()
                     }
-                    bookAdapter.setItems(it)
+                    bookAdapter.setItems(shelfBooks)
                 }
             }
         }
@@ -493,11 +495,20 @@ class SearchActivity : VMBaseActivity<ActivityBookSearchBinding, SearchViewModel
     /**
      * 显示书籍详情
      */
-    override fun showBookInfo(name: String, author: String, bookUrl: String) {
+    private fun showBookInfo(name: String, author: String, bookUrl: String) {
         startActivity<BookInfoActivity> {
             putExtra("name", name)
             putExtra("author", author)
             putExtra("bookUrl", bookUrl)
+        }
+    }
+
+    override fun showBookInfo(book: SearchBook) {
+        startActivity<BookInfoActivity> {
+            putExtra("name", book.name)
+            putExtra("author", book.author)
+            putExtra("bookUrl", book.bookUrl)
+            putExtra(BookInfoActivity.EXTRA_SEARCH_BOOK, book)
         }
     }
 
