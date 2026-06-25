@@ -177,7 +177,6 @@ private fun shelfKeys(name: String, author: String, bookUrl: String): List<Strin
         if (trimAuthor.isNotBlank()) {
             add("$trimName-$trimAuthor")
         }
-        add(trimName)
         add(bookUrl)
     }
 }
