@@ -9,6 +9,7 @@ import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.os.Looper
 import android.view.Gravity
+import android.view.ContextThemeWrapper
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.Menu
@@ -666,7 +667,9 @@ class ReadBookActivity : BaseReadBookActivity(),
 
     @SuppressLint("RestrictedApi")
     private fun createReadMoreItemView(item: MenuItem, itemHeight: Int): View {
-        return layoutInflater.inflate(R.layout.abc_popup_menu_item_layout, null, false).apply {
+        val popupContext = ContextThemeWrapper(this, R.style.AppTheme_PopupOverlay)
+        val popupInflater = layoutInflater.cloneInContext(popupContext)
+        return popupInflater.inflate(R.layout.abc_popup_menu_item_layout, null, false).apply {
             minimumWidth = 172.dpToPx()
             if (this is ListMenuItemView && item is MenuItemImpl) {
                 initialize(item, 0)
