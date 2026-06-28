@@ -62,11 +62,17 @@
 
     <style name="Style.MenuItemText" parent="@android:style/TextAppearance.Widget.IconMenu.Item">
         <item name="android:textColor">@color/menu_color_default</item>
-        <item name="android:textSize">16sp</item>
+        <item name="android:textSize">15sp</item>
     </style>
 
     <style name="Style.PopupMenu" parent="Widget.AppCompat.PopupMenu">
         <item name="android:popupBackground">@drawable/bg_popup_menu</item>
+        <item name="android:dropDownVerticalOffset">4dp</item>
+        <item name="panelMenuListWidth">184dp</item>
+        <item name="listPreferredItemPaddingLeft">12dp</item>
+        <item name="listPreferredItemPaddingRight">12dp</item>
+        <item name="listPreferredItemPaddingStart">12dp</item>
+        <item name="listPreferredItemPaddingEnd">12dp</item>
     </style>
 
 
