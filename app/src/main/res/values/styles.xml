@@ -31,6 +31,8 @@
         <item name="actionOverflowMenuStyle">@style/Style.PopupMenu</item>
         <item name="android:itemTextAppearance">@style/Style.MenuItemText</item>
         <item name="android:popupMenuStyle">@style/Style.PopupMenu</item>
+        <item name="textAppearanceLargePopupMenu">@style/Style.MenuItemText</item>
+        <item name="textAppearanceSmallPopupMenu">@style/Style.MenuItemText</item>
         <item name="android:statusBarColor">@color/transparent</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
     </style>
@@ -68,11 +70,6 @@
     <style name="Style.PopupMenu" parent="Widget.AppCompat.PopupMenu">
         <item name="android:popupBackground">@drawable/bg_popup_menu</item>
         <item name="android:dropDownVerticalOffset">4dp</item>
-        <item name="panelMenuListWidth">184dp</item>
-        <item name="listPreferredItemPaddingLeft">12dp</item>
-        <item name="listPreferredItemPaddingRight">12dp</item>
-        <item name="listPreferredItemPaddingStart">12dp</item>
-        <item name="listPreferredItemPaddingEnd">12dp</item>
     </style>
 
 

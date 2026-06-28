@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.appcompat.view.menu.ListMenuItemView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:minWidth="172dp"
+    android:orientation="vertical">
+
+    <ImageView
+        android:id="@+id/group_divider"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="4dp"
+        android:background="@drawable/abc_list_divider_material" />
+
+    <LinearLayout
+        android:id="@+id/content"
+        style="@style/RtlOverlay.Widget.AppCompat.PopupMenuItem"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/dropdownListPreferredItemHeight"
+        android:duplicateParentState="true"
+        android:paddingRight="12dp">
+
+        <RelativeLayout
+            style="@style/RtlOverlay.Widget.AppCompat.PopupMenuItem.InternalGroup"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:layout_marginLeft="12dp"
+            android:layout_weight="1"
+            android:duplicateParentState="true">
+
+            <TextView
+                android:id="@+id/title"
+                style="@style/RtlOverlay.Widget.AppCompat.PopupMenuItem.Text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_alignParentTop="true"
+                android:duplicateParentState="true"
+                android:ellipsize="marquee"
+                android:fadingEdge="horizontal"
+                android:singleLine="true"
+                android:textAppearance="?attr/textAppearanceLargePopupMenu" />
+
+            <TextView
+                android:id="@+id/shortcut"
+                style="@style/RtlOverlay.Widget.AppCompat.PopupMenuItem.Text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/title"
+                android:duplicateParentState="true"
+                android:singleLine="true"
+                android:textAppearance="?attr/textAppearanceSmallPopupMenu" />
+
+        </RelativeLayout>
+
+        <ImageView
+            android:id="@+id/submenuarrow"
+            style="@style/RtlOverlay.Widget.AppCompat.PopupMenuItem.SubmenuArrow"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:scaleType="center"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+</androidx.appcompat.view.menu.ListMenuItemView>
