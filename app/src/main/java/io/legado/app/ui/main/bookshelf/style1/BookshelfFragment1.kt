@@ -257,7 +257,7 @@ class BookshelfFragment1() : BaseBookshelfFragment(R.layout.fragment_bookshelf1)
         }
         val content = ScrollView(requireContext()).apply {
             isFillViewport = false
-            isVerticalScrollBarEnabled = needScroll
+            isVerticalScrollBarEnabled = false
             scrollBarStyle = View.SCROLLBARS_INSIDE_OVERLAY
             overScrollMode = if (needScroll) View.OVER_SCROLL_IF_CONTENT_SCROLLS else View.OVER_SCROLL_NEVER
             background = ContextCompat.getDrawable(requireContext(), R.drawable.bg_popup_menu)
@@ -274,6 +274,9 @@ class BookshelfFragment1() : BaseBookshelfFragment(R.layout.fragment_bookshelf1)
             setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
             elevation = 6.dpToPx().toFloat()
             showAsDropDown(groupTitleSwitch, 0, 4.dpToPx())
+        }
+        if (needScroll) {
+            scrollGroupPopupToCurrent(content, popupHeight, contentHeight)
         }
     }
 
@@ -368,7 +371,21 @@ class BookshelfFragment1() : BaseBookshelfFragment(R.layout.fragment_bookshelf1)
         root.getLocationOnScreen(rootLocation)
         groupTitleSwitch.getLocationOnScreen(anchorLocation)
         val anchorBottom = anchorLocation[1] - rootLocation[1] + groupTitleSwitch.height
-        return root.height - anchorBottom - 8.dpToPx()
+        val bottomAvailable = root.height - anchorBottom - 8.dpToPx()
+        val middleAvailable = root.height / 2 - anchorBottom - 4.dpToPx()
+        return middleAvailable.coerceAtLeast(72.dpToPx()).coerceAtMost(bottomAvailable)
+    }
+
+    private fun scrollGroupPopupToCurrent(content: ScrollView, popupHeight: Int, contentHeight: Int) {
+        val current = binding.viewPagerBookshelf.currentItem.coerceIn(0, bookGroups.lastIndex)
+        val itemHeight = 36.dpToPx()
+        val paddingTop = 6.dpToPx()
+        val itemCenter = paddingTop + current * itemHeight + itemHeight / 2
+        val maxScroll = (contentHeight - popupHeight).coerceAtLeast(0)
+        val targetScroll = (itemCenter - popupHeight / 2).coerceIn(0, maxScroll)
+        content.post {
+            content.scrollTo(0, targetScroll)
+        }
     }
 
     private fun selectedGroupMenuItemBg() = GradientDrawable().apply {
