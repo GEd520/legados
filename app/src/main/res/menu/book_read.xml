@@ -45,6 +45,12 @@
     </group>
 
     <item
+        android:id="@+id/menu_read_more"
+        android:icon="@drawable/ic_more_vert"
+        android:title="More"
+        app:showAsAction="always" />
+
+    <item
         android:id="@+id/menu_add_bookmark"
         android:title="@string/bookmark_add"
         app:showAsAction="never" />

@@ -3,6 +3,9 @@ package io.legado.app.ui.book.read
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.res.Configuration
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.os.Looper
 import android.view.Gravity
@@ -12,10 +15,19 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
+import android.widget.ImageButton
+import android.widget.LinearLayout
+import android.widget.PopupWindow
+import android.widget.ScrollView
+import android.widget.TextView
 import androidx.activity.addCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.view.menu.ListMenuItemView
+import androidx.appcompat.view.menu.MenuItemImpl
 import androidx.appcompat.widget.PopupMenu
+import androidx.core.content.ContextCompat
 import androidx.core.view.get
 import androidx.core.view.size
 import androidx.lifecycle.lifecycleScope
@@ -116,6 +128,7 @@ import io.legado.app.utils.StartActivityContract
 import io.legado.app.utils.applyOpenTint
 import io.legado.app.utils.buildMainHandler
 import io.legado.app.utils.dismissDialogFragment
+import io.legado.app.utils.dpToPx
 import io.legado.app.utils.getPrefBoolean
 import io.legado.app.utils.getPrefString
 import io.legado.app.utils.hexString
@@ -148,6 +161,7 @@ import androidx.lifecycle.Lifecycle
 import com.script.rhino.runScriptWithContext
 import io.legado.app.model.analyzeRule.AnalyzeUrl.Companion.paramPattern
 import io.legado.app.ui.login.SourceLoginJsExtensions
+import androidx.appcompat.R as AppCompatR
 
 /**
  * 阅读界面
@@ -227,6 +241,34 @@ class ReadBookActivity : BaseReadBookActivity(),
         }
     }
     private var menu: Menu? = null
+    private var readMoreAnchor: View? = null
+    private var readMorePopup: PopupWindow? = null
+    private var readMoreBaseItemIds: List<Int> = emptyList()
+    private var readMoreItemIds: List<Int> = emptyList()
+    private val readMoreMenuItemIds = intArrayOf(
+        R.id.menu_add_bookmark,
+        R.id.menu_edit_content,
+        R.id.menu_page_anim,
+        R.id.menu_get_progress,
+        R.id.menu_cover_progress,
+        R.id.menu_reverse_content,
+        R.id.menu_simulated_reading,
+        R.id.menu_enable_replace,
+        R.id.menu_same_title_removed,
+        R.id.menu_re_segment,
+        R.id.menu_enable_review,
+        R.id.menu_del_ruby_tag,
+        R.id.menu_del_h_tag,
+        R.id.menu_image_style,
+        R.id.menu_update_toc,
+        R.id.menu_effective_replaces,
+        R.id.menu_log,
+        R.id.menu_help
+    )
+    private val readMoreCloudItemIds = setOf(
+        R.id.menu_get_progress,
+        R.id.menu_cover_progress
+    )
     private var backupJob: Job? = null
     private var tts: TTS? = null
     val textActionMenu: TextActionMenu by lazy {
@@ -467,6 +509,7 @@ class ReadBookActivity : BaseReadBookActivity(),
                 setOnMenuItemClickListener(this@ReadBookActivity)
             }.show()
         }
+        setupReadMoreAction(menu)
         binding.readMenu.post { binding.readMenu.refreshMenuColorFilter() }
         return super.onCompatCreateOptionsMenu(menu)
     }
@@ -490,6 +533,7 @@ class ReadBookActivity : BaseReadBookActivity(),
         val menu = menu ?: return
         val book = ReadBook.book ?: return
         val onLine = !book.isLocal
+        resetReadMoreItems(menu)
         for (i in 0 until menu.size) {
             val item = menu[i]
             when (item.groupId) {
@@ -505,19 +549,147 @@ class ReadBookActivity : BaseReadBookActivity(),
 //                        item.isChecked = AppConfig.enableReview
 //                    }
 
+                    R.id.menu_read_more -> Unit
                     R.id.menu_reverse_content -> item.isVisible = onLine
                     R.id.menu_del_ruby_tag -> item.isChecked = book.getDelTag(Book.rubyTag)
                     R.id.menu_del_h_tag -> item.isChecked = book.getDelTag(Book.hTag)
                 }
             }
         }
+        refreshReadMoreItems(menu)
         lifecycleScope.launch {
             val show = ReadBook.inBookshelf && withContext(IO) {
                 AppWebDav.isOk
             }
             menu.findItem(R.id.menu_get_progress)?.isVisible = show
             menu.findItem(R.id.menu_cover_progress)?.isVisible = show
+            refreshReadMoreItems(menu)
         }
+    }
+
+    private fun setupReadMoreAction(menu: Menu) {
+        menu.findItem(R.id.menu_read_more)?.let { item ->
+            item.setActionView(R.layout.view_action_button)
+            item.actionView?.run {
+                readMoreAnchor = this
+                contentDescription = item.title
+                findViewById<ImageButton>(R.id.item).setImageDrawable(item.icon)
+                setOnClickListener {
+                    showReadMorePopup(this)
+                }
+            }
+        }
+    }
+
+    private fun resetReadMoreItems(menu: Menu) {
+        readMoreMenuItemIds.forEach { id ->
+            menu.findItem(id)?.isVisible = id !in readMoreCloudItemIds && id != R.id.menu_enable_review
+        }
+    }
+
+    private fun refreshReadMoreItems(menu: Menu) {
+        val visibleIds = readMoreMenuItemIds.filter { id ->
+            menu.findItem(id)?.isVisible == true
+        }
+        val visibleBaseIds = visibleIds.filter { it !in readMoreCloudItemIds }
+        if (visibleBaseIds.isNotEmpty()) {
+            readMoreBaseItemIds = visibleBaseIds
+        }
+        val visibleCloudIds = visibleIds.filter { it in readMoreCloudItemIds }
+        readMoreItemIds = readMoreMenuItemIds.filter { id ->
+            id in readMoreBaseItemIds || id in visibleCloudIds
+        }
+        readMoreItemIds.forEach { id ->
+            menu.findItem(id)?.isVisible = false
+        }
+        menu.findItem(R.id.menu_read_more)?.isVisible = readMoreItemIds.isNotEmpty()
+    }
+
+    private fun showReadMorePopup(anchor: View) {
+        val menu = menu ?: return
+        val items = readMoreItemIds.mapNotNull { menu.findItem(it) }
+        if (items.isEmpty()) return
+        readMorePopup?.dismiss()
+
+        val popupWidth = 172.dpToPx()
+        val itemHeight = readMoreItemHeight()
+        val verticalPadding = 8.dpToPx()
+        val baseItemCount = items.count { it.itemId !in readMoreCloudItemIds }.coerceAtLeast(1)
+        val basePopupHeight = baseItemCount * itemHeight + verticalPadding
+        val location = IntArray(2)
+        anchor.getLocationOnScreen(location)
+        val screenHeight = resources.displayMetrics.heightPixels
+        val availableHeight = (screenHeight - location[1] - anchor.height - 8.dpToPx()).coerceAtLeast(itemHeight)
+        val popupHeight = basePopupHeight.coerceAtMost(availableHeight)
+
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+        items.forEach { menuItem ->
+            content.addView(createReadMoreItemView(menuItem, itemHeight))
+        }
+
+        val scrollView = ScrollView(this).apply {
+            isVerticalScrollBarEnabled = false
+            overScrollMode = View.OVER_SCROLL_NEVER
+            background = createReadMorePopupBackground()
+            setPadding(3.dpToPx(), 4.dpToPx(), 3.dpToPx(), 4.dpToPx())
+            addView(
+                content,
+                ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+            )
+        }
+
+        readMorePopup = PopupWindow(scrollView, popupWidth, popupHeight, true).apply {
+            isOutsideTouchable = true
+            isClippingEnabled = true
+            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            elevation = 8.dpToPx().toFloat()
+            showAsDropDown(anchor, anchor.width - popupWidth, 4.dpToPx())
+        }
+    }
+
+    private fun createReadMorePopupBackground(): GradientDrawable {
+        return GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = 0f
+            setColor(ContextCompat.getColor(this@ReadBookActivity, R.color.card_bg_water))
+            setStroke(
+                1.dpToPx(),
+                ContextCompat.getColor(this@ReadBookActivity, R.color.card_border_water)
+            )
+        }
+    }
+
+    @SuppressLint("RestrictedApi")
+    private fun createReadMoreItemView(item: MenuItem, itemHeight: Int): View {
+        return layoutInflater.inflate(R.layout.abc_popup_menu_item_layout, null, false).apply {
+            minimumWidth = 172.dpToPx()
+            if (this is ListMenuItemView && item is MenuItemImpl) {
+                initialize(item, 0)
+                visibility = View.VISIBLE
+            } else {
+                findViewById<TextView>(R.id.title)?.text = item.title
+            }
+            findViewById<View>(R.id.group_divider)?.visibility = View.GONE
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, itemHeight)
+            setOnClickListener {
+                readMorePopup?.dismiss()
+                onCompatOptionsItemSelected(item)
+            }
+        }
+    }
+
+    private fun readMoreItemHeight(): Int {
+        val typedArray = obtainStyledAttributes(
+            intArrayOf(AppCompatR.attr.dropdownListPreferredItemHeight)
+        )
+        val height = typedArray.getDimensionPixelSize(0, 48.dpToPx())
+        typedArray.recycle()
+        return height
     }
 
     /**
@@ -531,6 +703,10 @@ class ReadBookActivity : BaseReadBookActivity(),
                 ReadBook.book?.let {
                     showDialogFragment(ChangeBookSourceDialog(it.name, it.author))
                 }
+            }
+
+            R.id.menu_read_more -> readMoreAnchor?.let {
+                showReadMorePopup(it)
             }
 
             R.id.menu_chapter_change_source -> lifecycleScope.launch {
