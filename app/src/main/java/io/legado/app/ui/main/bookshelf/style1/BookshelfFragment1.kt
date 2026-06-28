@@ -12,6 +12,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.PopupWindow
+import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.appcompat.widget.SearchView
@@ -232,16 +233,43 @@ class BookshelfFragment1() : BaseBookshelfFragment(R.layout.fragment_bookshelf1)
     private fun showGroupSwitchMenu() {
         if (bookGroups.isEmpty()) return
         groupPopup?.dismiss()
-        val content = LinearLayout(requireContext()).apply {
+        val availableHeight = availableGroupPopupHeight()
+        val contentHeight = estimateGroupPopupContentHeight()
+        val needScroll = contentHeight > availableHeight
+        val popupWidth = estimateGroupPopupWidth(needScroll)
+        val popupHeight = if (needScroll) {
+            availableHeight.coerceAtLeast(72.dpToPx())
+        } else {
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        }
+        val list = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(6.dpToPx(), 6.dpToPx(), 6.dpToPx(), 6.dpToPx())
-            background = ContextCompat.getDrawable(requireContext(), R.drawable.bg_popup_menu)
             bookGroups.forEachIndexed { index, group ->
-                addView(createGroupMenuItem(index, group.groupName))
+                addView(
+                    createGroupMenuItem(index, group.groupName),
+                    LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        36.dpToPx()
+                    )
+                )
             }
         }
-        val popupWidth = estimateGroupPopupWidth()
-        groupPopup = PopupWindow(content, popupWidth, ViewGroup.LayoutParams.WRAP_CONTENT, true).apply {
+        val content = ScrollView(requireContext()).apply {
+            isFillViewport = false
+            isVerticalScrollBarEnabled = needScroll
+            scrollBarStyle = View.SCROLLBARS_INSIDE_OVERLAY
+            overScrollMode = if (needScroll) View.OVER_SCROLL_IF_CONTENT_SCROLLS else View.OVER_SCROLL_NEVER
+            background = ContextCompat.getDrawable(requireContext(), R.drawable.bg_popup_menu)
+            addView(
+                list,
+                ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+            )
+        }
+        groupPopup = PopupWindow(content, popupWidth, popupHeight, true).apply {
             isOutsideTouchable = true
             setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
             elevation = 6.dpToPx().toFloat()
@@ -321,9 +349,26 @@ class BookshelfFragment1() : BaseBookshelfFragment(R.layout.fragment_bookshelf1)
         }
     }
 
-    private fun estimateGroupPopupWidth(): Int {
+    private fun estimateGroupPopupWidth(needScroll: Boolean): Int {
         val longest = bookGroups.maxOfOrNull { it.groupName.length } ?: 0
-        return (56 + longest.coerceAtMost(12) * 12).coerceIn(124, 220).dpToPx()
+        if (!needScroll) {
+            return (56 + longest.coerceAtMost(12) * 12).coerceIn(124, 220).dpToPx()
+        }
+        return (48 + longest.coerceAtMost(10) * 11).coerceIn(116, 188).dpToPx()
+    }
+
+    private fun estimateGroupPopupContentHeight(): Int {
+        return 12.dpToPx() + bookGroups.size * 36.dpToPx()
+    }
+
+    private fun availableGroupPopupHeight(): Int {
+        val root = binding.root.rootView
+        val rootLocation = IntArray(2)
+        val anchorLocation = IntArray(2)
+        root.getLocationOnScreen(rootLocation)
+        groupTitleSwitch.getLocationOnScreen(anchorLocation)
+        val anchorBottom = anchorLocation[1] - rootLocation[1] + groupTitleSwitch.height
+        return root.height - anchorBottom - 8.dpToPx()
     }
 
     private fun selectedGroupMenuItemBg() = GradientDrawable().apply {
