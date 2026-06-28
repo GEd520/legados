@@ -80,6 +80,7 @@ class TextActionMenu(private val context: Context, private val callBack: CallBac
         get() = TextMenuConfig.getHiddenMenuItemIds(context)
 
     private var lastShowRequest: ShowRequest? = null
+    private var popupY: Int = 0
 
     init {
         @SuppressLint("InflateParams")
@@ -115,14 +116,14 @@ class TextActionMenu(private val context: Context, private val callBack: CallBac
                 adapter.setItems(moreMenuItems)
                 binding.recyclerView.gone()
                 binding.recyclerViewMore.visible()
-                updatePopupPosition()
+                updatePopupPosition(keepY = true)
             } else {
                 // 返回主菜单项
                 binding.ivMenuMore.setImageResource(R.drawable.ic_more_vert)
                 binding.recyclerViewMore.gone()
                 adapter.setItems(visibleMenuItems)
                 binding.recyclerView.visible()
-                updatePopupPosition()
+                updatePopupPosition(keepY = true)
             }
         }
         
@@ -244,6 +245,7 @@ class TextActionMenu(private val context: Context, private val callBack: CallBac
         )
         upMenu()
         val position = calculatePopupPosition(lastShowRequest ?: return)
+        popupY = position.y
         showAtLocation(view, Gravity.TOP or Gravity.START, position.x, position.y)
     }
 
@@ -251,13 +253,11 @@ class TextActionMenu(private val context: Context, private val callBack: CallBac
      * 菜单项适配器
      * 用于在RecyclerView中显示菜单项列表
      */
-    private fun updatePopupPosition() {
+    private fun updatePopupPosition(keepY: Boolean = false) {
         val request = lastShowRequest ?: return
         if (!isShowing) return
-        contentView.post {
-            val position = calculatePopupPosition(request)
-            update(position.x, position.y, -1, -1)
-        }
+        val position = calculatePopupPosition(request)
+        update(position.x, if (keepY) popupY else position.y, -1, -1)
     }
 
     private fun calculatePopupPosition(request: ShowRequest): PopupPosition {
@@ -283,7 +283,7 @@ class TextActionMenu(private val context: Context, private val callBack: CallBac
             (request.windowHeight - margin * 2).coerceAtLeast(dp(120))
         )
         val anchorX = if (binding.recyclerViewMore.isVisible) {
-            request.startX - popupWidth / 2
+            windowWidth - popupWidth - margin
         } else {
             request.startX
         }
@@ -292,22 +292,16 @@ class TextActionMenu(private val context: Context, private val callBack: CallBac
             (windowWidth - popupWidth - margin).coerceAtLeast(margin)
         )
 
-        val spaceAbove = (request.startTopY - margin - gap).coerceAtLeast(0)
-        val spaceBelowStart =
-            (request.windowHeight - request.startBottomY - margin - gap).coerceAtLeast(0)
-        val spaceBelowEnd =
-            (request.windowHeight - request.endBottomY - margin - gap).coerceAtLeast(0)
+        val selectTop = request.startTopY
+        val selectBottom = max(request.startBottomY, request.endBottomY)
+        val spaceAbove = (selectTop - margin - gap).coerceAtLeast(0)
+        val spaceBelow = (request.windowHeight - selectBottom - margin - gap).coerceAtLeast(0)
         val y = when {
-            spaceAbove >= popupHeight -> request.startTopY - popupHeight - gap
-            spaceBelowStart >= popupHeight -> request.startBottomY + gap
-            spaceBelowEnd >= popupHeight -> request.endBottomY + gap
-            spaceAbove >= max(spaceBelowStart, spaceBelowEnd) -> margin
-            spaceBelowStart >= spaceBelowEnd -> request.startBottomY + gap
-            else -> request.endBottomY + gap
-        }.coerceIn(
-            margin,
-            (request.windowHeight - popupHeight - margin).coerceAtLeast(margin)
-        )
+            spaceAbove >= popupHeight -> selectTop - popupHeight - gap
+            spaceBelow >= popupHeight -> selectBottom + gap
+            spaceAbove >= spaceBelow -> margin
+            else -> (request.windowHeight - popupHeight - margin).coerceAtLeast(selectBottom + gap)
+        }
 
         return PopupPosition(x, y)
     }
