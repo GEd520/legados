@@ -2,13 +2,25 @@
 
 package io.legado.app.ui.main.bookshelf.style1
 
+import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.widget.LinearLayout
+import android.widget.PopupWindow
+import android.widget.TextView
+import androidx.appcompat.widget.AppCompatImageView
 import androidx.appcompat.widget.SearchView
+import androidx.appcompat.widget.Toolbar
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentStatePagerAdapter
+import androidx.viewpager.widget.ViewPager
 import com.google.android.material.tabs.TabLayout
 import io.legado.app.R
 import io.legado.app.constant.EventBus
@@ -24,6 +36,9 @@ import io.legado.app.ui.main.bookshelf.BaseBookshelfFragment
 import io.legado.app.ui.main.bookshelf.style1.books.BooksFragment
 import io.legado.app.ui.widget.applyTopBarChildConfig
 import io.legado.app.ui.widget.applyTopBarConfig
+import io.legado.app.utils.MenuExtensions
+import io.legado.app.utils.dpToPx
+import io.legado.app.utils.applyTint
 import io.legado.app.utils.isCreated
 import io.legado.app.utils.observeEvent
 import io.legado.app.utils.setEdgeEffectColor
@@ -50,8 +65,15 @@ class BookshelfFragment1() : BaseBookshelfFragment(R.layout.fragment_bookshelf1)
     private val tabLayout: TabLayout by lazy {
         binding.titleBar.findViewById(R.id.tab_layout)
     }
+    private val groupSwitchContainer: View by lazy {
+        binding.titleBar.findViewById(R.id.group_switch_container)
+    }
+    private val groupTitleSwitch: LinearLayout by lazy { createGroupTitleSwitch() }
+    private lateinit var groupTitleText: TextView
+    private lateinit var groupTitleArrow: AppCompatImageView
     private val bookGroups = mutableListOf<BookGroup>()
     private val fragmentMap = hashMapOf<Long, BooksFragment>()
+    private var groupPopup: PopupWindow? = null
     override val groupId: Long get() = selectedGroup?.groupId ?: 0
 
     override val books: List<Book>
@@ -69,16 +91,37 @@ class BookshelfFragment1() : BaseBookshelfFragment(R.layout.fragment_bookshelf1)
     }
 
     private val selectedGroup: BookGroup?
-        get() = bookGroups.getOrNull(tabLayout.selectedTabPosition)
+        get() = bookGroups.getOrNull(binding.viewPagerBookshelf.currentItem)
 
     private fun initView() {
         binding.viewPagerBookshelf.setEdgeEffectColor(primaryColor)
+        initGroupSwitchView()
         tabLayout.isTabIndicatorFullWidth = false
         tabLayout.tabMode = TabLayout.MODE_SCROLLABLE
         tabLayout.applyTopBarChildConfig()
         tabLayout.setupWithViewPager(binding.viewPagerBookshelf)
         binding.viewPagerBookshelf.offscreenPageLimit = 2
         binding.viewPagerBookshelf.adapter = adapter
+        binding.viewPagerBookshelf.addOnPageChangeListener(object : ViewPager.SimpleOnPageChangeListener() {
+            override fun onPageSelected(position: Int) {
+                updateGroupSwitchTitle(position)
+            }
+        })
+    }
+
+    private fun initGroupSwitchView() {
+        binding.titleBar.toolbar.addView(
+            groupTitleSwitch,
+            Toolbar.LayoutParams(
+                Toolbar.LayoutParams.WRAP_CONTENT,
+                36.dpToPx(),
+                Gravity.START or Gravity.CENTER_VERTICAL
+            )
+        )
+        groupTitleSwitch.setOnClickListener {
+            showGroupSwitchMenu()
+        }
+        updateGroupSwitchMode()
     }
 
     override fun onQueryTextSubmit(query: String?): Boolean {
@@ -99,6 +142,7 @@ class BookshelfFragment1() : BaseBookshelfFragment(R.layout.fragment_bookshelf1)
                 bookGroups.clear()
                 bookGroups.addAll(data)
                 adapter.notifyDataSetChanged()
+                updateGroupSwitchTitle()
                 selectLastTab()
                 for (i in 0 until adapter.count) {
                     tabLayout.getTabAt(i)?.view?.setOnLongClickListener {
@@ -117,7 +161,11 @@ class BookshelfFragment1() : BaseBookshelfFragment(R.layout.fragment_bookshelf1)
     private fun selectLastTab() {
         tabLayout.post {
             tabLayout.removeOnTabSelectedListener(this)
-            tabLayout.getTabAt(AppConfig.saveTabPosition)?.select()
+            if (bookGroups.isNotEmpty()) {
+                val target = AppConfig.saveTabPosition.coerceIn(0, bookGroups.lastIndex)
+                tabLayout.getTabAt(target)?.select()
+                updateGroupSwitchTitle(target)
+            }
             tabLayout.addOnTabSelectedListener(this)
         }
     }
@@ -134,6 +182,7 @@ class BookshelfFragment1() : BaseBookshelfFragment(R.layout.fragment_bookshelf1)
 
     override fun onTabSelected(tab: TabLayout.Tab) {
         AppConfig.saveTabPosition = tab.position
+        updateGroupSwitchTitle(tab.position)
     }
 
     override fun gotoTop() {
@@ -154,8 +203,132 @@ class BookshelfFragment1() : BaseBookshelfFragment(R.layout.fragment_bookshelf1)
         observeEvent<Boolean>(EventBus.TOP_BAR_CHANGED) {
             if (it == AppConfig.isNightTheme && view != null) {
                 binding.titleBar.applyTopBarConfig()
+                updateGroupTitleColor()
             }
         }
+        observeEvent<String>(EventBus.BOOKSHELF_REFRESH) {
+            updateGroupSwitchMode()
+        }
+    }
+
+    private fun updateGroupSwitchMode() {
+        val useDropDown = AppConfig.bookshelfGroupDropDown
+        tabLayout.visibility = if (useDropDown) View.GONE else View.VISIBLE
+        groupSwitchContainer.visibility = if (useDropDown) View.GONE else View.VISIBLE
+        groupTitleSwitch.visibility = if (useDropDown) View.VISIBLE else View.GONE
+        if (useDropDown) {
+            binding.titleBar.title = ""
+            updateGroupTitleColor()
+            updateGroupSwitchTitle()
+        } else {
+            binding.titleBar.setTitle(R.string.bookshelf)
+        }
+    }
+
+    private fun updateGroupSwitchTitle(position: Int = binding.viewPagerBookshelf.currentItem) {
+        groupTitleText.text = bookGroups.getOrNull(position)?.groupName ?: getString(R.string.bookshelf)
+    }
+
+    private fun showGroupSwitchMenu() {
+        if (bookGroups.isEmpty()) return
+        groupPopup?.dismiss()
+        val content = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(6.dpToPx(), 6.dpToPx(), 6.dpToPx(), 6.dpToPx())
+            background = ContextCompat.getDrawable(requireContext(), R.drawable.bg_popup_menu)
+            bookGroups.forEachIndexed { index, group ->
+                addView(createGroupMenuItem(index, group.groupName))
+            }
+        }
+        val popupWidth = estimateGroupPopupWidth()
+        groupPopup = PopupWindow(content, popupWidth, ViewGroup.LayoutParams.WRAP_CONTENT, true).apply {
+            isOutsideTouchable = true
+            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            elevation = 6.dpToPx().toFloat()
+            showAsDropDown(groupTitleSwitch, 0, 4.dpToPx())
+        }
+    }
+
+    private fun switchToGroup(position: Int) {
+        if (position !in bookGroups.indices) return
+        binding.viewPagerBookshelf.setCurrentItem(position, false)
+        AppConfig.saveTabPosition = position
+        updateGroupSwitchTitle(position)
+    }
+
+    private fun createGroupTitleSwitch(): LinearLayout {
+        val contentColor = groupTitleColor()
+        return LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            isClickable = true
+            isFocusable = true
+            setPadding(0, 0, 4.dpToPx(), 0)
+            groupTitleText = TextView(context).apply {
+                includeFontPadding = false
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+                setTextColor(contentColor)
+                textSize = 18f
+                typeface = Typeface.DEFAULT
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            }
+            groupTitleArrow = AppCompatImageView(context).apply {
+                setImageResource(R.drawable.ic_arrow_drop_down)
+                applyTint(contentColor)
+                layoutParams = LinearLayout.LayoutParams(20.dpToPx(), 20.dpToPx())
+            }
+            addView(groupTitleText)
+            addView(groupTitleArrow)
+        }
+    }
+
+    private fun updateGroupTitleColor() {
+        val contentColor = groupTitleColor()
+        if (::groupTitleText.isInitialized) {
+            groupTitleText.setTextColor(contentColor)
+        }
+        if (::groupTitleArrow.isInitialized) {
+            groupTitleArrow.applyTint(contentColor)
+        }
+    }
+
+    private fun groupTitleColor(): Int {
+        return MenuExtensions.getMenuColor(requireContext(), binding.titleBar.topBarTheme)
+    }
+
+    private fun createGroupMenuItem(position: Int, title: String): TextView {
+        val selected = position == binding.viewPagerBookshelf.currentItem
+        return TextView(requireContext()).apply {
+            text = title
+            gravity = Gravity.CENTER_VERTICAL
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+            textSize = 14f
+            includeFontPadding = false
+            minHeight = 36.dpToPx()
+            setPadding(12.dpToPx(), 0, 12.dpToPx(), 0)
+            setTextColor(ContextCompat.getColor(context, R.color.primaryText))
+            typeface = if (selected) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+            background = if (selected) selectedGroupMenuItemBg() else null
+            setOnClickListener {
+                groupPopup?.dismiss()
+                switchToGroup(position)
+            }
+        }
+    }
+
+    private fun estimateGroupPopupWidth(): Int {
+        val longest = bookGroups.maxOfOrNull { it.groupName.length } ?: 0
+        return (56 + longest.coerceAtMost(12) * 12).coerceIn(124, 220).dpToPx()
+    }
+
+    private fun selectedGroupMenuItemBg() = GradientDrawable().apply {
+        cornerRadius = 8f.dpToPx()
+        setColor(ContextCompat.getColor(requireContext(), R.color.transparent10))
     }
 
     private inner class TabFragmentPageAdapter(fm: FragmentManager) :

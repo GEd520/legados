@@ -1021,6 +1021,7 @@
     <string name="show_discovery">Show Discovery</string>
     <string name="style">Style</string>
     <string name="group_style">Group style</string>
+    <string name="group_drop_down">Use dropdown group selector</string>
     <string name="export_file_name">Export file name</string>
     <string name="reset">Reset</string>
     <string name="null_url">Null url</string>

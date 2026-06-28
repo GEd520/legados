@@ -278,6 +278,12 @@ object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
             appCtx.putPrefInt(PreferKey.bookGroupStyle, value)
         }
 
+    var bookshelfGroupDropDown: Boolean
+        get() = appCtx.getPrefBoolean(PreferKey.bookshelfGroupDropDown, false)
+        set(value) {
+            appCtx.putPrefBoolean(PreferKey.bookshelfGroupDropDown, value)
+        }
+
     var bookshelfLayout: Int
         get() = appCtx.getPrefInt(PreferKey.bookshelfLayout, 0)
         set(value) {

@@ -199,6 +199,7 @@ abstract class BaseBookshelfFragment(layoutId: Int) : VMBaseFragment<BookshelfVi
                         swShowLastUpdateTime.isChecked = AppConfig.showLastUpdateTime
                         swShowWaitUpBooks.isChecked = AppConfig.showWaitUpCount
                         swShowBookshelfFastScroller.isChecked = AppConfig.showBookshelfFastScroller
+                        swGroupDropDown.isChecked = AppConfig.bookshelfGroupDropDown
                         rgLayout.checkByIndex(bookshelfLayout)
                         rgbLayout.checkByIndex(showBookname)
                         if (bookshelfLayout < 2) {
@@ -243,6 +244,10 @@ abstract class BaseBookshelfFragment(layoutId: Int) : VMBaseFragment<BookshelfVi
                     if (AppConfig.showBookshelfFastScroller != swShowBookshelfFastScroller.isChecked) {
                         AppConfig.showBookshelfFastScroller = swShowBookshelfFastScroller.isChecked
                         postEvent(EventBus.BOOKSHELF_REFRESH, "")
+                    }
+                    if (AppConfig.bookshelfGroupDropDown != swGroupDropDown.isChecked) {
+                        AppConfig.bookshelfGroupDropDown = swGroupDropDown.isChecked
+                        recreate = true
                     }
                     if (bookshelfSort != rgSort.getCheckedIndex()) {
                         AppConfig.bookshelfSort = rgSort.getCheckedIndex()

@@ -1007,6 +1007,7 @@
     <string name="show_discovery">显示发现</string>
     <string name="style">样式</string>
     <string name="group_style">分组样式</string>
+    <string name="group_drop_down">分组下拉选择</string>
     <string name="export_file_name">导出文件名</string>
     <string name="reset">重置</string>
     <string name="null_url">URL 为空</string>
