@@ -3,13 +3,15 @@ package io.legado.app.ui.widget.dialog
 import android.os.Build
 import android.os.Bundle
 import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.view.View
 import android.view.ViewGroup
 import android.view.textclassifier.TextClassifier
 import android.util.Log
-import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.ImageButton
+import android.widget.ListView
+import android.widget.PopupWindow
 import android.widget.TextView
 import androidx.fragment.app.setFragmentResultListener
 import androidx.lifecycle.lifecycleScope
@@ -29,6 +31,7 @@ import io.legado.app.model.debug.DebugLevel
 import io.legado.app.ui.code.CodeEditActivity
 import io.legado.app.constant.Theme
 import io.legado.app.utils.applyTint
+import io.legado.app.utils.dpToPx
 import io.legado.app.utils.setHtml
 import io.legado.app.utils.setLayout
 import io.legado.app.utils.setMarkdown
@@ -131,6 +134,7 @@ class TextDialog() : BaseDialogFragment(R.layout.dialog_text_view) {
     // 追踪当前显示的内容，切换帮助文档时同步更新，确保打开编辑器时获取的是最新内容
     private var currentContent: String? = null
     private var markwon: Markwon? = null // Markdown渲染器
+    private var helpDocPopup: PopupWindow? = null
 
     companion object {
         private const val TAG = "TextDialog"
@@ -324,7 +328,7 @@ class TextDialog() : BaseDialogFragment(R.layout.dialog_text_view) {
             // 同步更新文档选择器的选中项（下拉列表）
             val docIndex = HelpDocManager.getDocIndex(fileName)
             if (docIndex >= 0) {
-                binding.helpSpinner.setSelection(docIndex, false)
+                updateHelpSpinnerText(fileName)
             }
             
             // 更新内容显示并滚动到搜索结果所在行
@@ -498,38 +502,67 @@ class TextDialog() : BaseDialogFragment(R.layout.dialog_text_view) {
         binding.helpSelectorLayout.visibility = View.VISIBLE
         
         // 创建帮助文档列表适配器
+        updateHelpSpinnerText(currentHelpDoc)
+        
+        // 设置当前选中的文档
+        binding.helpSpinner.setOnClickListener {
+            showHelpDocPopup()
+        }
+    }
+
+    private fun updateHelpSpinnerText(fileName: String?) {
+        binding.helpSpinner.text = fileName
+            ?.let { HelpDocManager.getDocByFileName(it)?.displayName }
+            ?: ""
+    }
+
+    private fun showHelpDocPopup() {
+        helpDocPopup?.dismiss()
+        val docs = HelpDocManager.allHelpDocs
         val adapter = ArrayAdapter(
             requireContext(),
             R.layout.item_spinner_dropdown,
-            HelpDocManager.allHelpDocs.map { it.displayName }
+            docs.map { it.displayName }
         )
-        adapter.setDropDownViewResource(R.layout.item_spinner_dropdown)
-        binding.helpSpinner.adapter = adapter
-        
-        // 设置当前选中的文档
-        currentHelpDoc?.let { docName ->
-            val index = HelpDocManager.getDocIndex(docName)
-            if (index >= 0) {
-                binding.helpSpinner.setSelection(index, false)
+        val listView = ListView(requireContext()).apply {
+            this.adapter = adapter
+            divider = null
+            setOnItemClickListener { _, _, position, _ ->
+                helpDocPopup?.dismiss()
+                selectHelpDoc(docs[position])
             }
         }
-        
-        // 设置下拉选择监听器
-        binding.helpSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
-                val selectedDoc = HelpDocManager.allHelpDocs[position]
-                if (selectedDoc.fileName != currentHelpDoc) {
-                    currentHelpDoc = selectedDoc.fileName
-                    loadHelpDoc(selectedDoc.fileName)
-                    // 切换文档时更新放大镜按钮可见性
-                    updateSearchButtonVisibility()
-                }
-            }
-            
-            override fun onNothingSelected(parent: AdapterView<*>) {}
+
+        val rootLocation = IntArray(2)
+        val spinnerLocation = IntArray(2)
+        binding.root.getLocationOnScreen(rootLocation)
+        binding.helpSpinner.getLocationOnScreen(spinnerLocation)
+
+        val rootBottom = rootLocation[1] + binding.root.height
+        val spinnerBottom = spinnerLocation[1] + binding.helpSpinner.height
+        val availableHeight = rootBottom - spinnerBottom - 8.dpToPx()
+        if (availableHeight <= 0) {
+            return
+        }
+
+        val popupWidth = binding.helpSpinner.width
+        val popupHeight = minOf(availableHeight, docs.size * 48.dpToPx()).coerceAtLeast(160.dpToPx())
+        helpDocPopup = PopupWindow(listView, popupWidth, popupHeight, true).apply {
+            setBackgroundDrawable(ColorDrawable(Color.WHITE))
+            setOutsideTouchable(true)
+            showAsDropDown(binding.helpSpinner)
         }
     }
-    
+
+    private fun selectHelpDoc(selectedDoc: io.legado.app.help.HelpDoc) {
+        if (selectedDoc.fileName != currentHelpDoc) {
+            currentHelpDoc = selectedDoc.fileName
+            updateHelpSpinnerText(selectedDoc.fileName)
+            loadHelpDoc(selectedDoc.fileName)
+            updateSearchButtonVisibility()
+        }
+    }
+
     /**
      * 异步加载帮助文档内容
      */

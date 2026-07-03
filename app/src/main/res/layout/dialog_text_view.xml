@@ -26,11 +26,21 @@
         android:background="?attr/selectableItemBackground"
         app:layout_constraintTop_toBottomOf="@+id/tool_bar">
 
-        <Spinner
+        <TextView
             android:id="@+id/help_spinner"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="start|center_vertical" />
+            android:layout_height="48dp"
+            android:layout_gravity="start|center_vertical"
+            android:background="?attr/selectableItemBackground"
+            android:drawableEnd="@drawable/ic_arrow_drop_down"
+            android:drawablePadding="8dp"
+            android:gravity="center_vertical"
+            android:maxLines="1"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:singleLine="true"
+            android:textColor="@color/primaryText"
+            android:textSize="16sp" />
 
     </FrameLayout>
 
