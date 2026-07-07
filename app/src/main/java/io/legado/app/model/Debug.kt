@@ -36,6 +36,9 @@ object Debug {
     val debugMessageMap = HashMap<String, String>()
     private val debugTimeMap = HashMap<String, Long>()
     var isChecking: Boolean = false
+private const val MAX_DEBUG_MESSAGE_CHARS = 128 * 1024
+private const val MAX_DATA_URL_HEADER_CHARS = 128
+private const val MAX_INLINE_DATA_URL_CHARS = 64 * 1024
 
     @SuppressLint("ConstantLocale")
     private val debugTimeFormat = SimpleDateFormat("[mm:ss.SSS]", Locale.getDefault())
@@ -60,15 +63,16 @@ object Debug {
         state: Int = 1,
         category: DebugCategory? = null
     ) {
+        val safeMsg = sanitizeDebugMessage(msg)
         if (BuildConfig.DEBUG) {
-            Log.d("sourceDebug", msg)
+            Log.d("sourceDebug", safeMsg)
         }
         //调试信息始终要执行
         callback?.let {
             if ((debugSource != sourceUrl || !print)) return
-            var printMsg = msg
+            var printMsg = safeMsg
             if (isHtml) {
-                printMsg = HtmlFormatter.format(msg)
+                printMsg = HtmlFormatter.format(safeMsg)
             }
             if (showTime) {
                 val time = debugTimeFormat.format(Date(System.currentTimeMillis() - startTime))
@@ -79,7 +83,7 @@ object Debug {
 
         // 在锁外异步上报到调试事件中心，避免持锁期间启动协程
         if (DebugEventCenter.isEnabled) {
-            val capturedMsg = msg
+            val capturedMsg = safeMsg
             val capturedSourceUrl = sourceUrl
             val capturedState = state
             val capturedIsHtml = isHtml
@@ -126,10 +130,10 @@ object Debug {
         }
         }
 
-        if (isChecking && sourceUrl != null && (msg).length < 30) {
-            var printMsg = msg
+        if (isChecking && sourceUrl != null && safeMsg.length < 30) {
+            var printMsg = safeMsg
             if (isHtml) {
-                printMsg = HtmlFormatter.format(msg)
+                printMsg = HtmlFormatter.format(safeMsg)
             }
             if (showTime && debugTimeMap[sourceUrl] != null) {
                 val time =
@@ -145,6 +149,105 @@ object Debug {
      * 记录日志
      * @param msg 日志消息
      */
+    private fun sanitizeDebugMessage(message: String): String {
+        val withoutHugeDataUrls = if (message.indexOf("data:", ignoreCase = true) >= 0) {
+            summarizeDataUrls(message)
+        } else {
+            message
+        }
+        return limitDebugMessage(withoutHugeDataUrls)
+    }
+
+    private fun summarizeDataUrls(message: String): String {
+        val builder = StringBuilder(message.length.coerceAtMost(MAX_DEBUG_MESSAGE_CHARS + 1024))
+        var cursor = 0
+        while (cursor < message.length && builder.length < MAX_DEBUG_MESSAGE_CHARS) {
+            val dataIndex = message.indexOf("data:", cursor, ignoreCase = true)
+            if (dataIndex < 0) {
+                builder.appendLimited(message, cursor, message.length)
+                cursor = message.length
+                break
+            }
+            builder.appendLimited(message, cursor, dataIndex)
+            val commaIndex = message.indexOf(',', dataIndex)
+            if (commaIndex < 0 || commaIndex - dataIndex > 512) {
+                builder.appendLimited("data:")
+                cursor = dataIndex + 5
+                continue
+            }
+            val header = message.substring(dataIndex, commaIndex + 1)
+            val dataStart = commaIndex + 1
+            var dataEnd = dataStart
+            while (dataEnd < message.length && message[dataEnd].isDataUrlPayloadChar()) {
+                dataEnd++
+            }
+            val dataLength = dataEnd - dataStart
+            if (dataLength <= 0) {
+                builder.appendLimited(header)
+                cursor = dataStart
+                continue
+            }
+            if (dataLength <= MAX_INLINE_DATA_URL_CHARS
+                && builder.length + header.length + dataLength <= MAX_DEBUG_MESSAGE_CHARS
+            ) {
+                builder.appendLimited(header)
+                builder.appendLimited(message, dataStart, dataEnd)
+                cursor = dataEnd
+                continue
+            }
+            builder.appendLimited(header.take(MAX_DATA_URL_HEADER_CHARS))
+            builder.appendLimited("...[base64 omitted, ")
+            builder.appendLimited(dataLength.toString())
+            builder.appendLimited(" chars]")
+            cursor = dataEnd
+        }
+        if (cursor < message.length) {
+            builder.appendLimited("\n...[debug message truncated, original ")
+                .appendLimited(message.length.toString())
+                .appendLimited(" chars]...")
+        }
+        return builder.toString()
+    }
+
+    private fun limitDebugMessage(message: String): String {
+        if (message.length <= MAX_DEBUG_MESSAGE_CHARS) return message
+        val tailLength = 1024.coerceAtMost(MAX_DEBUG_MESSAGE_CHARS / 4)
+        val headLength = (MAX_DEBUG_MESSAGE_CHARS - tailLength - 96).coerceAtLeast(0)
+        return buildString(MAX_DEBUG_MESSAGE_CHARS) {
+            append(message, 0, headLength)
+            append("\n...[debug message truncated, original ")
+            append(message.length)
+            append(" chars]...\n")
+            append(message, message.length - tailLength, message.length)
+        }
+    }
+
+    private fun StringBuilder.appendLimited(value: String): StringBuilder {
+        return appendLimited(value, 0, value.length)
+    }
+
+    private fun StringBuilder.appendLimited(value: String, startIndex: Int, endIndex: Int): StringBuilder {
+        if (length >= MAX_DEBUG_MESSAGE_CHARS) return this
+        val safeStart = startIndex.coerceIn(0, value.length)
+        val safeEnd = endIndex.coerceIn(safeStart, value.length)
+        val appendLength = (safeEnd - safeStart).coerceAtMost(MAX_DEBUG_MESSAGE_CHARS - length)
+        append(value, safeStart, safeStart + appendLength)
+        return this
+    }
+
+    private fun Char.isDataUrlPayloadChar(): Boolean {
+        return this in 'A'..'Z' ||
+            this in 'a'..'z' ||
+            this in '0'..'9' ||
+            this == '+' ||
+            this == '/' ||
+            this == '=' ||
+            this == '-' ||
+            this == '_' ||
+            this == '\r' ||
+            this == '\n'
+    }
+
     @Synchronized
     fun log(msg: String?) {
         log(debugSource, msg ?: "", true)
