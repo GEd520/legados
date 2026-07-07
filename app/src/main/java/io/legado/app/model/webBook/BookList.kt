@@ -295,12 +295,15 @@ object BookList {
         analyzeRule.setRuleData(searchBook)
         analyzeRule.setContent(item)
         
-        val dataFlowFields = mutableListOf<FieldFillRecord>()
+        val debugEnabled = FlowLogRecorder.isEnabled
+        val dataFlowFields = if (debugEnabled) mutableListOf<FieldFillRecord>() else null
         
-        FlowLogRecorder.logExtract(
-            source = bookSource,
-            message = "开始提取搜索结果字段"
-        )
+        if (debugEnabled) {
+            FlowLogRecorder.logExtract(
+                source = bookSource,
+                message = "开始提取搜索结果字段"
+            )
+        }
         
         currentCoroutineContext().ensureActive()
         Debug.log(bookSource.bookSourceUrl, "┌获取书名", log)
@@ -308,15 +311,17 @@ object BookList {
         searchBook.name = BookHelp.formatBookName(analyzeRule.getString(ruleName))
         Debug.log(bookSource.bookSourceUrl, "└${searchBook.name}", log)
         
-        FlowLogRecorder.logExtract(
-            source = bookSource,
-            message = "提取书名",
-            rule = ruleName.joinToString("&&") { it.rule },
-            result = searchBook.name,
-            originalValue = originalName.takeIf { it.isNotEmpty() }
-        )
+        if (debugEnabled) {
+            FlowLogRecorder.logExtract(
+                source = bookSource,
+                message = "提取书名",
+                rule = ruleName.joinToString("&&") { it.rule },
+                result = searchBook.name,
+                originalValue = originalName.takeIf { it.isNotEmpty() }
+            )
+        }
         
-        dataFlowFields.recordField(
+        dataFlowFields?.recordField(
             "name",
             rule = ruleName.joinToString("&&") { it.rule },
             result = searchBook.name,
@@ -330,15 +335,17 @@ object BookList {
             searchBook.author = BookHelp.formatBookAuthor(analyzeRule.getString(ruleAuthor))
             Debug.log(bookSource.bookSourceUrl, "└${searchBook.author}", log)
             
-            FlowLogRecorder.logExtract(
-                source = bookSource,
-                message = "提取作者",
-                rule = ruleAuthor.joinToString("&&") { it.rule },
-                result = searchBook.author,
-                originalValue = originalAuthor.takeIf { it.isNotEmpty() }
-            )
+            if (debugEnabled) {
+                FlowLogRecorder.logExtract(
+                    source = bookSource,
+                    message = "提取作者",
+                    rule = ruleAuthor.joinToString("&&") { it.rule },
+                    result = searchBook.author,
+                    originalValue = originalAuthor.takeIf { it.isNotEmpty() }
+                )
+            }
             
-            dataFlowFields.recordField(
+            dataFlowFields?.recordField(
                 "author",
                 rule = ruleAuthor.joinToString("&&") { it.rule },
                 result = searchBook.author,
@@ -352,15 +359,17 @@ object BookList {
                 searchBook.kind = analyzeRule.getStringList(ruleKind)?.joinToString(",")
                 Debug.log(bookSource.bookSourceUrl, "└${searchBook.kind ?: ""}", log)
                 
-                FlowLogRecorder.logExtract(
-                    source = bookSource,
-                    message = "提取分类",
-                    rule = ruleKind.joinToString("&&") { it.rule },
-                    result = searchBook.kind,
-                    originalValue = originalKind
-                )
+                if (debugEnabled) {
+                    FlowLogRecorder.logExtract(
+                        source = bookSource,
+                        message = "提取分类",
+                        rule = ruleKind.joinToString("&&") { it.rule },
+                        result = searchBook.kind,
+                        originalValue = originalKind
+                    )
+                }
                 
-                dataFlowFields.recordField(
+                dataFlowFields?.recordField(
                     "kind",
                     rule = ruleKind.joinToString("&&") { it.rule },
                     result = searchBook.kind,
@@ -370,14 +379,16 @@ object BookList {
                 currentCoroutineContext().ensureActive()
                 Debug.log(bookSource.bookSourceUrl, "└${e.localizedMessage}", log)
                 
-                FlowLogRecorder.logExtract(
-                    source = bookSource,
-                    message = "提取分类",
-                    rule = ruleKind.joinToString("&&") { it.rule },
-                    error = e
-                )
+                if (debugEnabled) {
+                    FlowLogRecorder.logExtract(
+                        source = bookSource,
+                        message = "提取分类",
+                        rule = ruleKind.joinToString("&&") { it.rule },
+                        error = e
+                    )
+                }
                 
-                dataFlowFields.recordField(
+                dataFlowFields?.recordField(
                     "kind",
                     rule = ruleKind.joinToString("&&") { it.rule },
                     isError = true,
@@ -394,15 +405,17 @@ object BookList {
                 searchBook.wordCount = wordCountFormat(analyzeRule.getString(ruleWordCount))
                 Debug.log(bookSource.bookSourceUrl, "└${searchBook.wordCount}", log)
                 
-                FlowLogRecorder.logExtract(
-                    source = bookSource,
-                    message = "提取字数",
-                    rule = ruleWordCount.joinToString("&&") { it.rule },
-                    result = searchBook.wordCount,
-                    originalValue = originalWordCount?.takeIf { it.isNotEmpty() }
-                )
+                if (debugEnabled) {
+                    FlowLogRecorder.logExtract(
+                        source = bookSource,
+                        message = "提取字数",
+                        rule = ruleWordCount.joinToString("&&") { it.rule },
+                        result = searchBook.wordCount,
+                        originalValue = originalWordCount?.takeIf { it.isNotEmpty() }
+                    )
+                }
                 
-                dataFlowFields.recordField(
+                dataFlowFields?.recordField(
                     "wordCount",
                     rule = ruleWordCount.joinToString("&&") { it.rule },
                     result = searchBook.wordCount,
@@ -412,14 +425,16 @@ object BookList {
                 currentCoroutineContext().ensureActive()
                 Debug.log(bookSource.bookSourceUrl, "└${e.localizedMessage}", log)
                 
-                FlowLogRecorder.logExtract(
-                    source = bookSource,
-                    message = "提取字数",
-                    rule = ruleWordCount.joinToString("&&") { it.rule },
-                    error = e
-                )
+                if (debugEnabled) {
+                    FlowLogRecorder.logExtract(
+                        source = bookSource,
+                        message = "提取字数",
+                        rule = ruleWordCount.joinToString("&&") { it.rule },
+                        error = e
+                    )
+                }
                 
-                dataFlowFields.recordField(
+                dataFlowFields?.recordField(
                     "wordCount",
                     rule = ruleWordCount.joinToString("&&") { it.rule },
                     isError = true,
@@ -433,15 +448,17 @@ object BookList {
                 searchBook.latestChapterTitle = analyzeRule.getString(ruleLastChapter)
                 Debug.log(bookSource.bookSourceUrl, "└${searchBook.latestChapterTitle}", log)
                 
-                FlowLogRecorder.logExtract(
-                    source = bookSource,
-                    message = "提取最新章节",
-                    rule = ruleLastChapter.joinToString("&&") { it.rule },
-                    result = searchBook.latestChapterTitle,
-                    originalValue = originalLatestChapter?.takeIf { it.isNotEmpty() }
-                )
+                if (debugEnabled) {
+                    FlowLogRecorder.logExtract(
+                        source = bookSource,
+                        message = "提取最新章节",
+                        rule = ruleLastChapter.joinToString("&&") { it.rule },
+                        result = searchBook.latestChapterTitle,
+                        originalValue = originalLatestChapter?.takeIf { it.isNotEmpty() }
+                    )
+                }
                 
-                dataFlowFields.recordField(
+                dataFlowFields?.recordField(
                     "latestChapterTitle",
                     rule = ruleLastChapter.joinToString("&&") { it.rule },
                     result = searchBook.latestChapterTitle,
@@ -451,14 +468,16 @@ object BookList {
                 currentCoroutineContext().ensureActive()
                 Debug.log(bookSource.bookSourceUrl, "└${e.localizedMessage}", log)
                 
-                FlowLogRecorder.logExtract(
-                    source = bookSource,
-                    message = "提取最新章节",
-                    rule = ruleLastChapter.joinToString("&&") { it.rule },
-                    error = e
-                )
+                if (debugEnabled) {
+                    FlowLogRecorder.logExtract(
+                        source = bookSource,
+                        message = "提取最新章节",
+                        rule = ruleLastChapter.joinToString("&&") { it.rule },
+                        error = e
+                    )
+                }
                 
-                dataFlowFields.recordField(
+                dataFlowFields?.recordField(
                     "latestChapterTitle",
                     rule = ruleLastChapter.joinToString("&&") { it.rule },
                     isError = true,
@@ -472,15 +491,17 @@ object BookList {
                 searchBook.intro = HtmlFormatter.format(analyzeRule.getString(ruleIntro))
                 Debug.log(bookSource.bookSourceUrl, "└${searchBook.intro}", log)
                 
-                FlowLogRecorder.logExtract(
-                    source = bookSource,
-                    message = "提取简介",
-                    rule = ruleIntro.joinToString("&&") { it.rule },
-                    result = searchBook.intro,
-                    originalValue = originalIntro
-                )
+                if (debugEnabled) {
+                    FlowLogRecorder.logExtract(
+                        source = bookSource,
+                        message = "提取简介",
+                        rule = ruleIntro.joinToString("&&") { it.rule },
+                        result = searchBook.intro,
+                        originalValue = originalIntro
+                    )
+                }
                 
-                dataFlowFields.recordField(
+                dataFlowFields?.recordField(
                     "intro",
                     rule = ruleIntro.joinToString("&&") { it.rule },
                     result = searchBook.intro,
@@ -491,14 +512,16 @@ object BookList {
                 currentCoroutineContext().ensureActive()
                 Debug.log(bookSource.bookSourceUrl, "└${e.localizedMessage}", log)
                 
-                FlowLogRecorder.logExtract(
-                    source = bookSource,
-                    message = "提取简介",
-                    rule = ruleIntro.joinToString("&&") { it.rule },
-                    error = e
-                )
+                if (debugEnabled) {
+                    FlowLogRecorder.logExtract(
+                        source = bookSource,
+                        message = "提取简介",
+                        rule = ruleIntro.joinToString("&&") { it.rule },
+                        error = e
+                    )
+                }
                 
-                dataFlowFields.recordField(
+                dataFlowFields?.recordField(
                     "intro",
                     rule = ruleIntro.joinToString("&&") { it.rule },
                     isError = true,
@@ -516,15 +539,17 @@ object BookList {
                 }
                 Debug.log(bookSource.bookSourceUrl, "└${searchBook.coverUrl ?: ""}", log)
                 
-                FlowLogRecorder.logExtract(
-                    source = bookSource,
-                    message = "提取封面链接",
-                    rule = ruleCoverUrl.joinToString("&&") { it.rule },
-                    result = searchBook.coverUrl,
-                    originalValue = originalCoverUrl
-                )
+                if (debugEnabled) {
+                    FlowLogRecorder.logExtract(
+                        source = bookSource,
+                        message = "提取封面链接",
+                        rule = ruleCoverUrl.joinToString("&&") { it.rule },
+                        result = searchBook.coverUrl,
+                        originalValue = originalCoverUrl
+                    )
+                }
                 
-                dataFlowFields.recordField(
+                dataFlowFields?.recordField(
                     "coverUrl",
                     rule = ruleCoverUrl.joinToString("&&") { it.rule },
                     result = searchBook.coverUrl,
@@ -534,14 +559,16 @@ object BookList {
                 currentCoroutineContext().ensureActive()
                 Debug.log(bookSource.bookSourceUrl, "└${e.localizedMessage}", log)
                 
-                FlowLogRecorder.logExtract(
-                    source = bookSource,
-                    message = "提取封面链接",
-                    rule = ruleCoverUrl.joinToString("&&") { it.rule },
-                    error = e
-                )
+                if (debugEnabled) {
+                    FlowLogRecorder.logExtract(
+                        source = bookSource,
+                        message = "提取封面链接",
+                        rule = ruleCoverUrl.joinToString("&&") { it.rule },
+                        error = e
+                    )
+                }
                 
-                dataFlowFields.recordField(
+                dataFlowFields?.recordField(
                     "coverUrl",
                     rule = ruleCoverUrl.joinToString("&&") { it.rule },
                     isError = true,
@@ -557,30 +584,34 @@ object BookList {
             }
             Debug.log(bookSource.bookSourceUrl, "└${searchBook.bookUrl}", log)
             
-            FlowLogRecorder.logExtract(
-                source = bookSource,
-                message = "提取详情页链接",
-                rule = ruleBookUrl.joinToString("&&") { it.rule },
-                result = searchBook.bookUrl,
-                originalValue = originalBookUrl.takeIf { it.isNotEmpty() }
-            )
+            if (debugEnabled) {
+                FlowLogRecorder.logExtract(
+                    source = bookSource,
+                    message = "提取详情页链接",
+                    rule = ruleBookUrl.joinToString("&&") { it.rule },
+                    result = searchBook.bookUrl,
+                    originalValue = originalBookUrl.takeIf { it.isNotEmpty() }
+                )
+            }
             
-            dataFlowFields.recordField(
+            dataFlowFields?.recordField(
                 "bookUrl",
                 rule = ruleBookUrl.joinToString("&&") { it.rule },
                 result = searchBook.bookUrl,
                 original = originalBookUrl
             )
             
-            FlowLogRecorder.logStageDataFlow(
-                source = bookSource,
-                stage = if (isSearch) DataFlowStage.SEARCH else DataFlowStage.EXPLORE,
-                fields = dataFlowFields,
-                message = if (isSearch) "搜索阶段数据流转" else "发现阶段数据流转",
-                bookUrl = searchBook.bookUrl,
-                bookName = searchBook.name,
-                author = searchBook.author
-            )
+            if (debugEnabled) {
+                FlowLogRecorder.logStageDataFlow(
+                    source = bookSource,
+                    stage = if (isSearch) DataFlowStage.SEARCH else DataFlowStage.EXPLORE,
+                    fields = dataFlowFields.orEmpty(),
+                    message = if (isSearch) "搜索阶段数据流转" else "发现阶段数据流转",
+                    bookUrl = searchBook.bookUrl,
+                    bookName = searchBook.name,
+                    author = searchBook.author
+                )
+            }
             
             return searchBook
         }

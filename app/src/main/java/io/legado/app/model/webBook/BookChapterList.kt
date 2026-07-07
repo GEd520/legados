@@ -225,22 +225,24 @@ object BookChapterList {
         currentCoroutineContext().ensureActive()
         upChapterInfo(list, book)
         
-        val dataFlowFields = mutableListOf<FieldFillRecord>()
-        dataFlowFields.recordField("totalChapterNum", result = list.size.toString())
-        dataFlowFields.recordField("latestChapterTitle", result = book.latestChapterTitle)
-        dataFlowFields.recordField("durChapterTitle", result = book.durChapterTitle)
+        if (FlowLogRecorder.isEnabled) {
+            val dataFlowFields = mutableListOf<FieldFillRecord>()
+            dataFlowFields.recordField("totalChapterNum", result = list.size.toString())
+            dataFlowFields.recordField("latestChapterTitle", result = book.latestChapterTitle)
+            dataFlowFields.recordField("durChapterTitle", result = book.durChapterTitle)
 
-        FlowLogRecorder.logStageDataFlow(
-            source = bookSource,
-            stage = DataFlowStage.TOC,
-            fields = dataFlowFields,
-            message = "目录阶段数据流转",
-            bookUrl = book.bookUrl,
-            bookName = book.name,
-            author = book.author,
-            book = book,
-            bookSource = bookSource
-        )
+            FlowLogRecorder.logStageDataFlow(
+                source = bookSource,
+                stage = DataFlowStage.TOC,
+                fields = dataFlowFields,
+                message = "目录阶段数据流转",
+                bookUrl = book.bookUrl,
+                bookName = book.name,
+                author = book.author,
+                book = book,
+                bookSource = bookSource
+            )
+        }
 
         return list
     }
@@ -507,22 +509,24 @@ object BookChapterList {
                 )
         upChapterInfo(list, book)
         
-        val dataFlowFields = mutableListOf<FieldFillRecord>()
-        dataFlowFields.recordField("totalChapterNum", result = list.size.toString())
-        dataFlowFields.recordField("latestChapterTitle", result = book.latestChapterTitle)
-        dataFlowFields.recordField("durChapterTitle", result = book.durChapterTitle)
+        if (FlowLogRecorder.isEnabled) {
+            val dataFlowFields = mutableListOf<FieldFillRecord>()
+            dataFlowFields.recordField("totalChapterNum", result = list.size.toString())
+            dataFlowFields.recordField("latestChapterTitle", result = book.latestChapterTitle)
+            dataFlowFields.recordField("durChapterTitle", result = book.durChapterTitle)
 
-        FlowLogRecorder.logStageDataFlow(
-            source = bookSource,
-            stage = DataFlowStage.TOC,
-            fields = dataFlowFields,
-            message = "目录阶段数据流转",
-            bookUrl = book.bookUrl,
-            bookName = book.name,
-            author = book.author,
-            book = book,
-            bookSource = bookSource
-        )
+            FlowLogRecorder.logStageDataFlow(
+                source = bookSource,
+                stage = DataFlowStage.TOC,
+                fields = dataFlowFields,
+                message = "目录阶段数据流转",
+                bookUrl = book.bookUrl,
+                bookName = book.name,
+                author = book.author,
+                book = book,
+                bookSource = bookSource
+            )
+        }
 
         return list
     }
@@ -586,12 +590,15 @@ object BookChapterList {
         if (elements.isNotEmpty()) {
             Debug.log(bookSource.bookSourceUrl, "┌解析目录列表", log)
             
-            FlowLogRecorder.logExtract(
-                source = bookSource,
-                message = "开始提取章节列表字段",
-                book = book,
-                bookSource = bookSource
-            )
+            val debugEnabled = FlowLogRecorder.isEnabled
+            if (debugEnabled) {
+                FlowLogRecorder.logExtract(
+                    source = bookSource,
+                    message = "开始提取章节列表字段",
+                    book = book,
+                    bookSource = bookSource
+                )
+            }
             
             val nameRule = analyzeRule.splitSourceRule(tocRule.chapterName)
             val urlRule = analyzeRule.splitSourceRule(tocRule.chapterUrl)
@@ -608,7 +615,7 @@ object BookChapterList {
                 bookChapter.title = analyzeRule.getString(nameRule)
                 bookChapter.url = analyzeRule.getString(urlRule)
                 
-                if (index == 0) {
+                if (index == 0 && debugEnabled) {
                     FlowLogRecorder.logExtract(
                         source = bookSource,
                         message = "提取章节标题",

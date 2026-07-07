@@ -41,7 +41,7 @@ class RegexJsExtensions(private val name: String): JsEncodeUtils {
 
     fun get(key: String): String {
         val value = ruleData.getVariable(key).takeIf { it.isNotEmpty() } ?: ""
-        if (value.isNotEmpty()) {
+        if (value.isNotEmpty() && FlowLogRecorder.isEnabled) {
             FlowLogRecorder.logVariableRead(
                 source = null,
                 key = key,
@@ -53,15 +53,18 @@ class RegexJsExtensions(private val name: String): JsEncodeUtils {
     }
 
     fun put(key: String, value: String): String {
-        val oldValue = ruleData.getVariable(key).takeIf { it.isNotEmpty() }
+        val debugEnabled = FlowLogRecorder.isEnabled
+        val oldValue = if (debugEnabled) ruleData.getVariable(key).takeIf { it.isNotEmpty() } else null
         ruleData.putVariable(key, value)
-        FlowLogRecorder.logVariableWrite(
-            source = null,
-            key = key,
-            value = value,
-            oldValue = oldValue,
-            storage = VariableStorage.RULE_DATA
-        )
+        if (debugEnabled) {
+            FlowLogRecorder.logVariableWrite(
+                source = null,
+                key = key,
+                value = value,
+                oldValue = oldValue,
+                storage = VariableStorage.RULE_DATA
+            )
+        }
         return value
     }
 }

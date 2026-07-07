@@ -19,36 +19,42 @@ class JsCacheManager(
 ) {
     @JavascriptInterface
     fun put(key: String, value: String): String {
-        val oldValue = CacheManager.get(key)
+        val debugEnabled = FlowLogRecorder.isEnabled
+        val oldValue = if (debugEnabled) CacheManager.get(key) else null
         CacheManager.put(key, value)
-        FlowLogRecorder.logVariableWrite(
-            source = source,
-            key = key,
-            value = value,
-            oldValue = oldValue,
-            storage = VariableStorage.SOURCE
-        )
+        if (debugEnabled) {
+            FlowLogRecorder.logVariableWrite(
+                source = source,
+                key = key,
+                value = value,
+                oldValue = oldValue,
+                storage = VariableStorage.SOURCE
+            )
+        }
         return value
     }
 
     @JavascriptInterface
     fun put(key: String, value: String, saveTime: Int): String {
-        val oldValue = CacheManager.get(key)
+        val debugEnabled = FlowLogRecorder.isEnabled
+        val oldValue = if (debugEnabled) CacheManager.get(key) else null
         CacheManager.put(key, value, saveTime)
-        FlowLogRecorder.logVariableWrite(
-            source = source,
-            key = key,
-            value = value,
-            oldValue = oldValue,
-            storage = VariableStorage.SOURCE
-        )
+        if (debugEnabled) {
+            FlowLogRecorder.logVariableWrite(
+                source = source,
+                key = key,
+                value = value,
+                oldValue = oldValue,
+                storage = VariableStorage.SOURCE
+            )
+        }
         return value
     }
 
     @JavascriptInterface
     fun get(key: String): String? {
         val value = CacheManager.get(key)
-        if (value != null) {
+        if (value != null && FlowLogRecorder.isEnabled) {
             FlowLogRecorder.logVariableRead(
                 source = source,
                 key = key,
@@ -61,9 +67,10 @@ class JsCacheManager(
 
     @JavascriptInterface
     fun delete(key: String) {
-        val oldValue = CacheManager.get(key)
+        val debugEnabled = FlowLogRecorder.isEnabled
+        val oldValue = if (debugEnabled) CacheManager.get(key) else null
         CacheManager.delete(key)
-        if (oldValue != null) {
+        if (oldValue != null && debugEnabled) {
             FlowLogRecorder.logVariable(
                 source = source,
                 operations = listOf(
@@ -97,7 +104,7 @@ class JsCacheManager(
     @JavascriptInterface
     fun getInt(key: String): Int? {
         val value = CacheManager.getInt(key)
-        if (value != null) {
+        if (value != null && FlowLogRecorder.isEnabled) {
             FlowLogRecorder.logVariableRead(
                 source = source,
                 key = key,
@@ -111,7 +118,7 @@ class JsCacheManager(
     @JavascriptInterface
     fun getLong(key: String): Long? {
         val value = CacheManager.getLong(key)
-        if (value != null) {
+        if (value != null && FlowLogRecorder.isEnabled) {
             FlowLogRecorder.logVariableRead(
                 source = source,
                 key = key,
@@ -125,7 +132,7 @@ class JsCacheManager(
     @JavascriptInterface
     fun getDouble(key: String): Double? {
         val value = CacheManager.getDouble(key)
-        if (value != null) {
+        if (value != null && FlowLogRecorder.isEnabled) {
             FlowLogRecorder.logVariableRead(
                 source = source,
                 key = key,

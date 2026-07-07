@@ -273,15 +273,18 @@ interface BaseSource : JsExtensions {
      */
     @JavascriptInterface
     fun put(key: String, value: String): String {
-        val oldValue = get(key)
+        val debugEnabled = io.legado.app.data.repository.debug.FlowLogRecorder.isEnabled
+        val oldValue = if (debugEnabled) get(key) else ""
         CacheManager.put("v_${getKey()}_${key}", value)
-        io.legado.app.data.repository.debug.FlowLogRecorder.logVariableWrite(
-            source = this as? io.legado.app.data.entities.BaseSource,
-            key = key,
-            value = value,
-            oldValue = oldValue.takeIf { it.isNotEmpty() },
-            storage = io.legado.app.model.debug.VariableStorage.SOURCE
-        )
+        if (debugEnabled) {
+            io.legado.app.data.repository.debug.FlowLogRecorder.logVariableWrite(
+                source = this,
+                key = key,
+                value = value,
+                oldValue = oldValue.takeIf { it.isNotEmpty() },
+                storage = io.legado.app.model.debug.VariableStorage.SOURCE
+            )
+        }
         return value
     }
 
@@ -291,9 +294,9 @@ interface BaseSource : JsExtensions {
     @JavascriptInterface
     fun get(key: String): String {
         val value = CacheManager.get("v_${getKey()}_${key}") ?: ""
-        if (value.isNotEmpty()) {
+        if (value.isNotEmpty() && io.legado.app.data.repository.debug.FlowLogRecorder.isEnabled) {
             io.legado.app.data.repository.debug.FlowLogRecorder.logVariableRead(
-                source = this as? io.legado.app.data.entities.BaseSource,
+                source = this,
                 key = key,
                 value = value,
                 storage = io.legado.app.model.debug.VariableStorage.SOURCE

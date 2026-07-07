@@ -108,14 +108,17 @@ object BookInfo {
         }
         val mCanReName = canReName && !infoRule.canReName.isNullOrBlank()
         
-        val dataFlowFields = mutableListOf<FieldFillRecord>()
+        val debugEnabled = FlowLogRecorder.isEnabled
+        val dataFlowFields = if (debugEnabled) mutableListOf<FieldFillRecord>() else null
         
-        FlowLogRecorder.logExtract(
-            source = bookSource,
-            message = "开始提取书籍信息字段",
-            book = book,
-            bookSource = bookSource
-        )
+        if (debugEnabled) {
+            FlowLogRecorder.logExtract(
+                source = bookSource,
+                message = "开始提取书籍信息字段",
+                book = book,
+                bookSource = bookSource
+            )
+        }
         
         currentCoroutineContext().ensureActive()
         Debug.log(bookSource.bookSourceUrl, "┌获取书名")
@@ -126,17 +129,19 @@ object BookInfo {
             }
             Debug.log(bookSource.bookSourceUrl, "└${it}")
             
-            FlowLogRecorder.logExtract(
-                source = bookSource,
-                message = "提取书名",
-                rule = infoRule.name,
-                result = it,
-                originalValue = originalName.takeIf { it.isNotEmpty() },
-                book = book,
-                bookSource = bookSource
-            )
+            if (debugEnabled) {
+                FlowLogRecorder.logExtract(
+                    source = bookSource,
+                    message = "提取书名",
+                    rule = infoRule.name,
+                    result = it,
+                    originalValue = originalName.takeIf { it.isNotEmpty() },
+                    book = book,
+                    bookSource = bookSource
+                )
+            }
             
-            dataFlowFields.recordField(
+            dataFlowFields?.recordField(
                 "name",
                 rule = infoRule.name,
                 result = it,
@@ -152,17 +157,19 @@ object BookInfo {
             }
             Debug.log(bookSource.bookSourceUrl, "└${it}")
             
-            FlowLogRecorder.logExtract(
-                source = bookSource,
-                message = "提取作者",
-                rule = infoRule.author,
-                result = it,
-                originalValue = originalAuthor.takeIf { it.isNotEmpty() },
-                book = book,
-                bookSource = bookSource
-            )
+            if (debugEnabled) {
+                FlowLogRecorder.logExtract(
+                    source = bookSource,
+                    message = "提取作者",
+                    rule = infoRule.author,
+                    result = it,
+                    originalValue = originalAuthor.takeIf { it.isNotEmpty() },
+                    book = book,
+                    bookSource = bookSource
+                )
+            }
             
-            dataFlowFields.recordField(
+            dataFlowFields?.recordField(
                 "author",
                 rule = infoRule.author,
                 result = it,
@@ -179,17 +186,19 @@ object BookInfo {
                     if (it.isNotEmpty()) book.kind = it
                     Debug.log(bookSource.bookSourceUrl, "└${it}")
                     
-                    FlowLogRecorder.logExtract(
-                        source = bookSource,
-                        message = "提取分类",
-                        rule = infoRule.kind,
-                        result = it,
-                        originalValue = originalKind,
-                        book = book,
-                        bookSource = bookSource
-                    )
+                    if (debugEnabled) {
+                        FlowLogRecorder.logExtract(
+                            source = bookSource,
+                            message = "提取分类",
+                            rule = infoRule.kind,
+                            result = it,
+                            originalValue = originalKind,
+                            book = book,
+                            bookSource = bookSource
+                        )
+                    }
                     
-                    dataFlowFields.recordField(
+                    dataFlowFields?.recordField(
                         "kind",
                         rule = infoRule.kind,
                         result = it,
@@ -201,16 +210,18 @@ object BookInfo {
             Debug.log(bookSource.bookSourceUrl, "└${e.localizedMessage}")
             DebugLog.e("获取分类出错", e)
             
-            FlowLogRecorder.logExtract(
-                source = bookSource,
-                message = "提取分类",
-                rule = infoRule.kind,
-                error = e,
-                book = book,
-                bookSource = bookSource
-            )
+            if (debugEnabled) {
+                FlowLogRecorder.logExtract(
+                    source = bookSource,
+                    message = "提取分类",
+                    rule = infoRule.kind,
+                    error = e,
+                    book = book,
+                    bookSource = bookSource
+                )
+            }
             
-            dataFlowFields.recordField(
+            dataFlowFields?.recordField(
                 "kind",
                 rule = infoRule.kind,
                 isError = true,
@@ -225,17 +236,19 @@ object BookInfo {
                 if (it.isNotEmpty()) book.wordCount = it
                 Debug.log(bookSource.bookSourceUrl, "└${it}")
                 
-                FlowLogRecorder.logExtract(
-                    source = bookSource,
-                    message = "提取字数",
-                    rule = infoRule.wordCount,
-                    result = it,
-                    originalValue = originalWordCount?.takeIf { it.isNotEmpty() },
-                    book = book,
-                    bookSource = bookSource
-                )
+                if (debugEnabled) {
+                    FlowLogRecorder.logExtract(
+                        source = bookSource,
+                        message = "提取字数",
+                        rule = infoRule.wordCount,
+                        result = it,
+                        originalValue = originalWordCount?.takeIf { it.isNotEmpty() },
+                        book = book,
+                        bookSource = bookSource
+                    )
+                }
                 
-                dataFlowFields.recordField(
+                dataFlowFields?.recordField(
                     "wordCount",
                     rule = infoRule.wordCount,
                     result = it,
@@ -247,16 +260,18 @@ object BookInfo {
             Debug.log(bookSource.bookSourceUrl, "└${e.localizedMessage}")
             DebugLog.e("获取字数出错", e)
             
-            FlowLogRecorder.logExtract(
-                source = bookSource,
-                message = "提取字数",
-                rule = infoRule.wordCount,
-                error = e,
-                book = book,
-                bookSource = bookSource
-            )
+            if (debugEnabled) {
+                FlowLogRecorder.logExtract(
+                    source = bookSource,
+                    message = "提取字数",
+                    rule = infoRule.wordCount,
+                    error = e,
+                    book = book,
+                    bookSource = bookSource
+                )
+            }
             
-            dataFlowFields.recordField(
+            dataFlowFields?.recordField(
                 "wordCount",
                 rule = infoRule.wordCount,
                 isError = true,
@@ -271,17 +286,19 @@ object BookInfo {
                 if (it.isNotEmpty()) book.latestChapterTitle = it
                 Debug.log(bookSource.bookSourceUrl, "└${it}")
                 
-                FlowLogRecorder.logExtract(
-                    source = bookSource,
-                    message = "提取最新章节",
-                    rule = infoRule.lastChapter,
-                    result = it,
-                    originalValue = originalLatestChapter?.takeIf { it.isNotEmpty() },
-                    book = book,
-                    bookSource = bookSource
-                )
+                if (debugEnabled) {
+                    FlowLogRecorder.logExtract(
+                        source = bookSource,
+                        message = "提取最新章节",
+                        rule = infoRule.lastChapter,
+                        result = it,
+                        originalValue = originalLatestChapter?.takeIf { it.isNotEmpty() },
+                        book = book,
+                        bookSource = bookSource
+                    )
+                }
                 
-                dataFlowFields.recordField(
+                dataFlowFields?.recordField(
                     "latestChapterTitle",
                     rule = infoRule.lastChapter,
                     result = it,
@@ -293,16 +310,18 @@ object BookInfo {
             Debug.log(bookSource.bookSourceUrl, "└${e.localizedMessage}")
             DebugLog.e("获取最新章节出错", e)
             
-            FlowLogRecorder.logExtract(
-                source = bookSource,
-                message = "提取最新章节",
-                rule = infoRule.lastChapter,
-                error = e,
-                book = book,
-                bookSource = bookSource
-            )
+            if (debugEnabled) {
+                FlowLogRecorder.logExtract(
+                    source = bookSource,
+                    message = "提取最新章节",
+                    rule = infoRule.lastChapter,
+                    error = e,
+                    book = book,
+                    bookSource = bookSource
+                )
+            }
             
-            dataFlowFields.recordField(
+            dataFlowFields?.recordField(
                 "latestChapterTitle",
                 rule = infoRule.lastChapter,
                 isError = true,
@@ -319,17 +338,19 @@ object BookInfo {
                 book.intro = introTrimS
                 Debug.log(bookSource.bookSourceUrl, "└${introTrimS}")
                 
-                FlowLogRecorder.logExtract(
-                    source = bookSource,
-                    message = "提取简介",
-                    rule = infoRule.intro,
-                    result = introTrimS,
-                    originalValue = originalIntro,
-                    book = book,
-                    bookSource = bookSource
-                )
+                if (debugEnabled) {
+                    FlowLogRecorder.logExtract(
+                        source = bookSource,
+                        message = "提取简介",
+                        rule = infoRule.intro,
+                        result = introTrimS,
+                        originalValue = originalIntro,
+                        book = book,
+                        bookSource = bookSource
+                    )
+                }
                 
-                dataFlowFields.recordField(
+                dataFlowFields?.recordField(
                     "intro",
                     rule = infoRule.intro,
                     result = introTrimS,
@@ -341,17 +362,19 @@ object BookInfo {
                     if (it.isNotEmpty()) book.intro = it
                     Debug.log(bookSource.bookSourceUrl, "└${it}")
                     
-                    FlowLogRecorder.logExtract(
-                        source = bookSource,
-                        message = "提取简介",
-                        rule = infoRule.intro,
-                        result = it,
-                        originalValue = originalIntro,
-                        book = book,
-                        bookSource = bookSource
-                    )
+                    if (debugEnabled) {
+                        FlowLogRecorder.logExtract(
+                            source = bookSource,
+                            message = "提取简介",
+                            rule = infoRule.intro,
+                            result = it,
+                            originalValue = originalIntro,
+                            book = book,
+                            bookSource = bookSource
+                        )
+                    }
                     
-                    dataFlowFields.recordField(
+                    dataFlowFields?.recordField(
                         "intro",
                         rule = infoRule.intro,
                         result = it,
@@ -365,16 +388,18 @@ object BookInfo {
             Debug.log(bookSource.bookSourceUrl, "└${e.localizedMessage}")
             DebugLog.e("获取简介出错", e)
             
-            FlowLogRecorder.logExtract(
-                source = bookSource,
-                message = "提取简介",
-                rule = infoRule.intro,
-                error = e,
-                book = book,
-                bookSource = bookSource
-            )
+            if (debugEnabled) {
+                FlowLogRecorder.logExtract(
+                    source = bookSource,
+                    message = "提取简介",
+                    rule = infoRule.intro,
+                    error = e,
+                    book = book,
+                    bookSource = bookSource
+                )
+            }
             
-            dataFlowFields.recordField(
+            dataFlowFields?.recordField(
                 "intro",
                 rule = infoRule.intro,
                 isError = true,
@@ -392,17 +417,19 @@ object BookInfo {
                 }
                 Debug.log(bookSource.bookSourceUrl, "└${it}")
                 
-                FlowLogRecorder.logExtract(
-                    source = bookSource,
-                    message = "提取封面链接",
-                    rule = infoRule.coverUrl,
-                    result = book.coverUrl,
-                    originalValue = originalCoverUrl,
-                    book = book,
-                    bookSource = bookSource
-                )
+                if (debugEnabled) {
+                    FlowLogRecorder.logExtract(
+                        source = bookSource,
+                        message = "提取封面链接",
+                        rule = infoRule.coverUrl,
+                        result = book.coverUrl,
+                        originalValue = originalCoverUrl,
+                        book = book,
+                        bookSource = bookSource
+                    )
+                }
                 
-                dataFlowFields.recordField(
+                dataFlowFields?.recordField(
                     "coverUrl",
                     rule = infoRule.coverUrl,
                     result = book.coverUrl,
@@ -414,16 +441,18 @@ object BookInfo {
             Debug.log(bookSource.bookSourceUrl, "└${e.localizedMessage}")
             DebugLog.e("获取封面出错", e)
             
-            FlowLogRecorder.logExtract(
-                source = bookSource,
-                message = "提取封面链接",
-                rule = infoRule.coverUrl,
-                error = e,
-                book = book,
-                bookSource = bookSource
-            )
+            if (debugEnabled) {
+                FlowLogRecorder.logExtract(
+                    source = bookSource,
+                    message = "提取封面链接",
+                    rule = infoRule.coverUrl,
+                    error = e,
+                    book = book,
+                    bookSource = bookSource
+                )
+            }
             
-            dataFlowFields.recordField(
+            dataFlowFields?.recordField(
                 "coverUrl",
                 rule = infoRule.coverUrl,
                 isError = true,
@@ -441,17 +470,19 @@ object BookInfo {
             }
             Debug.log(bookSource.bookSourceUrl, "└${book.tocUrl}")
             
-            FlowLogRecorder.logExtract(
-                source = bookSource,
-                message = "提取目录链接",
-                rule = infoRule.tocUrl,
-                result = book.tocUrl,
-                originalValue = originalTocUrl.takeIf { it.isNotEmpty() },
-                book = book,
-                bookSource = bookSource
-            )
+            if (debugEnabled) {
+                FlowLogRecorder.logExtract(
+                    source = bookSource,
+                    message = "提取目录链接",
+                    rule = infoRule.tocUrl,
+                    result = book.tocUrl,
+                    originalValue = originalTocUrl.takeIf { it.isNotEmpty() },
+                    book = book,
+                    bookSource = bookSource
+                )
+            }
             
-            dataFlowFields.recordField(
+            dataFlowFields?.recordField(
                 "tocUrl",
                 rule = infoRule.tocUrl,
                 result = book.tocUrl,
@@ -470,17 +501,19 @@ object BookInfo {
                     "└" + TextUtils.join("，\n", book.downloadUrls!!)
                 )
                 
-                FlowLogRecorder.logExtract(
-                    source = bookSource,
-                    message = "提取文件下载链接",
-                    rule = infoRule.downloadUrls,
-                    result = book.downloadUrls?.joinToString("\n"),
-                    originalValue = originalDownloadUrls,
-                    book = book,
-                    bookSource = bookSource
-                )
+                if (debugEnabled) {
+                    FlowLogRecorder.logExtract(
+                        source = bookSource,
+                        message = "提取文件下载链接",
+                        rule = infoRule.downloadUrls,
+                        result = book.downloadUrls?.joinToString("\n"),
+                        originalValue = originalDownloadUrls,
+                        book = book,
+                        bookSource = bookSource
+                    )
+                }
                 
-                dataFlowFields.recordField(
+                dataFlowFields?.recordField(
                     "downloadUrls",
                     rule = infoRule.downloadUrls,
                     result = book.downloadUrls?.joinToString("\n"),
@@ -489,17 +522,19 @@ object BookInfo {
             }
         }
         
-        FlowLogRecorder.logStageDataFlow(
-            source = bookSource,
-            stage = DataFlowStage.BOOK_INFO,
-            fields = dataFlowFields,
-            message = "详情阶段数据流转",
-            bookUrl = book.bookUrl,
-            bookName = book.name,
-            author = book.author,
-            book = book,
-            bookSource = bookSource
-        )
+        if (debugEnabled) {
+            FlowLogRecorder.logStageDataFlow(
+                source = bookSource,
+                stage = DataFlowStage.BOOK_INFO,
+                fields = dataFlowFields.orEmpty(),
+                message = "详情阶段数据流转",
+                bookUrl = book.bookUrl,
+                bookName = book.name,
+                author = book.author,
+                book = book,
+                bookSource = bookSource
+            )
+        }
     }
 
 }
