@@ -1,5 +1,7 @@
 package io.legado.app.help.storage
 
+import android.util.JsonReader
+import android.util.JsonToken
 import android.util.Xml
 import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookChapter
@@ -28,6 +30,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
+import java.io.InputStreamReader
 
 enum class ValidationState {
     NOT_VALIDATED,
@@ -156,14 +159,40 @@ object BackupFileValidator {
     
     private fun validateJsonFile(file: File, fileName: String): ValidationResult {
         return try {
+            if (fileName == "servers.json") {
+                val jsonText = file.readText()
+                return if (jsonText.isJsonArray()) {
+                    validateDataStructure(fileName, jsonText).let { structureResult ->
+                        if (structureResult.state == ValidationState.ERROR) {
+                            structureResult
+                        } else {
+                            ValidationResult(
+                                fileName = fileName,
+                                state = ValidationState.VALID,
+                                message = "格式正确"
+                            )
+                        }
+                    }
+                } else {
+                    validateEncryptedServersFile(fileName, jsonText)
+                }
+            }
+
+            if (fileName in objectJsonFileNames) {
+                return validateKnownJsonObjectFile(fileName, file.readText())
+            }
+
+            if (fileName != HighlightRuleStore.backupFileName) {
+                val streamResult = validateJsonArrayFile(file, fileName)
+                if (streamResult != null) {
+                    return streamResult
+                }
+            }
+
             val jsonText = file.readText()
 
             if (fileName == HighlightRuleStore.backupFileName) {
                 return validateJsonObjectFile(fileName, jsonText)
-            }
-
-            if (fileName == "servers.json" && !jsonText.isJsonArray()) {
-                return validateEncryptedServersFile(fileName, jsonText)
             }
 
             if (!jsonText.isJsonArray()) {
@@ -193,6 +222,173 @@ object BackupFileValidator {
                 details = "解析 $fileName 时出错: ${e.message}",
                 exception = e
             )
+        }
+    }
+
+    private fun validateJsonArrayFile(file: File, fileName: String): ValidationResult? {
+        file.inputStream().use { inputStream ->
+            JsonReader(InputStreamReader(inputStream, Charsets.UTF_8)).use { reader ->
+                if (reader.peek() != JsonToken.BEGIN_ARRAY) {
+                    return null
+                }
+                reader.beginArray()
+                val structureResult = validateFirstJsonArrayItem(fileName, reader)
+                while (reader.hasNext()) {
+                    reader.skipValue()
+                }
+                reader.endArray()
+                if (reader.peek() != JsonToken.END_DOCUMENT) {
+                    return ValidationResult(
+                        fileName = fileName,
+                        state = ValidationState.ERROR,
+                        message = "JSON 格式错误",
+                        details = "$fileName JSON 数组结束后存在多余内容"
+                    )
+                }
+                return if (structureResult.state == ValidationState.VALID) {
+                    ValidationResult(
+                        fileName = fileName,
+                        state = ValidationState.VALID,
+                        message = "格式正确"
+                    )
+                } else {
+                    structureResult
+                }
+            }
+        }
+    }
+
+    private fun validateFirstJsonArrayItem(
+        fileName: String,
+        reader: JsonReader
+    ): ValidationResult {
+        val requiredFields = getRequiredFields(fileName)
+        if (!reader.hasNext()) {
+            return ValidationResult(
+                fileName = fileName,
+                state = ValidationState.VALID,
+                message = "数据为空",
+                details = "JSON 数组为空，没有数据需要验证"
+            )
+        }
+
+        if (reader.peek() != JsonToken.BEGIN_OBJECT) {
+            reader.skipValue()
+            return ValidationResult(
+                fileName = fileName,
+                state = ValidationState.WARNING,
+                message = "数据格式不完整",
+                details = "第一条数据不是有效的 JSON 对象"
+            )
+        }
+
+        if (requiredFields.isEmpty()) {
+            reader.skipValue()
+            return ValidationResult(
+                fileName = fileName,
+                state = ValidationState.VALID,
+                message = "格式正确"
+            )
+        }
+
+        val presentFields = mutableSetOf<String>()
+        reader.beginObject()
+        while (reader.hasNext()) {
+            val name = reader.nextName()
+            if (name in requiredFields && reader.peek() != JsonToken.NULL) {
+                presentFields.add(name)
+            }
+            reader.skipValue()
+        }
+        reader.endObject()
+
+        val missingFields = requiredFields.filterNot { it in presentFields }
+        return if (missingFields.isNotEmpty()) {
+            ValidationResult(
+                fileName = fileName,
+                state = ValidationState.WARNING,
+                message = "缺少必需字段",
+                details = "缺少字段: ${missingFields.joinToString(", ")}",
+                missingFields = missingFields
+            )
+        } else {
+            ValidationResult(
+                fileName = fileName,
+                state = ValidationState.VALID,
+                message = "格式正确"
+            )
+        }
+    }
+
+    private fun getRequiredFields(fileName: String): List<String> {
+        return when (fileName) {
+            "bookshelf.json" -> listOf("name", "author")
+            "bookmark.json" -> listOf("bookName", "chapterPos")
+            "bookGroup.json" -> listOf("groupName")
+            "bookChapter.json" -> listOf("bookUrl", "title")
+            "bookSource.json" -> listOf("bookSourceUrl", "bookSourceName")
+            "rssSources.json" -> listOf("sourceUrl", "sourceName")
+            "rssStar.json" -> listOf("origin")
+            "replaceRule.json" -> listOf("name")
+            "readRecord.json" -> listOf("bookName")
+            "readRecordDetail.json" -> listOf("bookName")
+            "readRecordSession.json" -> listOf("bookName")
+            "searchHistory.json" -> listOf("word")
+            "txtTocRule.json" -> listOf("name")
+            "httpTTS.json" -> listOf("name")
+            "keyboardAssists.json" -> listOf("key", "value")
+            "dictRule.json" -> listOf("name")
+            "servers.json" -> listOf("name")
+            else -> emptyList()
+        }
+    }
+
+    private val objectJsonFileNames = setOf(
+        HighlightRuleStore.backupFileName,
+        "shareReadConfig.json",
+        "coverRule.json",
+        "directLinkUploadRule.json",
+        "directLinkRule.json"
+    )
+
+    private fun validateKnownJsonObjectFile(fileName: String, jsonText: String): ValidationResult {
+        return try {
+            val jsonObject = JSONObject(jsonText)
+            val requiredFields = getRequiredObjectFields(fileName)
+            val missingFields = requiredFields.filter { field ->
+                !jsonObject.has(field) || jsonObject.isNull(field)
+            }
+            if (missingFields.isNotEmpty()) {
+                return ValidationResult(
+                    fileName = fileName,
+                    state = ValidationState.WARNING,
+                    message = "缺少必需字段",
+                    details = "$fileName 缺少字段: ${missingFields.joinToString(", ")}",
+                    missingFields = missingFields
+                )
+            }
+            ValidationResult(
+                fileName = fileName,
+                state = ValidationState.VALID,
+                message = "格式正确"
+            )
+        } catch (e: Exception) {
+            ValidationResult(
+                fileName = fileName,
+                state = ValidationState.ERROR,
+                message = "JSON 解析失败",
+                details = "解析 $fileName 时出错: ${e.message}",
+                exception = e
+            )
+        }
+    }
+
+    private fun getRequiredObjectFields(fileName: String): List<String> {
+        return when (fileName) {
+            HighlightRuleStore.backupFileName -> listOf("rules")
+            "coverRule.json" -> listOf("searchUrl", "coverRule")
+            "directLinkUploadRule.json", "directLinkRule.json" -> listOf("rules")
+            else -> emptyList()
         }
     }
 
@@ -235,21 +431,21 @@ object BackupFileValidator {
                 return ValidationResult(
                     fileName = fileName,
                     state = ValidationState.WARNING,
-                    message = "缂哄皯蹇呴渶瀛楁",
-                    details = "$fileName 缂哄皯 rules 瀛楁"
+                    message = "缺少必需字段",
+                    details = "$fileName 缺少 rules 字段"
                 )
             }
             ValidationResult(
                 fileName = fileName,
                 state = ValidationState.VALID,
-                message = "鏍煎紡姝ｇ‘"
+                message = "格式正确"
             )
         } catch (e: Exception) {
             ValidationResult(
                 fileName = fileName,
                 state = ValidationState.ERROR,
-                message = "JSON 瑙ｆ瀽澶辫触",
-                details = "瑙ｆ瀽 $fileName 鏃跺嚭閿? ${e.message}",
+                message = "JSON 解析失败",
+                details = "解析 $fileName 时出错: ${e.message}",
                 exception = e
             )
         }
@@ -307,7 +503,7 @@ object BackupFileValidator {
             when (fileName) {
                 "bookshelf.json" -> validateEntityStructure<Book>(jsonText, listOf("name", "author"))
                 "bookmark.json" -> validateEntityStructure<Bookmark>(jsonText, listOf("bookName", "chapterPos"))
-                "bookGroup.json" -> validateEntityStructure<BookGroup>(jsonText, listOf("name"))
+                "bookGroup.json" -> validateEntityStructure<BookGroup>(jsonText, listOf("groupName"))
                 "bookChapter.json" -> validateEntityStructure<BookChapter>(jsonText, listOf("bookUrl", "title"))
                 "bookSource.json" -> validateEntityStructure<BookSource>(jsonText, listOf("bookSourceUrl", "bookSourceName"))
                 "rssSources.json" -> validateEntityStructure<RssSource>(jsonText, listOf("sourceUrl", "sourceName"))
@@ -319,7 +515,7 @@ object BackupFileValidator {
                 "searchHistory.json" -> validateEntityStructure<SearchKeyword>(jsonText, listOf("word"))
                 "txtTocRule.json" -> validateEntityStructure<TxtTocRule>(jsonText, listOf("name"))
                 "httpTTS.json" -> validateEntityStructure<HttpTTS>(jsonText, listOf("name"))
-                "keyboardAssists.json" -> validateEntityStructure<KeyboardAssist>(jsonText, listOf("name"))
+                "keyboardAssists.json" -> validateEntityStructure<KeyboardAssist>(jsonText, listOf("key", "value"))
                 "dictRule.json" -> validateEntityStructure<DictRule>(jsonText, listOf("name"))
                 "servers.json" -> validateEntityStructure<Server>(jsonText, listOf("name"))
                 else -> ValidationResult(fileName, ValidationState.VALID, "格式正确")

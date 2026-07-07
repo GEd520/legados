@@ -5,6 +5,7 @@ import android.net.Uri
 import android.util.Xml
 import androidx.core.content.edit
 import androidx.documentfile.provider.DocumentFile
+import com.google.gson.stream.JsonReader
 import io.legado.app.BuildConfig
 import io.legado.app.R
 import io.legado.app.constant.AppLog
@@ -80,6 +81,7 @@ import kotlinx.coroutines.withContext
 import splitties.init.appCtx
 import java.io.File
 import java.io.FileInputStream
+import java.io.InputStreamReader
 
 /**
  * 恢复管理类
@@ -110,6 +112,7 @@ object Restore {
     private const val bookChapterFileName = "bookChapter.json"
     private const val legacyDirectLinkRuleFileName = "directLinkRule.json"
     private const val restoreProgressTotal = 8
+    private const val restoreBatchSize = 500
 
     data class RestoreProgress(
         val step: Int,
@@ -289,10 +292,7 @@ object Restore {
         }
 
         if ("bookSource.json" in selectedSet) {
-            fileToListT<BookSource>(path, "bookSource.json")?.let {
-                appDb.bookSourceDao.deleteAll()
-                appDb.bookSourceDao.insert(*it.toTypedArray())
-            } ?: run {
+            if (!restoreBookSources(path)) {
                 val bookSourceFile = File(path, "bookSource.json")
                 if (bookSourceFile.exists()) {
                     val json = bookSourceFile.readText()
@@ -607,10 +607,7 @@ object Restore {
         }
 
         // 恢复书源（兼容旧版本格式）
-        fileToListT<BookSource>(path, "bookSource.json")?.let {
-            appDb.bookSourceDao.deleteAll()
-            appDb.bookSourceDao.insert(*it.toTypedArray())
-        } ?: run {
+        if (!restoreBookSources(path)) {
             val bookSourceFile = File(path, "bookSource.json")
             if (bookSourceFile.exists()) {
                 val json = bookSourceFile.readText()
@@ -936,19 +933,81 @@ object Restore {
         BubblePackageManager.invalidateCurrentEntry()
     }
 
-    private fun restoreBookChapters(path: String) {
+    private suspend fun restoreBookChapters(path: String) {
         val chapterFile = File(path, bookChapterFileName)
         if (!chapterFile.exists()) return
-        val chapters = fileToListT<BookChapter>(path, bookChapterFileName).orEmpty()
-        if (chapters.isEmpty()) return
+        LogUtils.d(TAG, "流式恢复章节目录 $bookChapterFileName 文件大小 ${chapterFile.length()}")
         val bookUrls = appDb.bookDao.all.mapTo(hashSetOf()) { it.bookUrl }
-        chapters
-            .filter { it.bookUrl in bookUrls }
-            .groupBy { it.bookUrl }
-            .forEach { (bookUrl, chapterList) ->
-                appDb.bookChapterDao.delByBook(bookUrl)
-                appDb.bookChapterDao.insert(*chapterList.toTypedArray())
+        if (bookUrls.isEmpty()) return
+        val deletedBookUrls = hashSetOf<String>()
+        val batch = arrayListOf<BookChapter>()
+        var restoredCount = 0
+        forEachJsonArrayItem<BookChapter>(chapterFile, bookChapterFileName) { chapter ->
+            if (chapter.bookUrl in bookUrls) {
+                if (deletedBookUrls.add(chapter.bookUrl)) {
+                    appDb.bookChapterDao.delByBook(chapter.bookUrl)
+                }
+                batch.add(chapter)
+                if (batch.size >= restoreBatchSize) {
+                    appDb.bookChapterDao.insert(*batch.toTypedArray())
+                    restoredCount += batch.size
+                    batch.clear()
+                }
             }
+        }
+        if (batch.isNotEmpty()) {
+            appDb.bookChapterDao.insert(*batch.toTypedArray())
+            restoredCount += batch.size
+        }
+        LogUtils.d(TAG, "流式恢复章节目录完成 $restoredCount 条")
+    }
+
+    private suspend fun restoreBookSources(path: String): Boolean {
+        val bookSourceFile = File(path, "bookSource.json")
+        if (!bookSourceFile.exists()) return false
+        return runCatching {
+            LogUtils.d(TAG, "流式恢复书源 bookSource.json 文件大小 ${bookSourceFile.length()}")
+            val batch = arrayListOf<BookSource>()
+            var restoredCount = 0
+            var hasArray = false
+            appDb.bookSourceDao.deleteAll()
+            forEachJsonArrayItem<BookSource>(bookSourceFile, "bookSource.json") { bookSource ->
+                hasArray = true
+                batch.add(bookSource)
+                if (batch.size >= restoreBatchSize) {
+                    appDb.bookSourceDao.insert(*batch.toTypedArray())
+                    restoredCount += batch.size
+                    batch.clear()
+                }
+            }
+            if (batch.isNotEmpty()) {
+                appDb.bookSourceDao.insert(*batch.toTypedArray())
+                restoredCount += batch.size
+            }
+            LogUtils.d(TAG, "流式恢复书源完成 $restoredCount 条")
+            hasArray
+        }.onFailure {
+            AppLog.put("bookSource.json\n流式恢复书源失败\n${it.localizedMessage}", it)
+        }.getOrDefault(false)
+    }
+
+    private suspend inline fun <reified T> forEachJsonArrayItem(
+        file: File,
+        fileName: String,
+        onItem: (T) -> Unit
+    ) {
+        FileInputStream(file).use { inputStream ->
+            JsonReader(InputStreamReader(inputStream, Charsets.UTF_8)).use { reader ->
+                reader.beginArray()
+                while (reader.hasNext()) {
+                    currentCoroutineContext().ensureActive()
+                    val item = GSON.fromJson<T>(reader, T::class.java)
+                        ?: throw IllegalStateException("$fileName 存在空数据项")
+                    onItem(item)
+                }
+                reader.endArray()
+            }
+        }
     }
 
     private suspend fun restoreCoverGallery(path: String) {
