@@ -13,6 +13,7 @@ import android.widget.ImageButton
 import android.widget.ListView
 import android.widget.PopupWindow
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.setFragmentResultListener
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
@@ -147,6 +148,7 @@ class TextDialog() : BaseDialogFragment(R.layout.dialog_text_view) {
     }
 
     override fun onFragmentCreated(view: View, savedInstanceState: Bundle?) {
+        applyDialogThemeColors()
         // 设置工具栏颜色
         binding.toolBar.setBackgroundColor(primaryColor)
         // 根据主题动态选择标题颜色：isDarkTheme=true表示浅色背景→用黑色，isDarkTheme=false表示深色背景→用白色
@@ -163,9 +165,12 @@ class TextDialog() : BaseDialogFragment(R.layout.dialog_text_view) {
         arguments?.let {
             val title = it.getString("title")
             binding.toolBar.title = title
-            binding.toolBar.post { tintToolbarTextAndIcons() }
-            val content = IntentData.get(it.getString("content")) ?: ""
-            currentContent = content
+            binding.toolBar.post {
+                if (isAdded) {
+                    tintToolbarTextAndIcons()
+                }
+            }
+            val contentKey = it.getString("content")
             val mode = it.getString("mode")
             val scrollToLine = it.getInt("scrollToLine", 0)
             val highlightTerm = it.getString("highlightTerm")
@@ -173,6 +178,8 @@ class TextDialog() : BaseDialogFragment(R.layout.dialog_text_view) {
             val helpDocName = it.getString("helpDocName")
             isHelpMode = helpDocName != null
             currentHelpDoc = helpDocName
+            val content = resolveInitialContent(contentKey, helpDocName)
+            currentContent = content
             when (mode) {
                 Mode.MD.name -> viewLifecycleOwner.lifecycleScope.launch {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -198,6 +205,7 @@ class TextDialog() : BaseDialogFragment(R.layout.dialog_text_view) {
                             showDialogFragment(PhotoDialog(source))
                         }
                     )
+                    applyDialogThemeColors(applyContentTextColor = content.isBlank())
                     if (scrollToLine > 0) {
                         val totalLinesInOriginal = content.lineSequence().count()
                         binding.textView.postDelayed({
@@ -280,7 +288,14 @@ class TextDialog() : BaseDialogFragment(R.layout.dialog_text_view) {
         setupHelpSearchResultListener()
     }
 
+    override fun onDestroyView() {
+        helpDocPopup?.dismiss()
+        helpDocPopup = null
+        super.onDestroyView()
+    }
+
     private fun tintToolbarTextAndIcons() {
+        if (!isAdded) return
         // 根据主题动态选择着色颜色：isDarkTheme=true表示浅色背景→用黑色，isDarkTheme=false表示深色背景→用白色
         val tintColor = if (isDarkTheme) Color.BLACK else Color.WHITE
         fun tintView(view: View) {
@@ -295,6 +310,46 @@ class TextDialog() : BaseDialogFragment(R.layout.dialog_text_view) {
             }
         }
         tintView(binding.toolBar)
+    }
+
+    private fun applyDialogThemeColors(applyContentTextColor: Boolean = false) {
+        val background = dialogBackgroundColor()
+        val primaryText = dialogPrimaryTextColor()
+        val secondaryText = dialogSecondaryTextColor()
+        binding.root.setBackgroundColor(background)
+        binding.helpSelectorLayout.setBackgroundColor(background)
+        binding.textView.setBackgroundColor(background)
+        if (applyContentTextColor || binding.textView.text.isNullOrEmpty()) {
+            binding.textView.setTextColor(secondaryText)
+        }
+        binding.helpSpinner.setTextColor(primaryText)
+        binding.helpSpinner.compoundDrawablesRelative.filterNotNull().forEach {
+            it.setTint(primaryText)
+        }
+    }
+
+    private fun resolveInitialContent(contentKey: String?, helpDocName: String?): String {
+        IntentData.get<String>(contentKey)?.let { return it }
+        if (helpDocName != null) {
+            return try {
+                HelpDocManager.loadDoc(requireContext().assets, helpDocName)
+            } catch (_: Throwable) {
+                ""
+            }
+        }
+        return ""
+    }
+
+    private fun dialogBackgroundColor(): Int {
+        return ContextCompat.getColor(requireContext(), R.color.background)
+    }
+
+    private fun dialogPrimaryTextColor(): Int {
+        return ContextCompat.getColor(requireContext(), R.color.primaryText)
+    }
+
+    private fun dialogSecondaryTextColor(): Int {
+        return ContextCompat.getColor(requireContext(), R.color.secondaryText)
     }
     
     /**
@@ -381,6 +436,7 @@ class TextDialog() : BaseDialogFragment(R.layout.dialog_text_view) {
                     showDialogFragment(PhotoDialog(source))
                 }
             )
+            applyDialogThemeColors(applyContentTextColor = content.isBlank())
             // 滚动到指定位置
             if (scrollToLine > 0) {
                 logDebug("updateContentWithScroll - posting scrollToLineInText")
@@ -502,6 +558,11 @@ class TextDialog() : BaseDialogFragment(R.layout.dialog_text_view) {
         binding.helpSelectorLayout.visibility = View.VISIBLE
         
         // 创建帮助文档列表适配器
+        binding.helpSpinner.setTextColor(dialogPrimaryTextColor())
+        binding.helpSpinner.compoundDrawablesRelative.filterNotNull().forEach {
+            it.setTint(dialogPrimaryTextColor())
+        }
+        binding.helpSpinner.setTextColor(dialogPrimaryTextColor())
         updateHelpSpinnerText(currentHelpDoc)
         
         // 设置当前选中的文档
@@ -519,13 +580,23 @@ class TextDialog() : BaseDialogFragment(R.layout.dialog_text_view) {
     private fun showHelpDocPopup() {
         helpDocPopup?.dismiss()
         val docs = HelpDocManager.allHelpDocs
-        val adapter = ArrayAdapter(
+        val popupBackgroundColor = dialogBackgroundColor()
+        val popupTextColor = dialogPrimaryTextColor()
+        val adapter = object : ArrayAdapter<String>(
             requireContext(),
             R.layout.item_spinner_dropdown,
             docs.map { it.displayName }
-        )
+        ) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                return super.getView(position, convertView, parent).apply {
+                    setBackgroundColor(popupBackgroundColor)
+                    (this as? TextView)?.setTextColor(popupTextColor)
+                }
+            }
+        }
         val listView = ListView(requireContext()).apply {
             this.adapter = adapter
+            setBackgroundColor(popupBackgroundColor)
             divider = null
             setOnItemClickListener { _, _, position, _ ->
                 helpDocPopup?.dismiss()
@@ -548,7 +619,7 @@ class TextDialog() : BaseDialogFragment(R.layout.dialog_text_view) {
         val popupWidth = binding.helpSpinner.width
         val popupHeight = minOf(availableHeight, docs.size * 48.dpToPx()).coerceAtLeast(160.dpToPx())
         helpDocPopup = PopupWindow(listView, popupWidth, popupHeight, true).apply {
-            setBackgroundDrawable(ColorDrawable(Color.WHITE))
+            setBackgroundDrawable(ColorDrawable(popupBackgroundColor))
             setOutsideTouchable(true)
             showAsDropDown(binding.helpSpinner)
         }
@@ -603,6 +674,7 @@ class TextDialog() : BaseDialogFragment(R.layout.dialog_text_view) {
                         showDialogFragment(PhotoDialog(source))
                     }
                 )
+                applyDialogThemeColors(applyContentTextColor = content.isBlank())
             }
         }
     }

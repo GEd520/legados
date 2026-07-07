@@ -193,7 +193,7 @@ object BookContent {
         analyzeRule.setNextChapterUrl(mNextChapterUrl)
         analyzeRule.setToastRuleType("CONTENT")
         
-        FlowLogRecorder.logExtract(
+        if (FlowLogRecorder.isEnabled) FlowLogRecorder.logExtract(
             source = bookSource,
             message = "开始提取正文内容",
             rule = contentRule.content,
@@ -207,12 +207,12 @@ object BookContent {
             book, baseUrl, redirectUrl, body, contentRule, bookChapter, bookSource, mNextChapterUrl
         )
         
-        FlowLogRecorder.logExtract(
+        if (FlowLogRecorder.isEnabled) FlowLogRecorder.logExtract(
             source = bookSource,
             message = "正文内容提取完成",
             rule = contentRule.content,
             result = contentData.first.take(100),
-            originalValue = body?.take(100),
+            originalValue = body.take(100),
             book = book,
             bookChapter = bookChapter,
             bookSource = bookSource
@@ -316,8 +316,8 @@ object BookContent {
         //全文替换
         val replaceRegex = contentRule.replaceRegex
         if (!replaceRegex.isNullOrEmpty()) {
-            val originalContent = contentStr.take(100)  // 保存原始数据
-            FlowLogRecorder.logReplace(
+            val originalContent = if (FlowLogRecorder.isEnabled) contentStr.take(100) else null
+            if (FlowLogRecorder.isEnabled) FlowLogRecorder.logReplace(
                 source = bookSource,
                 message = "开始正文全文替换",
                 rule = replaceRegex,
@@ -330,7 +330,7 @@ object BookContent {
             if (book.isOnLineTxt) {
                 contentStr = contentStr.split(AppPattern.LFRegex).joinToString("\n") { "　　$it" }
             }
-            FlowLogRecorder.logReplace(
+            if (FlowLogRecorder.isEnabled) FlowLogRecorder.logReplace(
                 source = bookSource,
                 message = "正文全文替换完成",
                 rule = replaceRegex,
@@ -373,23 +373,25 @@ object BookContent {
             throw ContentEmptyException("内容为空")
         }
         
-        val dataFlowFields = mutableListOf<FieldFillRecord>()
-        dataFlowFields.recordField("chapterTitle", result = bookChapter.title)
-        dataFlowFields.recordField("content", rule = contentRule.content, result = contentStr, truncate = true)
-        dataFlowFields.recordField("contentLength", result = contentStr.length.toString())
-        
-        FlowLogRecorder.logStageDataFlow(
-            source = bookSource,
-            stage = DataFlowStage.CONTENT,
-            fields = dataFlowFields,
-            message = "正文阶段数据流转",
-            bookUrl = book.bookUrl,
-            bookName = book.name,
-            author = book.author,
-            book = book,
-            bookChapter = bookChapter,
-            bookSource = bookSource
-        )
+        if (FlowLogRecorder.isEnabled) {
+            val dataFlowFields = mutableListOf<FieldFillRecord>()
+            dataFlowFields.recordField("chapterTitle", result = bookChapter.title)
+            dataFlowFields.recordField("content", rule = contentRule.content, result = contentStr, truncate = true)
+            dataFlowFields.recordField("contentLength", result = contentStr.length.toString())
+
+            FlowLogRecorder.logStageDataFlow(
+                source = bookSource,
+                stage = DataFlowStage.CONTENT,
+                fields = dataFlowFields,
+                message = "正文阶段数据流转",
+                bookUrl = book.bookUrl,
+                bookName = book.name,
+                author = book.author,
+                book = book,
+                bookChapter = bookChapter,
+                bookSource = bookSource
+            )
+        }
         
         if (needSave) {
             BookHelp.saveContent(bookSource, book, bookChapter, contentStr)

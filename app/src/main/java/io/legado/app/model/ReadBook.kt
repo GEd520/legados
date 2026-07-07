@@ -756,8 +756,9 @@ object ReadBook : CoroutineScope by MainScope() {
                 val book = book!!
                 val chapter = appDb.bookChapterDao.getChapter(book.bookUrl, index)!!
                 val bookSource = bookSource
-                if (BookHelp.getContent(book, chapter) != null) {
-                    val content = BookHelp.getContent(book, chapter)!!
+                val cachedContent = BookHelp.getContent(book, chapter)
+                if (cachedContent != null) {
+                    val content = cachedContent
                     contentLoadFinishAwait(book, chapter, content, upContent, resetPageOffset)
                 } else if (bookSource != null && bookSource.nextPageLazyLoad) {
                     val lazyCallback = object : LazyContentCallback {

@@ -75,6 +75,7 @@ object FlowLogRecorder {
      * @param operation 操作类型（搜索/发现/详情/目录/正文）
      */
     fun setOperation(sourceUrl: String, operation: String) {
+        if (!isEnabled) return
         operationMap[sourceUrl] = operation
     }
 
@@ -93,6 +94,7 @@ object FlowLogRecorder {
      * @return 请求ID
      */
     fun startSession(sourceUrl: String, sourceName: String? = null): String {
+        if (!isEnabled) return ""
         val requestId = UUID.randomUUID().toString()
         requestSessions[sourceUrl] = requestId
         return requestId
@@ -105,6 +107,7 @@ object FlowLogRecorder {
      * @return 请求ID，如果没有则创建新的
      */
     fun getOrCreateRequestId(sourceUrl: String): String {
+        if (!isEnabled) return ""
         return requestSessions.getOrPut(sourceUrl) {
             UUID.randomUUID().toString()
         }
@@ -146,6 +149,7 @@ object FlowLogRecorder {
         /** Cookie 值，从 headerMap["Cookie"] 提取 */
         cookies: String? = null
     ) {
+        if (!isEnabled) return
         val sourceUrl = source?.getKey()
         log(
             sourceUrl = sourceUrl,
@@ -174,6 +178,7 @@ object FlowLogRecorder {
         detail: String? = null,
         error: Throwable? = null
     ) {
+        if (!isEnabled) return
         val sourceUrl = source?.getKey()
         log(
             sourceUrl = sourceUrl,
@@ -314,6 +319,7 @@ object FlowLogRecorder {
         bookChapter: BookChapter? = null,
         bookSource: BookSource? = null
     ) {
+        if (!isEnabled) return
         val jsExecution = JsExecutionRecord(
             jsCode = jsCode,
             context = context,
@@ -345,6 +351,7 @@ object FlowLogRecorder {
         bookChapter: BookChapter? = null,
         bookSource: BookSource? = null
     ) {
+        if (!isEnabled) return
         val sourceUrl = source?.getKey()
         log(
             sourceUrl = sourceUrl,
@@ -390,6 +397,7 @@ object FlowLogRecorder {
         bookChapter: BookChapter? = null,
         bookSource: BookSource? = null
     ) {
+        if (!isEnabled) return
         val sourceUrl = source?.getKey()
         log(
             sourceUrl = sourceUrl,
@@ -471,6 +479,7 @@ object FlowLogRecorder {
         value: String?,
         storage: io.legado.app.model.debug.VariableStorage = io.legado.app.model.debug.VariableStorage.UNKNOWN
     ) {
+        if (!isEnabled) return
         val operation = io.legado.app.model.debug.VariableOperation(
             operationType = io.legado.app.model.debug.VariableOperationType.READ,
             key = key,
@@ -496,6 +505,7 @@ object FlowLogRecorder {
         oldValue: String? = null,
         storage: io.legado.app.model.debug.VariableStorage = io.legado.app.model.debug.VariableStorage.UNKNOWN
     ) {
+        if (!isEnabled) return
         val operation = io.legado.app.model.debug.VariableOperation(
             operationType = io.legado.app.model.debug.VariableOperationType.WRITE,
             key = key,

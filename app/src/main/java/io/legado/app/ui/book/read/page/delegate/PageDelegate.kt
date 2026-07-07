@@ -8,7 +8,9 @@ import android.widget.Scroller
 import androidx.annotation.CallSuper
 import com.google.android.material.snackbar.Snackbar
 import io.legado.app.R
+import io.legado.app.help.book.isEpub
 import io.legado.app.help.config.AppConfig
+import io.legado.app.model.ReadBook
 import io.legado.app.ui.book.read.page.PageView
 import io.legado.app.ui.book.read.page.ReadView
 import io.legado.app.ui.book.read.page.entities.PageDirection
@@ -53,6 +55,8 @@ abstract class PageDelegate(protected val readView: ReadView) {
     var isCancel = false
     var isRunning = false
     var isStarted = false
+    private var deferredAnimationRefresh = false
+    private var deferredAnimationRefreshPosted = false
 
     init {
         curPage.resetPageOffset()
@@ -69,11 +73,17 @@ abstract class PageDelegate(protected val readView: ReadView) {
     }
 
     protected fun startScroll(startX: Int, startY: Int, dx: Int, dy: Int, animationSpeed: Int) {
+        if (dx == 0 && dy == 0) {
+            isStarted = true
+            onAnimStop()
+            stopScroll()
+            return
+        }
         val duration = if (dx != 0) {
             (animationSpeed * abs(dx)) / viewWidth
         } else {
             (animationSpeed * abs(dy)) / viewHeight
-        }
+        }.coerceAtLeast(1)
         scroller.startScroll(startX, startY, dx, dy, duration)
         isRunning = true
         isStarted = true
@@ -85,6 +95,7 @@ abstract class PageDelegate(protected val readView: ReadView) {
         readView.post {
             isMoved = false
             isRunning = false
+            flushDeferredAnimationRefresh()
             readView.postInvalidateOnAnimation()
         }
     }
@@ -195,15 +206,33 @@ abstract class PageDelegate(protected val readView: ReadView) {
         }
     }
 
-    fun postInvalidateOnAnimation() {
+    fun postInvalidate() {
+        if (ReadBook.book?.isEpub == true) return
         if (isStarted && isRunning && this is HorizontalPageDelegate) {
-            readView.post {
-                if (isStarted && isRunning) {
-                    setBitmap()
-                    readView.postInvalidateOnAnimation()
+            deferredAnimationRefresh = true
+            if (!deferredAnimationRefreshPosted) {
+                deferredAnimationRefreshPosted = true
+                readView.post {
+                    deferredAnimationRefreshPosted = false
+                    if (isStarted && isRunning && deferredAnimationRefresh) {
+                        deferredAnimationRefresh = false
+                        setBitmap()
+                        readView.postInvalidateOnAnimation()
+                    }
                 }
             }
+            readView.postInvalidateOnAnimation()
         }
+    }
+
+    fun postInvalidateOnAnimation() {
+        postInvalidate()
+    }
+
+    protected fun flushDeferredAnimationRefresh() {
+        deferredAnimationRefresh = false
+        deferredAnimationRefreshPosted = false
+        readView.postInvalidateOnAnimation()
     }
 
     open fun onDestroy() {

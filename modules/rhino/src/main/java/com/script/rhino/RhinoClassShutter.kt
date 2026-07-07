@@ -24,15 +24,12 @@
  */
 package com.script.rhino
 
-import android.os.Build
 import org.mozilla.javascript.ClassShutter
 import org.mozilla.javascript.Context
 import org.mozilla.javascript.Scriptable
 import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
 import java.lang.reflect.Member
-import java.nio.file.FileSystem
-import java.nio.file.Path
 import java.util.Collections
 
 /**
@@ -135,11 +132,7 @@ object RhinoClassShutter : ClassShutter {
             okio.FileHandle::class.java,
             okio.Path::class.java,
             android.content.Context::class.java,
-        ) + if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            arrayOf(FileSystem::class.java, Path::class.java)
-        } else {
-            emptyArray()
-        }
+        )
     }
 
     fun visibleToScripts(obj: Any): Boolean {
@@ -155,12 +148,9 @@ object RhinoClassShutter : ClassShutter {
             is okio.Path,
             is android.content.Context -> return false
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            when (obj) {
-                is FileSystem,
-                is Path -> return false
-            }
-        }
+        // java.nio.file.* is blocked by the class-name blacklist below. Avoid
+        // direct FileSystem/Path references because API < 26 devices can fail
+        // class verification before a runtime SDK check helps.
         return visibleToScripts(obj.javaClass.name)
     }
 

@@ -21,11 +21,8 @@ import io.legado.app.utils.externalCache
 import io.legado.app.utils.getFile
 import io.legado.app.utils.longToastOnUiLegacy
 import io.legado.app.utils.sendToClip
-import io.legado.app.utils.stackTraceStr
 import io.legado.app.utils.writeText
 import splitties.init.appCtx
-import java.io.PrintWriter
-import java.io.StringWriter
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.concurrent.TimeUnit
@@ -86,7 +83,7 @@ class CrashHandler(val context: Context) : Thread.UncaughtExceptionHandler {
         if ((ex is OutOfMemoryError || ex.cause is OutOfMemoryError) && AppConfig.recordHeapDump) {
             doHeapDump()
         }
-        context.longToastOnUiLegacy(ex.stackTraceStr)
+        context.longToastOnUiLegacy(safeCrashToast(ex))
         Thread.sleep(3000)
     }
 
@@ -134,26 +131,91 @@ class CrashHandler(val context: Context) : Thread.UncaughtExceptionHandler {
         @SuppressLint("SimpleDateFormat")
         private val format = SimpleDateFormat("yyyy-MM-dd-HH-mm-ss")
 
+        private const val MAX_CRASH_LOG_CHARS = 64 * 1024
+        private const val MAX_THROWABLE_DEPTH = 8
+        private const val MAX_STACK_FRAMES = 96
+        private const val MAX_SUPPRESSED = 8
+        private const val MAX_THROWABLE_HEADER_CHARS = 4096
+
         /**
          * 生成崩溃日志字符串
          */
         private fun generateCrashLog(ex: Throwable): String {
-            val sb = StringBuilder()
+            val sb = StringBuilder(8 * 1024)
             for ((key, value) in paramsMap) {
-                sb.append(key).append("=").append(value).append("\n")
+                sb.appendLimited(key).appendLimited("=").appendLimited(value).appendLimited("\n")
             }
 
-            val writer = StringWriter()
-            val printWriter = PrintWriter(writer)
-            ex.printStackTrace(printWriter)
-            var cause: Throwable? = ex.cause
-            while (cause != null) {
-                cause.printStackTrace(printWriter)
-                cause = cause.cause
-            }
-            printWriter.close()
-            sb.append(writer.toString())
+            appendThrowableLimited(sb, ex)
             return sb.toString()
+        }
+
+        private fun safeCrashToast(ex: Throwable): String {
+            return buildString {
+                appendLimited(ex.javaClass.name)
+                ex.message?.takeIf { it.isNotBlank() }?.let {
+                    appendLimited(": ")
+                    appendLimited(it, 512)
+                }
+            }
+        }
+
+        private fun appendThrowableLimited(
+            sb: StringBuilder,
+            throwable: Throwable,
+            prefix: String = "",
+            depth: Int = 0
+        ) {
+            if (depth >= MAX_THROWABLE_DEPTH || sb.length >= MAX_CRASH_LOG_CHARS) {
+                sb.appendLimited("... throwable chain truncated\n")
+                return
+            }
+            sb.appendLimited(prefix).appendLimited(throwable.javaClass.name)
+            throwable.message?.takeIf { it.isNotBlank() }?.let {
+                sb.appendLimited(": ")
+                sb.appendLimited(it, MAX_THROWABLE_HEADER_CHARS)
+            }
+            sb.appendLimited("\n")
+
+            val stack = throwable.stackTrace
+            val frameCount = stack.size.coerceAtMost(MAX_STACK_FRAMES)
+            for (i in 0 until frameCount) {
+                sb.appendLimited("\tat ")
+                    .appendLimited(stack[i].toString())
+                    .appendLimited("\n")
+            }
+            if (stack.size > frameCount) {
+                sb.appendLimited("\t... ")
+                    .appendLimited((stack.size - frameCount).toString())
+                    .appendLimited(" more\n")
+            }
+
+            throwable.suppressed
+                .take(MAX_SUPPRESSED)
+                .forEach {
+                    appendThrowableLimited(sb, it, "Suppressed: ", depth + 1)
+                }
+            if (throwable.suppressed.size > MAX_SUPPRESSED) {
+                sb.appendLimited("... ")
+                    .appendLimited((throwable.suppressed.size - MAX_SUPPRESSED).toString())
+                    .appendLimited(" suppressed exceptions truncated\n")
+            }
+
+            throwable.cause?.let {
+                appendThrowableLimited(sb, it, "Caused by: ", depth + 1)
+            }
+        }
+
+        private fun StringBuilder.appendLimited(value: String, maxChars: Int = Int.MAX_VALUE): StringBuilder {
+            if (length >= MAX_CRASH_LOG_CHARS) return this
+            val remaining = MAX_CRASH_LOG_CHARS - length
+            val appendLength = value.length.coerceAtMost(maxChars).coerceAtMost(remaining)
+            append(value, 0, appendLength)
+            if (appendLength < value.length && length < MAX_CRASH_LOG_CHARS) {
+                val marker = "...[truncated]"
+                append(marker, 0, marker.length.coerceAtMost(MAX_CRASH_LOG_CHARS - length))
+            }
+            return this
         }
 
         /**

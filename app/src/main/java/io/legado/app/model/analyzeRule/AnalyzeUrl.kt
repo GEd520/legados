@@ -446,9 +446,10 @@ class AnalyzeUrl(
         isTest: Boolean = false
     ): StrResponse {
         setCookie()
-        val startTime = System.currentTimeMillis()
+        val debugEnabled = FlowLogRecorder.isEnabled
+        val startTime = if (debugEnabled) System.currentTimeMillis() else 0L
         
-        FlowLogRecorder.logNetwork(
+        if (debugEnabled) FlowLogRecorder.logNetwork(
             source = source,
             message = "发起网络请求",
             url = url,
@@ -528,10 +529,10 @@ class AnalyzeUrl(
                     } else it
                 }
             }
-            val connectionTime = System.currentTimeMillis() - startTime
+            val connectionTime = if (debugEnabled) System.currentTimeMillis() - startTime else 0L
             strResponse.putCallTime(connectionTime.toInt())
             
-            FlowLogRecorder.logNetwork(
+            if (debugEnabled) FlowLogRecorder.logNetwork(
                 source = source,
                 message = "网络请求成功",
                 url = url,
@@ -542,7 +543,7 @@ class AnalyzeUrl(
             
             return strResponse
         } catch (e: Exception) {
-            FlowLogRecorder.logNetwork(
+            if (debugEnabled) FlowLogRecorder.logNetwork(
                 source = source,
                 message = "网络请求失败: ${e.message}",
                 url = url,

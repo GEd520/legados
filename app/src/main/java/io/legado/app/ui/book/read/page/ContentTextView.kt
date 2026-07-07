@@ -91,7 +91,7 @@ class ContentTextView(context: Context, attrs: AttributeSet?) : View(context, at
         this.textPage = textPage
         // 非滑动翻页动画需要同步重绘，不然翻页可能会出现闪烁
         if (isScroll) {
-            postInvalidate()
+            postInvalidateOnAnimation()
         } else {
             invalidate()
         }
@@ -180,7 +180,7 @@ class ContentTextView(context: Context, attrs: AttributeSet?) : View(context, at
                 pageDelegate?.abortAnim()
             }
         }
-        postInvalidate()
+        postInvalidateOnAnimation()
     }
 
     fun submitRenderTask() {
@@ -206,7 +206,7 @@ class ContentTextView(context: Context, attrs: AttributeSet?) : View(context, at
                 invalidate = true
             }
             if (invalidate) {
-                postInvalidate()
+                postInvalidateOnAnimation()
                 pageDelegate?.postInvalidateOnAnimation()
             }
         }
@@ -651,7 +651,7 @@ class ContentTextView(context: Context, attrs: AttributeSet?) : View(context, at
                 }
             }
         }
-        postInvalidate()
+        postInvalidateOnAnimation()
     }
 
     private fun upSelectedStart(x: Float, y: Float, top: Float) {
@@ -690,7 +690,7 @@ class ContentTextView(context: Context, attrs: AttributeSet?) : View(context, at
         }
         selectStart.reset()
         selectEnd.reset()
-        postInvalidate()
+        postInvalidateOnAnimation()
         callBack.onCancelSelect()
     }
 

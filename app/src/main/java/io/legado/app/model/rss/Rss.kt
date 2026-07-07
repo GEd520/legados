@@ -162,17 +162,19 @@ object Rss {
             detail = analyzeUrl.ruleUrl, duration = System.currentTimeMillis() - netStart)
         val netDuration = System.currentTimeMillis() - netStart
         // 记录网络请求详情到 FlowLogRecorder，用于调试日志展示
-        FlowLogRecorder.logNetwork(
-            source = rssSource,
-            message = "获取文章列表成功",
-            url = res.url,
-            method = "GET",
-            statusCode = res.code(),
-            duration = netDuration,
-            detail = "响应大小: ${res.body?.length ?: 0} 字节",
-            requestHeaders = analyzeUrl.headerMap,
-            cookies = analyzeUrl.headerMap["Cookie"]
-        )
+        if (FlowLogRecorder.isEnabled) {
+            FlowLogRecorder.logNetwork(
+                source = rssSource,
+                message = "获取文章列表成功",
+                url = res.url,
+                method = "GET",
+                statusCode = res.code(),
+                duration = netDuration,
+                detail = "响应大小: ${res.body?.length ?: 0} 字节",
+                requestHeaders = analyzeUrl.headerMap,
+                cookies = analyzeUrl.headerMap["Cookie"]
+            )
+        }
         checkRedirect(rssSource, res)
         Debug.log(rssSource.sourceUrl, "≡获取成功:${analyzeUrl.ruleUrl}", category = DebugCategory.RSS)
         if (!res.body.isNullOrBlank()) {
@@ -241,18 +243,19 @@ object Rss {
                 }
             }
         }.getOrElse { throwable ->
-            val netDuration = System.currentTimeMillis() - netStart
-            // 记录网络请求失败详情到 FlowLogRecorder
-            FlowLogRecorder.logNetwork(
-                source = rssSource,
-                message = "获取文章正文失败",
-                url = rssArticle.link,
-                method = "GET",
-                duration = netDuration,
-                error = throwable,
-                requestHeaders = analyzeUrl.headerMap,
-                cookies = analyzeUrl.headerMap["Cookie"]
-            )
+            if (FlowLogRecorder.isEnabled) {
+                val netDuration = System.currentTimeMillis() - netStart
+                FlowLogRecorder.logNetwork(
+                    source = rssSource,
+                    message = "获取文章正文失败",
+                    url = rssArticle.link,
+                    method = "GET",
+                    duration = netDuration,
+                    error = throwable,
+                    requestHeaders = analyzeUrl.headerMap,
+                    cookies = analyzeUrl.headerMap["Cookie"]
+                )
+            }
             if (!checkJs.isNullOrBlank()) {
                 val errResponse = analyzeUrl.getErrStrResponse(throwable)
                 try {
@@ -270,17 +273,19 @@ object Rss {
         }
         val netDuration = System.currentTimeMillis() - netStart
         // 记录网络请求成功详情到 FlowLogRecorder
-        FlowLogRecorder.logNetwork(
-            source = rssSource,
-            message = "获取文章正文成功",
-            url = res.url,
-            method = "GET",
-            statusCode = res.code(),
-            duration = netDuration,
-            detail = "响应大小: ${res.body?.length ?: 0} 字节",
-            requestHeaders = analyzeUrl.headerMap,
-            cookies = analyzeUrl.headerMap["Cookie"]
-        )
+        if (FlowLogRecorder.isEnabled) {
+            FlowLogRecorder.logNetwork(
+                source = rssSource,
+                message = "获取文章正文成功",
+                url = res.url,
+                method = "GET",
+                statusCode = res.code(),
+                duration = netDuration,
+                detail = "响应大小: ${res.body?.length ?: 0} 字节",
+                requestHeaders = analyzeUrl.headerMap,
+                cookies = analyzeUrl.headerMap["Cookie"]
+            )
+        }
         checkRedirect(rssSource, res)
         Debug.log(rssSource.sourceUrl, "≡获取成功:${rssSource.sourceUrl}", category = DebugCategory.RSS)
         Debug.log(rssSource.sourceUrl, res.body ?: "", state = 20, category = DebugCategory.RSS)

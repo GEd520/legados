@@ -36,7 +36,7 @@ class AutoPager(private val readView: ReadView) : Runnable {
         } else {
             paint.color = ThemeStore.accentColor
             lastTimeMillis = SystemClock.uptimeMillis()
-            readView.invalidate()
+            readView.postInvalidateOnAnimation()
         }
     }
 
@@ -49,7 +49,7 @@ class AutoPager(private val readView: ReadView) : Runnable {
         isEInkMode = false
         readView.removeCallbacks(this)
         readView.curPage.upSelectAble(AppConfig.textSelectAble)
-        readView.invalidate()
+        readView.postInvalidateOnAnimation()
         reset()
         canvasRecorder.recycle()
     }
@@ -71,7 +71,7 @@ class AutoPager(private val readView: ReadView) : Runnable {
             readView.postDelayed(this, ReadBookConfig.autoReadSpeed * 1000L)
         } else {
             lastTimeMillis = SystemClock.uptimeMillis()
-            readView.invalidate()
+            readView.postInvalidateOnAnimation()
         }
     }
 
@@ -118,7 +118,7 @@ class AutoPager(private val readView: ReadView) : Runnable {
                 bottom.toFloat(),
                 paint
             )
-            if (!isPausing) readView.postInvalidate()
+            if (!isPausing) readView.postInvalidateOnAnimation()
         }
 
     }

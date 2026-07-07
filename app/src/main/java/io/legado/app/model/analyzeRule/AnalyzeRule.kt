@@ -310,10 +310,17 @@ class AnalyzeRule(
         isUrl: Boolean = false,
         unescape: Boolean = true
     ): String {
-        val startTime = System.currentTimeMillis()
-        val ruleStr = ruleList.joinToString("&&") { it.rule }
+        val debugEnabled = FlowLogRecorder.isEnabled
+        val startTime = if (debugEnabled) System.currentTimeMillis() else 0L
         
-        val tracker = io.legado.app.model.debug.RuleExecutionTracker(source, ruleStr)
+        val tracker = if (debugEnabled) {
+            io.legado.app.model.debug.RuleExecutionTracker(
+                source,
+                ruleList.joinToString("&&") { it.rule }
+            )
+        } else {
+            null
+        }
         
         val str = try {
             var result: Any? = null
@@ -344,16 +351,17 @@ class AnalyzeRule(
                         result ?: continue
                         val rule = sourceRule.rule
                         if (rule.isNotBlank() || sourceRule.replaceRegex.isEmpty()) {
-                            val ruleType = when (sourceRule.mode) {
-                                Mode.WebJs -> io.legado.app.model.debug.RuleType.WEB_JS
-                                Mode.Js -> io.legado.app.model.debug.RuleType.JS
-                                Mode.Json -> io.legado.app.model.debug.RuleType.JSONPATH
-                                Mode.XPath -> io.legado.app.model.debug.RuleType.XPATH
-                                Mode.Default -> io.legado.app.model.debug.RuleType.CSS
-                                else -> io.legado.app.model.debug.RuleType.DEFAULT
+                            tracker?.let {
+                                val ruleType = when (sourceRule.mode) {
+                                    Mode.WebJs -> io.legado.app.model.debug.RuleType.WEB_JS
+                                    Mode.Js -> io.legado.app.model.debug.RuleType.JS
+                                    Mode.Json -> io.legado.app.model.debug.RuleType.JSONPATH
+                                    Mode.XPath -> io.legado.app.model.debug.RuleType.XPATH
+                                    Mode.Default -> io.legado.app.model.debug.RuleType.CSS
+                                    else -> io.legado.app.model.debug.RuleType.DEFAULT
+                                }
+                                it.startStep(ruleType, rule, result)
                             }
-                            
-                            tracker.startStep(ruleType, rule, result)
                             
                             result = when (sourceRule.mode) {
                                 Mode.WebJs -> getWebJsResult(rule, result)
@@ -369,13 +377,13 @@ class AnalyzeRule(
                                 else -> rule
                             }
                             
-                            tracker.endStep(result)
+                            tracker?.endStep(result)
                             stepIndex++
                         }
                         if (result != null && sourceRule.replaceRegex.isNotEmpty()) {
-                            tracker.startStep(io.legado.app.model.debug.RuleType.REPLACE, "${sourceRule.replaceRegex} -> ${sourceRule.replacement}", result)
+                            tracker?.startStep(io.legado.app.model.debug.RuleType.REPLACE, "${sourceRule.replaceRegex} -> ${sourceRule.replacement}", result)
                             result = replaceRegex(result.toString(), sourceRule)
-                            tracker.endStep(result)
+                            tracker?.endStep(result)
                         }
                     }
                 }
@@ -388,7 +396,7 @@ class AnalyzeRule(
                 resultStr
             }
         } catch (e: Exception) {
-            if (tracker.hasSteps()) {
+            if (tracker?.hasSteps() == true) {
                 tracker.failStep(e)
                 val duration = System.currentTimeMillis() - startTime
                 val tree = tracker.buildTree()
@@ -406,7 +414,7 @@ class AnalyzeRule(
         }
         
         val duration = System.currentTimeMillis() - startTime
-        if (tracker.hasSteps()) {
+        if (tracker?.hasSteps() == true) {
             val tree = tracker.buildTree()
             FlowLogRecorder.logRuleExecution(
                 source = source,
@@ -433,8 +441,12 @@ class AnalyzeRule(
      */
     fun getElement(ruleStr: String): Any? {
         if (TextUtils.isEmpty(ruleStr)) return null
-        val startTime = System.currentTimeMillis()
-        val tracker = io.legado.app.model.debug.RuleExecutionTracker(source, ruleStr)
+        val debugEnabled = FlowLogRecorder.isEnabled
+        val tracker = if (debugEnabled) {
+            io.legado.app.model.debug.RuleExecutionTracker(source, ruleStr)
+        } else {
+            null
+        }
         
         var result: Any? = null
         val content = this.content
@@ -446,16 +458,17 @@ class AnalyzeRule(
                 sourceRule.makeUpRule(result)
                 result ?: continue
                 val rule = sourceRule.rule
-                val ruleType = when (sourceRule.mode) {
-                    Mode.Regex -> io.legado.app.model.debug.RuleType.REGEX
-                    Mode.WebJs -> io.legado.app.model.debug.RuleType.WEB_JS
-                    Mode.Js -> io.legado.app.model.debug.RuleType.JS
-                    Mode.Json -> io.legado.app.model.debug.RuleType.JSONPATH
-                    Mode.XPath -> io.legado.app.model.debug.RuleType.XPATH
-                    else -> io.legado.app.model.debug.RuleType.CSS
+                tracker?.let {
+                    val ruleType = when (sourceRule.mode) {
+                        Mode.Regex -> io.legado.app.model.debug.RuleType.REGEX
+                        Mode.WebJs -> io.legado.app.model.debug.RuleType.WEB_JS
+                        Mode.Js -> io.legado.app.model.debug.RuleType.JS
+                        Mode.Json -> io.legado.app.model.debug.RuleType.JSONPATH
+                        Mode.XPath -> io.legado.app.model.debug.RuleType.XPATH
+                        else -> io.legado.app.model.debug.RuleType.CSS
+                    }
+                    it.startStep(ruleType, rule, result)
                 }
-                
-                tracker.startStep(ruleType, rule, result)
                 
                 result = when (sourceRule.mode) {
                     Mode.Regex -> AnalyzeByRegex.getElement(
@@ -471,20 +484,20 @@ class AnalyzeRule(
                 }
 
                 // 将正则捕获组传递给日志追踪器，用于调试时展示匹配的分组内容
-                tracker.endStep(
+                tracker?.endStep(
                     result,
                     regexGroups = (result as? List<*>)?.filterIsInstance<String>()
                 )
                 
                 if (sourceRule.replaceRegex.isNotEmpty()) {
-                    tracker.startStep(io.legado.app.model.debug.RuleType.REPLACE, "${sourceRule.replaceRegex} -> ${sourceRule.replacement}", result)
+                    tracker?.startStep(io.legado.app.model.debug.RuleType.REPLACE, "${sourceRule.replaceRegex} -> ${sourceRule.replacement}", result)
                     result = replaceRegex(result.toString(), sourceRule)
-                    tracker.endStep(result)
+                    tracker?.endStep(result)
                 }
             }
         }
         
-        if (tracker.hasSteps()) {
+        if (tracker?.hasSteps() == true) {
             val tree = tracker.buildTree()
             FlowLogRecorder.logRuleExecution(
                 source = source,
@@ -504,8 +517,12 @@ class AnalyzeRule(
      */
     @Suppress("UNCHECKED_CAST")
     fun getElements(ruleStr: String): List<Any> {
-        val startTime = System.currentTimeMillis()
-        val tracker = io.legado.app.model.debug.RuleExecutionTracker(source, ruleStr)
+        val debugEnabled = FlowLogRecorder.isEnabled
+        val tracker = if (debugEnabled) {
+            io.legado.app.model.debug.RuleExecutionTracker(source, ruleStr)
+        } else {
+            null
+        }
         
         var result: Any? = null
         val content = this.content
@@ -516,16 +533,17 @@ class AnalyzeRule(
                 putRule(sourceRule.putMap)
                 result ?: continue
                 val rule = sourceRule.rule
-                val ruleType = when (sourceRule.mode) {
-                    Mode.Regex -> io.legado.app.model.debug.RuleType.REGEX
-                    Mode.WebJs -> io.legado.app.model.debug.RuleType.WEB_JS
-                    Mode.Js -> io.legado.app.model.debug.RuleType.JS
-                    Mode.Json -> io.legado.app.model.debug.RuleType.JSONPATH
-                    Mode.XPath -> io.legado.app.model.debug.RuleType.XPATH
-                    else -> io.legado.app.model.debug.RuleType.CSS
+                tracker?.let {
+                    val ruleType = when (sourceRule.mode) {
+                        Mode.Regex -> io.legado.app.model.debug.RuleType.REGEX
+                        Mode.WebJs -> io.legado.app.model.debug.RuleType.WEB_JS
+                        Mode.Js -> io.legado.app.model.debug.RuleType.JS
+                        Mode.Json -> io.legado.app.model.debug.RuleType.JSONPATH
+                        Mode.XPath -> io.legado.app.model.debug.RuleType.XPATH
+                        else -> io.legado.app.model.debug.RuleType.CSS
+                    }
+                    it.startStep(ruleType, rule, result)
                 }
-                
-                tracker.startStep(ruleType, rule, result)
                 
                 result = when (sourceRule.mode) {
                     Mode.Regex -> AnalyzeByRegex.getElements(
@@ -540,17 +558,20 @@ class AnalyzeRule(
                     else -> getAnalyzeByJSoup(result).getElements(rule)
                 }
                 
-                val matchCount = (result as? List<*>)?.size
-                // 提取第一条匹配的正则捕获组，供日志调试展示
-                val firstMatchGroups = (result as? List<*>)?.firstOrNull()
-                    ?.let { it as? List<*> }?.filterIsInstance<String>()
-                tracker.endStep(result, matchCount = matchCount, regexGroups = firstMatchGroups)
+                tracker?.let {
+                    val resultList = result as? List<*>
+                    val matchCount = resultList?.size
+                    // 提取第一条匹配的正则捕获组，供日志调试展示
+                    val firstMatchGroups = resultList?.firstOrNull()
+                        ?.let { first -> first as? List<*> }?.filterIsInstance<String>()
+                    it.endStep(result, matchCount = matchCount, regexGroups = firstMatchGroups)
+                }
             }
         }
         
         val resultList = result?.let { it as List<Any> } ?: ArrayList()
         
-        if (tracker.hasSteps()) {
+        if (tracker?.hasSteps() == true) {
             val tree = tracker.buildTree()
             FlowLogRecorder.logRuleExecution(
                 source = source,
@@ -608,11 +629,12 @@ class AnalyzeRule(
     private fun replaceRegex(result: String, rule: SourceRule): String {
         if (rule.replaceRegex.isEmpty()) return result
         
-        val startTime = System.currentTimeMillis()
+        val debugEnabled = FlowLogRecorder.isEnabled
+        val startTime = if (debugEnabled) System.currentTimeMillis() else 0L
         val replaceRegex = rule.replaceRegex
         val replacement = rule.replacement
         
-        FlowLogRecorder.logReplace(
+        if (debugEnabled) FlowLogRecorder.logReplace(
             source = source,
             message = "开始数据替换",
             rule = "$replaceRegex -> $replacement",
@@ -640,8 +662,8 @@ class AnalyzeRule(
             }.getOrDefault(result) else result.replace(replaceRegex, replacement)
         }
         
-        val duration = System.currentTimeMillis() - startTime
-        FlowLogRecorder.logReplace(
+        val duration = if (debugEnabled) System.currentTimeMillis() - startTime else 0L
+        if (debugEnabled) FlowLogRecorder.logReplace(
             source = source,
             message = "数据替换完成",
             rule = "$replaceRegex -> $replacement",
@@ -1028,8 +1050,9 @@ class AnalyzeRule(
      * 执行JS
      */
     fun evalJS(jsStr: String, result: Any? = null): Any? {
-        val startTime = System.currentTimeMillis()
-        val containsReplace = jsStr.contains("replace")
+        val debugEnabled = FlowLogRecorder.isEnabled
+        val startTime = if (debugEnabled) System.currentTimeMillis() else 0L
+        val containsReplace = debugEnabled && jsStr.contains("replace")
         
         if (containsReplace) {
             FlowLogRecorder.logReplace(
@@ -1042,7 +1065,7 @@ class AnalyzeRule(
             )
         }
         
-        val jsContext = buildJsExecutionContext(result)
+        val jsContext = if (debugEnabled) buildJsExecutionContext(result) else null
         
         val bindings = buildScriptBindings { bindings ->
             bindings["java"] = this
@@ -1085,32 +1108,36 @@ class AnalyzeRule(
                 currentRuleTypeThreadLocal.set(previousRuleType)
             }
         } catch (e: Exception) {
-            val duration = System.currentTimeMillis() - startTime
+            if (debugEnabled) {
+                val duration = System.currentTimeMillis() - startTime
+                FlowLogRecorder.logJsContext(
+                    source = source,
+                    jsCode = jsStr,
+                    context = jsContext ?: buildJsExecutionContext(result),
+                    result = null,
+                    duration = duration,
+                    error = e,
+                    book = book as? Book,
+                    bookChapter = chapter,
+                    bookSource = source as? BookSource
+                )
+            }
+            throw e
+        }
+        
+        val duration = if (debugEnabled) System.currentTimeMillis() - startTime else 0L
+        if (debugEnabled) {
             FlowLogRecorder.logJsContext(
                 source = source,
                 jsCode = jsStr,
-                context = jsContext,
-                result = null,
+                context = jsContext ?: buildJsExecutionContext(result),
+                result = jsResult?.toString()?.take(200),
                 duration = duration,
-                error = e,
                 book = book as? Book,
                 bookChapter = chapter,
                 bookSource = source as? BookSource
             )
-            throw e
         }
-        
-        val duration = System.currentTimeMillis() - startTime
-        FlowLogRecorder.logJsContext(
-            source = source,
-            jsCode = jsStr,
-            context = jsContext,
-            result = jsResult?.toString()?.take(200),
-            duration = duration,
-            book = book as? Book,
-            bookChapter = chapter,
-            bookSource = source as? BookSource
-        )
         
         if (containsReplace) {
             FlowLogRecorder.logReplace(
