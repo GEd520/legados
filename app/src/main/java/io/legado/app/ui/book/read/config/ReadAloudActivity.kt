@@ -3,11 +3,14 @@ package io.legado.app.ui.book.read.config
 import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.graphics.Bitmap
+import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.Gravity
 import android.view.MotionEvent
+import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
 import android.widget.SeekBar
 import android.widget.LinearLayout
 import androidx.appcompat.widget.AppCompatCheckBox
@@ -56,8 +59,17 @@ class ReadAloudActivity : BaseActivity<ActivityReadAloudBinding>(imageBg = false
     private var downX = 0f
     private var collapseHandled = false
     private var lastCover: String? = null
+    private var displayMode = DisplayMode.Immersive
+    private var lastOriginalTextKey: String? = null
+    private var lastOriginalParagraphIndex = -1
+    private val originalParagraphViews = arrayListOf<AppCompatTextView>()
 
     override fun showReadAloudMiniBar(): Boolean = false
+
+    private enum class DisplayMode {
+        Immersive,
+        Text
+    }
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         applyFallbackTheme()
@@ -85,6 +97,7 @@ class ReadAloudActivity : BaseActivity<ActivityReadAloudBinding>(imageBg = false
         updateTimerText(BaseReadAloudService.timeMinute)
         updatePlayState()
         updateSkipActionState()
+        applyDisplayMode()
     }
 
     private fun initEvent() = binding.run {
@@ -93,17 +106,7 @@ class ReadAloudActivity : BaseActivity<ActivityReadAloudBinding>(imageBg = false
         ivChapterQuick.setOnClickListener { openChapterList() }
         llTimerQuick.setOnClickListener { showTimerDialog() }
         ivTimerQuick.setOnClickListener { showTimerDialog() }
-        llBackRead.setOnClickListener {
-            postEvent(EventBus.SHOW_READ_MENU, true)
-            finish()
-        }
-        ivBackRead.setOnClickListener {
-            postEvent(EventBus.SHOW_READ_MENU, true)
-            finish()
-        }
         ivMore.setOnClickListener { showDialogFragment<ReadAloudConfigDialog>() }
-        llMoreSetting.setOnClickListener { showDialogFragment<ReadAloudConfigDialog>() }
-        ivMoreSetting.setOnClickListener { showDialogFragment<ReadAloudConfigDialog>() }
         ivPlayPause.setOnClickListener {
             if (BaseReadAloudService.pause) ReadAloud.resume(this@ReadAloudActivity)
             else ReadAloud.pause(this@ReadAloudActivity)
@@ -122,11 +125,16 @@ class ReadAloudActivity : BaseActivity<ActivityReadAloudBinding>(imageBg = false
                 ReadAloud.nextParagraph(this@ReadAloudActivity)
             }
         }
-        llStop.setOnClickListener { finish() }
-        ivStop.setOnClickListener { finish() }
-        llSpeed.setOnClickListener { showSpeedDialog() }
-        ivSpeedControl.setOnClickListener { showSpeedDialog() }
         timerBadge.setOnClickListener { showTimerDialog() }
+        tvSpeedValue.setOnClickListener { showSpeedDialog() }
+        tvModeImmersive.setOnClickListener {
+            displayMode = DisplayMode.Immersive
+            applyDisplayMode()
+        }
+        tvModeText.setOnClickListener {
+            displayMode = DisplayMode.Text
+            applyDisplayMode()
+        }
         seekTimer.setOnSeekBarChangeListener(object : SeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
                 updateTimerText(progress)
@@ -137,23 +145,83 @@ class ReadAloudActivity : BaseActivity<ActivityReadAloudBinding>(imageBg = false
             }
         })
         readAloudScroll.setOnTouchListener { _, event ->
+            if (displayMode == DisplayMode.Text) true else handleCollapseGesture(event)
+        }
+        originalTextScroll.setOnTouchListener { view, event ->
             when (event.actionMasked) {
-                MotionEvent.ACTION_DOWN -> {
-                    downY = event.rawY
-                    downX = event.rawX
-                    collapseHandled = false
+                MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+                    view.parent.requestDisallowInterceptTouchEvent(true)
                 }
-
-                MotionEvent.ACTION_MOVE -> {
-                    val dy = event.rawY - downY
-                    val dx = event.rawX - downX
-                    if (!collapseHandled && readAloudScroll.scrollY == 0 && dy > 110f.dpToPx() && dy > abs(dx) * 1.3f) {
-                        collapseHandled = true
-                        finish()
-                    }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    view.parent.requestDisallowInterceptTouchEvent(false)
                 }
             }
             false
+        }
+    }
+
+    private fun handleCollapseGesture(event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                downY = event.rawY
+                downX = event.rawX
+                collapseHandled = false
+            }
+
+            MotionEvent.ACTION_MOVE -> {
+                val dy = event.rawY - downY
+                val dx = event.rawX - downX
+                if (!collapseHandled && binding.readAloudScroll.scrollY == 0 && dy > 110f.dpToPx() && dy > abs(dx) * 1.3f) {
+                    collapseHandled = true
+                    finish()
+                }
+            }
+        }
+        return false
+    }
+
+    private fun applyDisplayMode() = binding.run {
+        val immersive = displayMode == DisplayMode.Immersive
+        val pageColor = (root.tag as? Int) ?: 0xFF6F5B86.toInt()
+        val accent = AndroidXColorUtils.blendARGB(pageColor, 0xFFFFFFFF.toInt(), 0.72f)
+        topSpacer.visibility = View.VISIBLE
+        heroCard.visibility = if (immersive) View.VISIBLE else View.GONE
+        tvPreview.visibility = if (immersive) View.VISIBLE else View.GONE
+        fillSpacer.visibility = View.VISIBLE
+        originalTextScroll.visibility = if (immersive) View.GONE else View.VISIBLE
+        readAloudScroll.isNestedScrollingEnabled = immersive
+        (paragraphProgressRow.layoutParams as? LinearLayout.LayoutParams)?.let {
+            it.topMargin = 8f.dpToPx().toInt()
+            paragraphProgressRow.layoutParams = it
+        }
+        tvPreview.gravity = if (immersive) Gravity.CENTER else Gravity.CENTER_VERTICAL
+        tvPreview.textSize = if (immersive) 22f else 20f
+        tvPreview.maxLines = if (immersive) 4 else 9
+        tvPreview.layoutParams = tvPreview.layoutParams.apply {
+            height = (if (immersive) 128f else 246f).dpToPx().toInt()
+        }
+        tvModeImmersive.background = createRoundDrawable(
+            if (immersive) accent else 0x00FFFFFF,
+            14f
+        )
+        tvModeText.background = createRoundDrawable(
+            if (immersive) 0x00FFFFFF else accent,
+            14f
+        )
+        applyModeTextColor()
+        updateParagraphProgress()
+    }
+
+    private fun applyModeTextColor() {
+        binding.run {
+            val pageColor = (root.tag as? Int) ?: return
+            val textColor = 0xFFF7F1FF.toInt()
+            val selectedText = AndroidXColorUtils.blendARGB(pageColor, 0xFF120D18.toInt(), 0.52f)
+            val unselectedText = AndroidXColorUtils.setAlphaComponent(textColor, 188)
+            tvModeImmersive.setTextColor(if (displayMode == DisplayMode.Immersive) selectedText else unselectedText)
+            tvModeText.setTextColor(if (displayMode == DisplayMode.Text) selectedText else unselectedText)
+            tvModeImmersive.typeface = if (displayMode == DisplayMode.Immersive) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+            tvModeText.typeface = if (displayMode == DisplayMode.Text) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
         }
     }
 
@@ -184,6 +252,120 @@ class ReadAloudActivity : BaseActivity<ActivityReadAloudBinding>(imageBg = false
             }?.text?.replace("\n", "")?.trim()
         tvPreview.text = paragraph?.takeIf { it.isNotEmpty() }
             ?: (BaseReadAloudService.activeChapterTitle ?: ReadBook.book?.durChapterTitle ?: "")
+        updateParagraphProgress()
+    }
+
+    private fun updateParagraphProgress() = binding.run {
+        val textChapter = ReadBook.curTextChapter
+        val progress = if (BaseReadAloudService.lastTtsProgress > 0) {
+            BaseReadAloudService.lastTtsProgress
+        } else {
+            ReadBook.durChapterPos
+        }
+        val pageSplit = getPrefBoolean("readAloudByPage")
+        val paragraphs = textChapter?.getParagraphs(pageSplit)
+            .orEmpty()
+        val originalTexts = textChapter?.getNeedReadAloud(0, pageSplit, 0)
+            ?.split("\n")
+            ?.filter { it.isNotEmpty() }
+            .orEmpty()
+        val paragraphCount = paragraphs.size
+        val paragraphIndex = if (paragraphCount > 0) {
+            textChapter?.getParagraphNum(progress.coerceAtLeast(1), pageSplit)
+                ?.coerceIn(1, paragraphCount) ?: 0
+        } else {
+            0
+        }
+        tvParagraphProgress.text = "$paragraphIndex/$paragraphCount"
+        progressParagraph.progress = if (paragraphCount > 0 && paragraphIndex > 0) {
+            (paragraphIndex * progressParagraph.max / paragraphCount).coerceIn(0, progressParagraph.max)
+        } else {
+            0
+        }
+        updateOriginalTextList(paragraphs, originalTexts, paragraphIndex)
+    }
+
+    private fun updateOriginalTextList(
+        paragraphs: List<io.legado.app.ui.book.read.page.entities.TextParagraph>,
+        originalTexts: List<String>,
+        paragraphIndex: Int
+    ) = binding.run {
+        if (displayMode != DisplayMode.Text) return@run
+        val pageSplit = getPrefBoolean("readAloudByPage")
+        val textKey = buildString {
+            append(ReadBook.durChapterIndex)
+            append(':')
+            append(pageSplit)
+            append(':')
+            append(paragraphs.size)
+            append(':')
+            append(originalTexts.size)
+            append(':')
+            append(paragraphs.firstOrNull()?.chapterPosition ?: -1)
+            append(':')
+            append(paragraphs.lastOrNull()?.chapterPosition ?: -1)
+        }
+        if (lastOriginalTextKey != textKey) {
+            lastOriginalTextKey = textKey
+            lastOriginalParagraphIndex = -1
+            originalParagraphViews.clear()
+            llOriginalText.removeAllViews()
+            paragraphs.forEachIndexed { index, paragraph ->
+                val paragraphView = AppCompatTextView(this@ReadAloudActivity).apply {
+                    text = cleanOriginalParagraphText(originalTexts.getOrNull(index) ?: paragraph.text)
+                    gravity = Gravity.CENTER
+                    includeFontPadding = true
+                    setLineSpacing(2f.dpToPx(), 1f)
+                    maxLines = 2
+                    ellipsize = android.text.TextUtils.TruncateAt.END
+                    setOnClickListener {
+                        ReadBook.openChapter(ReadBook.durChapterIndex, paragraph.chapterPosition)
+                    }
+                    layoutParams = LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT
+                    ).apply {
+                        topMargin = if (index == 0) 0 else 14.dpToPx()
+                    }
+                }
+                originalParagraphViews.add(paragraphView)
+                llOriginalText.addView(paragraphView)
+            }
+        }
+        applyOriginalTextHighlight(paragraphIndex)
+    }
+
+    private fun applyOriginalTextHighlight(paragraphIndex: Int) = binding.run {
+        if (originalParagraphViews.isEmpty()) return@run
+        val activeIndex = (paragraphIndex - 1).coerceIn(0, originalParagraphViews.lastIndex)
+        if (lastOriginalParagraphIndex == activeIndex) return@run
+        val textColor = 0xFFF7F1FF.toInt()
+        originalParagraphViews.forEachIndexed { index, view ->
+            val current = index == activeIndex
+            view.setTextColor(AndroidXColorUtils.setAlphaComponent(textColor, if (current) 240 else 116))
+            view.textSize = if (current) 20f else 18f
+            view.typeface = if (current) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+            view.maxLines = if (current) Int.MAX_VALUE else 2
+            view.ellipsize = if (current) null else android.text.TextUtils.TruncateAt.END
+            view.textAlignment = TextView.TEXT_ALIGNMENT_CENTER
+        }
+        lastOriginalParagraphIndex = activeIndex
+        originalTextScroll.post {
+            val target = originalParagraphViews.getOrNull(activeIndex) ?: return@post
+            val targetScrollY = target.top - (originalTextScroll.height / 2) + (target.height / 2)
+            originalTextScroll.smoothScrollTo(0, targetScrollY.coerceAtLeast(0))
+        }
+    }
+
+    private fun cleanOriginalParagraphText(text: String): String {
+        return text
+            .replace("\uFFFC", "")
+            .replace("\u200B", "")
+            .replace("\u200C", "")
+            .replace("\u200D", "")
+            .replace("\uFEFF", "")
+            .replace("\n", "")
+            .trim()
     }
 
     private fun adjustSpeed(delta: Int) {
@@ -370,8 +552,8 @@ class ReadAloudActivity : BaseActivity<ActivityReadAloudBinding>(imageBg = false
                 AndroidXColorUtils.setAlphaComponent(0xFF140E1C.toInt(), 220)
             )
         )
-        heroCard.radius = 34f.dpToPx()
-        heroCard.setCardBackgroundColor(AndroidXColorUtils.setAlphaComponent(0xFFFFFFFF.toInt(), 12))
+        heroCard.radius = 12f.dpToPx()
+        heroCard.setCardBackgroundColor(AndroidXColorUtils.setAlphaComponent(0xFFFFFFFF.toInt(), 20))
         coverMask.background = GradientDrawable(
             GradientDrawable.Orientation.TOP_BOTTOM,
             intArrayOf(
@@ -380,34 +562,28 @@ class ReadAloudActivity : BaseActivity<ActivityReadAloudBinding>(imageBg = false
                 AndroidXColorUtils.setAlphaComponent(0xFF1A1224.toInt(), 228)
             )
         ).apply {
-            cornerRadius = 34f.dpToPx()
+            cornerRadius = 12f.dpToPx()
         }
         timerBadge.background = createRoundDrawable(AndroidXColorUtils.setAlphaComponent(0xFFFFFFFF.toInt(), 22), 18f)
         tvSpeedValue.background = createRoundDrawable(AndroidXColorUtils.setAlphaComponent(0xFFFFFFFF.toInt(), 18), 18f)
         ivPlayPrev.background = null
         ivPlayNext.background = null
-        ivStop.background = null
-        ivSpeedControl.background = null
-        ivMoreSetting.background = null
-        ivBackRead.background = null
         ivChapterQuick.background = null
         ivTimerQuick.background = null
 
-        listOf(tvPageTitle, tvChapterName, tvPreview, tvTimer, tvSpeedValue, tvTimerLabelLeft, tvTimerLabelRight).forEach { it.setTextColor(textColor) }
-        listOf(tvBookName, tvSpeedLabel, tvStop, tvMoreSetting, tvBackRead, tvChapterQuick, tvTimerQuick).forEach {
+        listOf(tvPageTitle, tvChapterName, tvPreview, tvTimer, tvSpeedValue, tvTimerLabelLeft, tvTimerLabelRight, tvParagraphProgress).forEach { it.setTextColor(textColor) }
+        listOf(tvBookName, tvChapterQuick, tvTimerQuick).forEach {
             it.setTextColor(secondary)
         }
         ivBack.setColorFilter(textColor)
         ivMore.setColorFilter(textColor)
         ivTimer.setColorFilter(secondary)
-        ivStop.setColorFilter(secondary)
-        ivSpeedControl.setColorFilter(secondary)
-        ivBackRead.setColorFilter(secondary)
         ivChapterQuick.setColorFilter(secondary)
         ivTimerQuick.setColorFilter(secondary)
-        ivMoreSetting.setColorFilter(secondary)
         ivPlayPrev.setColorFilter(textColor)
         ivPlayNext.setColorFilter(textColor)
+        modeSwitch.background = createRoundDrawable(AndroidXColorUtils.setAlphaComponent(0xFFFFFFFF.toInt(), 33), 18f)
+        applyModeTextColor()
     }
 
     private fun extractDominantColor(bitmap: Bitmap): Int {

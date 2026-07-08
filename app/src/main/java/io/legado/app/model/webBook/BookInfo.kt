@@ -204,6 +204,7 @@ object BookInfo {
                         result = it,
                         original = originalKind
                     )
+                    Unit
                 } ?: Debug.log(bookSource.bookSourceUrl, "└")
         } catch (e: Exception) {
             currentCoroutineContext().ensureActive()

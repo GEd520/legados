@@ -13,13 +13,54 @@ object AppPattern {
     //匹配格式化后的图片格式
     val imgPattern: Pattern = Pattern.compile("<img[^>]*src=\"([^\"]*(?:\"[^>]+\\})?)\"[^>]*>")
 
+    fun isVirtualImageSrc(src: String?): Boolean {
+        val value = src?.trim() ?: return false
+        return value.startsWith("dp:", ignoreCase = true) ||
+                value.startsWith("bubble://paragraph", ignoreCase = true)
+    }
+
     //匹配自定义html格式字符串
     val useHtmlRegex = Regex("<usehtml>.*?</usehtml>", RegexOption.DOT_MATCHES_ALL) //.包含换行
 
     //dataURL图片类型
     val dataUriRegex = Regex("^data:.*?;base64,(.*)")
     //提取标题中的段评
-    val imgRegex = Regex("(.*)((?:data|https?):[\\s\\S]+)$")
+    val imgRegex = Regex("(.*)((?:data|https?):[\\s\\S]+)$", RegexOption.IGNORE_CASE)
+
+    fun splitTitleImage(title: String): Pair<String, String>? {
+        val paragraphBubbleStart = findTitleParagraphBubbleStart(title)
+        val imageStart = findTitleImageStart(title)
+        if (paragraphBubbleStart >= 0 && (imageStart < 0 || paragraphBubbleStart < imageStart)) {
+            return title.substring(0, paragraphBubbleStart) to title.substring(paragraphBubbleStart)
+        }
+        if (imageStart < 0) return null
+        return title.substring(0, imageStart) to title.substring(imageStart)
+    }
+
+    private fun findTitleParagraphBubbleStart(title: String): Int {
+        var start = title.indexOf("dp:", ignoreCase = true)
+        while (start >= 0) {
+            var payloadStart = start + 3
+            while (payloadStart < title.length && title[payloadStart].isWhitespace()) {
+                payloadStart++
+            }
+            if (payloadStart < title.length && title[payloadStart].isDigit()) {
+                return start
+            }
+            start = title.indexOf("dp:", start + 3, ignoreCase = true)
+        }
+        return -1
+    }
+
+    private fun findTitleImageStart(title: String): Int {
+        val dataStart = title.lastIndexOf("data:", ignoreCase = true)
+            .takeIf { it >= 0 && title.length > it + 5 } ?: -1
+        val httpStart = title.lastIndexOf("http:", ignoreCase = true)
+            .takeIf { it >= 0 && title.length > it + 5 } ?: -1
+        val httpsStart = title.lastIndexOf("https:", ignoreCase = true)
+            .takeIf { it >= 0 && title.length > it + 6 } ?: -1
+        return maxOf(dataStart, httpStart, httpsStart)
+    }
     //匹配章节信息中的字数
     val wordCountRegex = Regex("(?:^|字数[：:、]?|\\s+)([0-9万千百\\.]{1,6}字)")
 

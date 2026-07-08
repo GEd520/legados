@@ -36,52 +36,92 @@
             android:paddingEnd="20dp"
             android:paddingBottom="40dp">
 
-            <LinearLayout
+            <FrameLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:layout_height="40dp">
 
                 <io.legado.app.ui.widget.image.ImageButton
                     android:id="@+id/iv_back"
                     android:layout_width="40dp"
                     android:layout_height="40dp"
+                    android:layout_gravity="start|center_vertical"
                     android:contentDescription="@string/back"
                     android:padding="8dp"
                     android:src="@drawable/ic_back" />
 
                 <TextView
                     android:id="@+id/tv_page_title"
-                    android:layout_width="0dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
+                    android:layout_gravity="center"
                     android:gravity="center"
                     android:text="@string/read_aloud"
                     android:textSize="22sp"
-                    android:textStyle="bold" />
+                    android:textStyle="bold"
+                    android:visibility="gone" />
+
+                <LinearLayout
+                    android:id="@+id/mode_switch"
+                    android:layout_width="132dp"
+                    android:layout_height="32dp"
+                    android:layout_gravity="center"
+                    android:gravity="center"
+                    android:orientation="horizontal"
+                    android:padding="3dp">
+
+                    <TextView
+                        android:id="@+id/tv_mode_immersive"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:text="沉浸"
+                        android:textSize="11sp" />
+
+                    <Space
+                        android:layout_width="3dp"
+                        android:layout_height="match_parent" />
+
+                    <TextView
+                        android:id="@+id/tv_mode_text"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:text="原文"
+                        android:textSize="11sp" />
+
+                </LinearLayout>
 
                 <io.legado.app.ui.widget.image.ImageButton
                     android:id="@+id/iv_more"
                     android:layout_width="40dp"
                     android:layout_height="40dp"
+                    android:layout_gravity="end|center_vertical"
                     android:contentDescription="@string/setting"
                     android:padding="8dp"
                     android:src="@drawable/ic_more_vert" />
 
-            </LinearLayout>
+            </FrameLayout>
 
             <View
+                android:id="@+id/top_spacer"
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
                 android:layout_weight="0.65" />
 
             <androidx.cardview.widget.CardView
                 android:id="@+id/hero_card"
-                android:layout_width="match_parent"
-                android:layout_height="296dp"
+                android:layout_width="188dp"
+                android:layout_height="252dp"
+                android:layout_gravity="center_horizontal"
                 android:layout_marginTop="26dp"
-                app:cardCornerRadius="34dp"
-                app:cardElevation="0dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="14dp"
                 app:cardUseCompatPadding="false"
                 app:cardPreventCornerOverlap="false"
                 android:clipChildren="true"
@@ -99,6 +139,21 @@
                         android:scaleType="centerCrop" />
 
                     <View
+                        android:id="@+id/cover_spine"
+                        android:layout_width="18dp"
+                        android:layout_height="match_parent"
+                        android:layout_gravity="start"
+                        android:background="@drawable/bg_read_aloud_cover_spine" />
+
+                    <View
+                        android:id="@+id/cover_page_edge"
+                        android:layout_width="match_parent"
+                        android:layout_height="10dp"
+                        android:layout_gravity="bottom"
+                        android:layout_marginStart="18dp"
+                        android:background="@drawable/bg_read_aloud_cover_page_edge" />
+
+                    <View
                         android:id="@+id/cover_mask"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent" />
@@ -108,9 +163,9 @@
                         android:layout_height="wrap_content"
                         android:layout_gravity="bottom"
                         android:orientation="vertical"
-                        android:paddingStart="22dp"
-                        android:paddingEnd="22dp"
-                        android:paddingBottom="22dp">
+                        android:paddingStart="20dp"
+                        android:paddingEnd="14dp"
+                        android:paddingBottom="18dp">
 
                         <TextView
                             android:id="@+id/tv_chapter_name"
@@ -118,7 +173,7 @@
                             android:layout_height="wrap_content"
                             android:ellipsize="end"
                             android:maxLines="2"
-                            android:textSize="24sp"
+                            android:textSize="18sp"
                             android:textStyle="bold"
                             tools:text="第1章 掌控" />
 
@@ -129,7 +184,7 @@
                             android:layout_marginTop="8dp"
                             android:ellipsize="end"
                             android:maxLines="1"
-                            android:textSize="15sp"
+                            android:textSize="12sp"
                             tools:text="穿成崇祯元年，开局拿捏满朝文武" />
 
                     </LinearLayout>
@@ -141,14 +196,67 @@
             <TextView
                 android:id="@+id/tv_preview"
                 android:layout_width="match_parent"
-                android:layout_height="60dp"
-                android:layout_marginTop="16dp"
+                android:layout_height="128dp"
+                android:layout_marginTop="18dp"
                 android:ellipsize="end"
-                android:maxLines="3"
-                android:textSize="14sp"
+                android:gravity="center"
+                android:lineSpacingExtra="4dp"
+                android:maxLines="4"
+                android:textSize="22sp"
+                android:textStyle="bold"
                 tools:text="如今魏忠贤倒台，他反倒成了主持清算的内阁首辅，垂手站在前列，眼皮半垂，..." />
 
+            <androidx.core.widget.NestedScrollView
+                android:id="@+id/original_text_scroll"
+                android:layout_width="match_parent"
+                android:layout_height="398dp"
+                android:layout_marginTop="26dp"
+                android:clipToPadding="false"
+                android:fillViewport="true"
+                android:overScrollMode="never"
+                android:paddingTop="48dp"
+                android:paddingBottom="48dp"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:id="@+id/ll_original_text"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_horizontal"
+                    android:orientation="vertical" />
+
+            </androidx.core.widget.NestedScrollView>
+
+            <LinearLayout
+                android:id="@+id/paragraph_progress_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ProgressBar
+                    android:id="@+id/progress_paragraph"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="0dp"
+                    android:layout_height="4dp"
+                    android:layout_weight="1"
+                    android:max="1000"
+                    android:progress="0" />
+
+                <TextView
+                    android:id="@+id/tv_paragraph_progress"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    tools:text="12/86" />
+
+            </LinearLayout>
+
             <View
+                android:id="@+id/fill_spacer"
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
                 android:layout_weight="1" />
@@ -226,6 +334,10 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:contentDescription="@string/read_aloud_speed"
+                    android:focusable="true"
                     android:paddingStart="16dp"
                     android:paddingTop="8dp"
                     android:paddingEnd="16dp"
@@ -356,120 +468,6 @@
                         android:layout_marginTop="5dp"
                         android:text="@string/set_timer"
                         android:textSize="11sp" />
-
-                </LinearLayout>
-
-            </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/action_row"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
-                android:gravity="center"
-                android:orientation="horizontal">
-
-                <LinearLayout
-                    android:id="@+id/ll_back_read"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:gravity="center_horizontal"
-                    android:orientation="vertical">
-
-                    <io.legado.app.ui.widget.image.ImageButton
-                        android:id="@+id/iv_back_read"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
-                        android:contentDescription="@string/main_menu"
-                        android:padding="8dp"
-                        android:src="@drawable/ic_menu" />
-
-                    <TextView
-                        android:id="@+id/tv_back_read"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="7dp"
-                        android:text="@string/main_menu"
-                        android:textSize="12sp" />
-
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/ll_speed"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:gravity="center_horizontal"
-                    android:orientation="vertical">
-
-                    <io.legado.app.ui.widget.image.ImageButton
-                        android:id="@+id/iv_speed_control"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
-                        android:contentDescription="@string/read_aloud_speed"
-                        android:padding="8dp"
-                        android:src="@drawable/ic_speed_control" />
-
-                    <TextView
-                        android:id="@+id/tv_speed_label"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="7dp"
-                        android:text="@string/read_aloud_speed"
-                        android:textSize="12sp" />
-
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/ll_more_setting"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:gravity="center_horizontal"
-                    android:orientation="vertical">
-
-                    <io.legado.app.ui.widget.image.ImageButton
-                        android:id="@+id/iv_more_setting"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
-                        android:contentDescription="@string/setting"
-                        android:padding="8dp"
-                        android:src="@drawable/ic_settings" />
-
-                    <TextView
-                        android:id="@+id/tv_more_setting"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="7dp"
-                        android:text="@string/setting"
-                        android:textSize="12sp" />
-
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/ll_stop"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:gravity="center_horizontal"
-                    android:orientation="vertical">
-
-                    <io.legado.app.ui.widget.image.ImageButton
-                        android:id="@+id/iv_stop"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
-                        android:contentDescription="@string/to_backstage"
-                        android:padding="8dp"
-                        android:src="@drawable/ic_float_window" />
-
-                    <TextView
-                        android:id="@+id/tv_stop"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="7dp"
-                        android:text="@string/to_backstage"
-                        android:textSize="12sp" />
 
                 </LinearLayout>
 

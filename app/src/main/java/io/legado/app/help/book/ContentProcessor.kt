@@ -131,7 +131,7 @@ class ContentProcessor private constructor(
                 }
                 // 如果正则匹配失败且强制移除标题，尝试移除第一行
                 if (!sameTitleRemoved && forceRemoveTitle) {
-                    val firstLine = mContent.lines().firstOrNull()?.trim() ?: ""
+                    val firstLine = mContent.lineSequence().firstOrNull()?.trim() ?: ""
                     val chapterTitle = chapter.title.trim()
                     val displayTitle = chapter.getDisplayTitle(
                         titleReplaceRules,
@@ -177,7 +177,9 @@ class ContentProcessor private constructor(
             if (useReplace && book.getUseReplaceRule()) {
                 //替换
                 effectiveReplaceRules = arrayListOf()
-                mContent = mContent.lines().joinToString("\n") { it.trim() }
+                mContent = mContent.lineSequence().joinToString("\n") { it.trim() }
+                val protectedContent = SpecialContentProtector.protect(mContent)
+                mContent = protectedContent.content
                 getContentReplaceRules().forEach { item ->
                     if (item.pattern.isEmpty()) {
                         return@forEach
@@ -209,6 +211,7 @@ class ContentProcessor private constructor(
                         appCtx.toastOnUi("替换净化: 规则 ${item.name}替换出错")
                     }
                 }
+                mContent = protectedContent.restore(mContent)
             }
             useHtmlMap.forEach { (placeholder, originalContent) ->
                 mContent = mContent.replace(placeholder, originalContent)
@@ -226,7 +229,7 @@ class ContentProcessor private constructor(
             mContent = mContent.replace('\u00A0', ' ')
         }
         val contents = arrayListOf<String>()
-        mContent.split("\n").forEach { str ->
+        mContent.lineSequence().forEach { str ->
             val paragraph = str.trim {
                 it.code <= 0x20 || it == '　'
             }
