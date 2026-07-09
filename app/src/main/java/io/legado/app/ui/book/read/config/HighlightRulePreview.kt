@@ -18,14 +18,16 @@ object HighlightRulePreview {
             val underlineWidth = rule.underlineWidth
             val underlineOffset = rule.underlineOffset
             val hasBgImage = !rule.bgImage.isNullOrBlank()
+            val backgroundColor = if (hasBgImage) null else rule.backgroundColor
 
-            if (hasBgImage) {
+            if (hasBgImage || backgroundColor != null) {
                 spannable.setSpan(
                     BgImageSpan(
                         textColor,
-                        rule.bgImage!!,
+                        rule.bgImage.orEmpty(),
                         rule.bgImageFit,
                         rule.bgImageScale,
+                        backgroundColor,
                         rule.underlineMode,
                         accentColor,
                         underlineWidth,

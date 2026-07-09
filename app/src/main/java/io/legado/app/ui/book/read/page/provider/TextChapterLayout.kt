@@ -1005,6 +1005,7 @@ class TextChapterLayout(
                 val highlightStyle = extractHighlightStyle(spanned, charIndex)
                 val underlineMode = highlightStyle?.underlineMode ?: 0
                 val underlineColor = highlightStyle?.underlineColor
+                val backgroundColor = highlightStyle?.backgroundColor
                 val bgImage = highlightStyle?.bgImage ?: ""
                 val bgImageFit = highlightStyle?.bgImageFit ?: 0
                 val bgImageScale = highlightStyle?.bgImageScale ?: 1f
@@ -1122,6 +1123,7 @@ class TextChapterLayout(
                                 linkUrl,
                                 underlineMode,
                                 underlineColor,
+                                backgroundColor = backgroundColor,
                                 bgImage = bgImage,
                                 bgImageFit = bgImageFit,
                                 bgImageScale = bgImageScale
@@ -1141,6 +1143,7 @@ class TextChapterLayout(
                             linkUrl,
                             underlineMode,
                             underlineColor,
+                            backgroundColor = backgroundColor,
                             bgImage = bgImage,
                             bgImageFit = bgImageFit,
                             bgImageScale = bgImageScale
@@ -1281,10 +1284,12 @@ class TextChapterLayout(
         var underlineWidth = 1f
         var underlineOffset = 2f
         var underlineSvgPath = ""
+        var backgroundColor: Int? = null
         var bgImage = ""
         var bgImageFit = 0
         var bgImageScale = 1f
         var hasUnderline = false
+        var hasBackgroundColor = false
         var hasBgImage = false
         spans.forEach { span ->
             if (span.underlineMode != 0) {
@@ -1300,15 +1305,21 @@ class TextChapterLayout(
                 bgImageFit = span.bgImageFit
                 bgImageScale = span.bgImageScale
                 hasBgImage = true
+                hasBackgroundColor = false
+                backgroundColor = null
+            } else if (span.backgroundColor != null) {
+                backgroundColor = span.backgroundColor
+                hasBackgroundColor = true
             }
         }
-        if (!hasUnderline && !hasBgImage) return null
+        if (!hasUnderline && !hasBgImage && !hasBackgroundColor) return null
         return HighlightStyleSpan(
             underlineMode = if (hasUnderline) underlineMode else 0,
             underlineColor = underlineColor,
             underlineWidth = underlineWidth,
             underlineOffset = underlineOffset,
             underlineSvgPath = if (hasUnderline) underlineSvgPath else "",
+            backgroundColor = if (hasBackgroundColor && !hasBgImage) backgroundColor else null,
             bgImage = if (hasBgImage) bgImage else "",
             bgImageFit = if (hasBgImage) bgImageFit else 0,
             bgImageScale = if (hasBgImage) bgImageScale else 1f,
@@ -1421,7 +1432,7 @@ class TextChapterLayout(
                     Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
                 )
             }
-            if (rule.underlineMode != 0 || !rule.bgImage.isNullOrBlank()) {
+            if (rule.underlineMode != 0 || rule.backgroundColor != null || !rule.bgImage.isNullOrBlank()) {
                 spannable.setSpan(
                     HighlightStyleSpan(
                         underlineMode = rule.underlineMode,
@@ -1429,6 +1440,7 @@ class TextChapterLayout(
                         underlineWidth = rule.underlineWidth,
                         underlineOffset = rule.underlineOffset,
                         underlineSvgPath = rule.underlineSvgPath.orEmpty(),
+                        backgroundColor = if (rule.bgImage.isNullOrBlank()) rule.backgroundColor else null,
                         bgImage = rule.bgImage.orEmpty(),
                         bgImageFit = rule.bgImageFit,
                         bgImageScale = rule.bgImageScale
@@ -1784,6 +1796,7 @@ class TextChapterLayout(
         val underlineWidth = highlightStyle?.underlineWidth ?: 1f
         val underlineOffset = highlightStyle?.underlineOffset ?: 2f
         val underlineSvgPath = highlightStyle?.underlineSvgPath ?: ""
+        val backgroundColor = highlightStyle?.backgroundColor
         val bgImage = highlightStyle?.bgImage ?: ""
         val bgImageFit = highlightStyle?.bgImageFit ?: 0
         val bgImageScale = highlightStyle?.bgImageScale ?: 1f
@@ -1822,6 +1835,7 @@ class TextChapterLayout(
                     underlineWidth = underlineWidth,
                     underlineOffset = underlineOffset,
                     underlineSvgPath = underlineSvgPath,
+                    backgroundColor = backgroundColor,
                     bgImage = bgImage,
                     bgImageFit = bgImageFit,
                     bgImageScale = bgImageScale

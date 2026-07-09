@@ -295,6 +295,7 @@ object HighlightRuleStore {
         }
         val underlineSvgPath = runCatching { rule.underlineSvgPath }.getOrNull()
         val bgImage = runCatching { rule.bgImage }.getOrNull()?.takeIf { it.isNotBlank() }
+        val backgroundColor = runCatching { rule.backgroundColor }.getOrNull().takeIf { bgImage == null }
         return HighlightRule(
             id = id,
             name = name,
@@ -309,6 +310,7 @@ object HighlightRuleStore {
             underlineWidth = runCatching { rule.underlineWidth }.getOrDefault(1f).coerceIn(0.1f, 10f),
             underlineOffset = runCatching { rule.underlineOffset }.getOrDefault(2f).coerceIn(0f, 20f),
             underlineSvgPath = underlineSvgPath,
+            backgroundColor = backgroundColor,
             bgImage = bgImage,
             bgImageFit = runCatching { rule.bgImageFit }.getOrDefault(0).coerceIn(0, 2),
             bgImageScale = runCatching { rule.bgImageScale }.getOrDefault(1f).coerceIn(0.1f, 5f),

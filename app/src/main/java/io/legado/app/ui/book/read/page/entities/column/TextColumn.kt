@@ -24,6 +24,7 @@ data class TextColumn(
     override val underlineWidth: Float = 1f,
     override val underlineOffset: Float = 2f,
     override val underlineSvgPath: String = "",
+    override val backgroundColor: Int? = null,
     override val bgImage: String = "",
     override val bgImageFit: Int = 0,
     override val bgImageScale: Float = 1f,

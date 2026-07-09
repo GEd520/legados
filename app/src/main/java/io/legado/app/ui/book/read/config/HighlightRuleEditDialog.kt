@@ -251,7 +251,7 @@ class HighlightRuleEditDialog @JvmOverloads constructor(
         binding.etUnderlineWidth.setText(editingRule.underlineWidth.toString())
         binding.etUnderlineOffset.setText(editingRule.underlineOffset.formatDistance())
         binding.etSvgPath.setText(editingRule.underlineSvgPath.orEmpty())
-        binding.etBgImage.setText(editingRule.bgImage.orEmpty())
+        binding.etBgImage.setText(editingRule.bgImage ?: editingRule.backgroundColor?.toHexColor().orEmpty())
         binding.etSampleText.setText(editingRule.sampleText.ifBlank { editingRule.normalizedSampleText() })
         binding.spBgImageFit.setSelection(editingRule.bgImageFit.coerceIn(0, 2))
         binding.sbBgImageScale.progress = (editingRule.bgImageScale.coerceIn(0.1f, 5f) * 10).toInt()
@@ -263,6 +263,7 @@ class HighlightRuleEditDialog @JvmOverloads constructor(
         
         updateColorPreview(binding.viewTextColorPreview, editingRule.textColor)
         updateColorPreview(binding.viewUnderlineColorPreview, editingRule.underlineColor)
+        updateBgImagePreview()
         
         updateSvgPathVisibility(editingRule.underlineMode)
     }
@@ -330,13 +331,19 @@ class HighlightRuleEditDialog @JvmOverloads constructor(
             updatePreview()
         }
         binding.etBgImage.doAfterTextChanged {
-            editingRule.bgImage = it?.toString().orEmpty().takeIf { it.isNotBlank() }
+            val value = it?.toString().orEmpty()
+            val color = parseColorOrNull(value)
+            editingRule.backgroundColor = color
+            editingRule.bgImage = value.takeIf { text -> text.isNotBlank() && color == null }
             updateBgImagePreview()
             updatePreview()
         }
         binding.etSampleText.doAfterTextChanged {
             editingRule.sampleText = it?.toString().orEmpty()
             updatePreview()
+        }
+        binding.viewBgImagePreview.setOnClickListener {
+            showBackgroundColorPicker()
         }
         binding.tvBgImagePick.setOnClickListener {
             showBgImagePicker()
@@ -446,6 +453,10 @@ class HighlightRuleEditDialog @JvmOverloads constructor(
     }
 
     private fun updateBgImagePreview() {
+        editingRule.backgroundColor?.let { color ->
+            binding.viewBgImagePreview.setBackgroundColor(color)
+            return
+        }
         val path = editingRule.bgImage.orEmpty()
         if (path.isBlank()) {
             binding.viewBgImagePreview.setBackgroundColor(Color.TRANSPARENT)
@@ -469,6 +480,7 @@ class HighlightRuleEditDialog @JvmOverloads constructor(
         val options = mutableListOf<String>()
         val assetItems = mutableListOf<String>()
         options.add("从手机选择图片")
+        options.add("选择背景颜色")
         bgImages.forEach { img ->
             options.add(img)
             assetItems.add(img)
@@ -481,13 +493,26 @@ class HighlightRuleEditDialog @JvmOverloads constructor(
                         mode = HandleFileContract.IMAGE
                         title = "选择背景图片"
                     }
+                } else if (which == 1) {
+                    showBackgroundColorPicker()
                 } else {
-                    val selected = "assets://bg/${assetItems[which - 1]}"
+                    val selected = "assets://bg/${assetItems[which - 2]}"
+                    editingRule.backgroundColor = null
+                    editingRule.bgImage = selected
                     binding.etBgImage.setText(selected)
                 }
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
+    }
+
+    private fun showBackgroundColorPicker() {
+        showColorPicker(
+            3,
+            editingRule.backgroundColor
+                ?: parseColorOrNull(binding.etBgImage.text?.toString().orEmpty())
+                ?: 0x66FFFF00
+        )
     }
 
     private fun saveRule() {
@@ -503,6 +528,7 @@ class HighlightRuleEditDialog @JvmOverloads constructor(
             binding.tvPatternError.text = regexError
             return
         }
+        val bgInput = readBackgroundInput()
         editingRule = editingRule.copy(
             id = editingRule.id.ifBlank { System.currentTimeMillis().toString() },
             name = name.ifBlank { pattern },
@@ -519,7 +545,8 @@ class HighlightRuleEditDialog @JvmOverloads constructor(
             underlineWidth = binding.etUnderlineWidth.text?.toString()?.toFloatOrNull()?.coerceIn(0.1f, 10f) ?: 1f,
             underlineOffset = binding.etUnderlineOffset.text?.toString()?.toFloatOrNull()?.coerceIn(0f, 20f) ?: 2f,
             underlineSvgPath = binding.etSvgPath.text?.toString().orEmpty().takeIf { binding.spUnderlineMode.selectedItemPosition == 5 }.orEmpty(),
-            bgImage = binding.etBgImage.text?.toString().orEmpty().takeIf { it.isNotBlank() },
+            backgroundColor = bgInput.color,
+            bgImage = bgInput.imagePath,
             bgImageFit = binding.spBgImageFit.selectedItemPosition,
             bgImageScale = (binding.sbBgImageScale.progress.coerceAtLeast(1) / 10f).coerceIn(0.1f, 5f)
         )
@@ -535,6 +562,7 @@ class HighlightRuleEditDialog @JvmOverloads constructor(
             binding.tvPatternError.visibility = View.VISIBLE
             binding.tvPatternError.text = patternError
         }
+        val bgInput = readBackgroundInput()
         binding.tvPreview.text = HighlightRulePreview.build(
             editingRule.copy(
                 name = binding.etName.text?.toString().orEmpty(),
@@ -550,7 +578,8 @@ class HighlightRuleEditDialog @JvmOverloads constructor(
                 underlineWidth = binding.etUnderlineWidth.text?.toString()?.toFloatOrNull()?.coerceIn(0.1f, 10f) ?: 1f,
                 underlineOffset = binding.etUnderlineOffset.text?.toString()?.toFloatOrNull()?.coerceIn(0f, 20f) ?: 2f,
                 underlineSvgPath = binding.etSvgPath.text?.toString().orEmpty(),
-                bgImage = binding.etBgImage.text?.toString().orEmpty().takeIf { it.isNotBlank() },
+                backgroundColor = bgInput.color,
+                bgImage = bgInput.imagePath,
                 bgImageFit = binding.spBgImageFit.selectedItemPosition,
                 bgImageScale = (binding.sbBgImageScale.progress.coerceAtLeast(1) / 10f).coerceIn(0.1f, 5f)
             )
@@ -587,7 +616,21 @@ class HighlightRuleEditDialog @JvmOverloads constructor(
         }.getOrNull()
     }
 
+    private fun readBackgroundInput(): BackgroundInput {
+        val value = binding.etBgImage.text?.toString().orEmpty()
+        val color = parseColorOrNull(value)
+        return BackgroundInput(
+            color = color,
+            imagePath = value.takeIf { it.isNotBlank() && color == null }
+        )
+    }
+
     private fun Int.toHexColor(): String = String.format("#%08X", this)
+
+    private data class BackgroundInput(
+        val color: Int?,
+        val imagePath: String?,
+    )
 
     private fun showColorPicker(dialogId: Int, currentColor: Int) {
         val dialog = ColorPickerDialog.newBuilder()
@@ -617,6 +660,13 @@ class HighlightRuleEditDialog @JvmOverloads constructor(
                 editingRule.underlineColor = color
                 binding.etUnderlineColor.setText(color.toHexColor())
                 updateColorPreview(binding.viewUnderlineColorPreview, color)
+                updatePreview()
+            }
+            3 -> {
+                editingRule.backgroundColor = color
+                editingRule.bgImage = null
+                binding.etBgImage.setText(color.toHexColor())
+                binding.viewBgImagePreview.setBackgroundColor(color)
                 updatePreview()
             }
         }

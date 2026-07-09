@@ -16,6 +16,7 @@ import io.legado.app.utils.dpToPx
  * @param bgImagePath 背景图路径
  * @param bgImageFit 背景图适配方式：0=平铺, 1=拉伸, 2=裁剪
  * @param bgImageScale 背景图缩放比例
+ * @param backgroundColor 背景色，背景图为空或不可用时生效
  * @param underlineMode 下划线样式：0=无, 1=实线, 2=虚线, 3=波浪, 4=双线
  * @param underlineColor 下划线颜色
  * @param underlineWidth 下划线粗细(dp)
@@ -27,6 +28,7 @@ class BgImageSpan(
     private val bgImagePath: String,
     private val bgImageFit: Int = 0,
     private val bgImageScale: Float = 1f,
+    private val backgroundColor: Int? = null,
     private val underlineMode: Int = 0,
     private val underlineColor: Int = 0,
     private val underlineWidth: Float = 1f,
@@ -69,7 +71,7 @@ class BgImageSpan(
         val rectHeight = (bottom - top).toFloat()
         val scale = bgImageScale.coerceIn(0.1f, 5f)
 
-        val bitmap = TextLine.getBgBitmap(bgImagePath)
+        val bitmap = if (bgImagePath.isNotBlank()) TextLine.getBgBitmap(bgImagePath) else null
         if (bitmap != null) {
             val bgPaint = Paint().apply {
                 style = Paint.Style.FILL
@@ -110,6 +112,13 @@ class BgImageSpan(
                     canvas.drawRect(x, top.toFloat(), x + width, bottom.toFloat(), bgPaint)
                 }
             }
+        } else if (backgroundColor != null) {
+            val bgPaint = Paint().apply {
+                style = Paint.Style.FILL
+                isAntiAlias = true
+                color = backgroundColor
+            }
+            canvas.drawRect(x, top.toFloat(), x + width, bottom.toFloat(), bgPaint)
         }
 
         paint.color = textColor
@@ -159,7 +168,7 @@ class BgImageSpan(
                 val lineGap = 3.dpToPx()
                 val line2Y = lineY + lineGap + underlineWidth.dpToPx()
                 canvas.drawLine(startX, lineY.toFloat(), endX, lineY.toFloat(), ulPaint)
-                canvas.drawLine(startX, line2Y.toFloat(), endX, line2Y.toFloat(), ulPaint)
+                canvas.drawLine(startX, line2Y, endX, line2Y, ulPaint)
             }
         }
     }

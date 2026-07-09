@@ -487,7 +487,7 @@
                             android:layout_weight="1"
                             android:layout_marginStart="10dp"
                             android:background="@drawable/shape_highlight_rule_input"
-                            android:hint="assets路径或文件路径"
+                            android:hint="assets路径、文件路径或颜色"
                             android:inputType="text"
                             android:paddingStart="12dp"
                             android:paddingEnd="12dp"
@@ -510,7 +510,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
-                        android:text="支持 assets://bg/山水画.jpg 或本地文件路径，留空则不使用"
+                        android:text="支持 assets://bg/山水画.jpg、本地文件路径或 #RRGGBB/#AARRGGBB，图片和颜色二选一"
                         android:textColor="@color/secondaryText"
                         android:textSize="11sp" />
 

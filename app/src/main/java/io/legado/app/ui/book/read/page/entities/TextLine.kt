@@ -380,22 +380,39 @@ data class TextLine(
             return false
         }
         return columns.none {
-            it is TextBaseColumn && (it.textColor != null || it.underlineMode != 0 || it.bgImage.isNotEmpty())
+            it is TextBaseColumn && (
+                it.textColor != null ||
+                    it.underlineMode != 0 ||
+                    it.backgroundColor != null ||
+                    it.bgImage.isNotEmpty()
+                )
         }
     }
 
     private fun drawStyledBackgrounds(canvas: Canvas) {
         if (isImage || columns.isEmpty()) return
-        if (columns.none { (it as? TextBaseColumn)?.bgImage?.isNotEmpty() == true }) return
+        if (columns.none {
+                (it as? TextBaseColumn)?.let { column ->
+                    column.bgImage.isNotEmpty() || column.backgroundColor != null
+                } == true
+            }
+        ) return
         var rangeStart = 0f
         var rangeEnd = 0f
+        var currentBackgroundColor: Int? = null
         var currentBgImage = ""
         var currentBgImageFit = 0
         var currentBgImageScale = 1f
         var active = false
         fun flushActive() {
             if (!active) return
-            drawBgImageSegment(canvas, rangeStart, rangeEnd, currentBgImage, currentBgImageFit, currentBgImageScale)
+            if (currentBgImage.isNotEmpty()) {
+                drawBgImageSegment(canvas, rangeStart, rangeEnd, currentBgImage, currentBgImageFit, currentBgImageScale)
+            } else {
+                currentBackgroundColor?.let {
+                    drawBackgroundColorSegment(canvas, rangeStart, rangeEnd, it)
+                }
+            }
             active = false
         }
         columns.forEachIndexed { index, column ->
@@ -403,37 +420,60 @@ data class TextLine(
                 flushActive()
                 return@forEachIndexed
             }
+            val backgroundColor = if (textColumn.bgImage.isEmpty()) textColumn.backgroundColor else null
             val bgImage = textColumn.bgImage
             val bgImageFit = textColumn.bgImageFit
             val bgImageScale = textColumn.bgImageScale
+            val hasBackground = bgImage.isNotEmpty() || backgroundColor != null
+            val shouldContinue = active &&
+                bgImage == currentBgImage &&
+                bgImageFit == currentBgImageFit &&
+                bgImageScale == currentBgImageScale &&
+                backgroundColor == currentBackgroundColor
             when {
-                bgImage.isEmpty() && active -> {
+                !hasBackground && active -> {
                     flushActive()
                 }
-                bgImage.isNotEmpty() && !active -> {
+                hasBackground && !active -> {
                     rangeStart = textColumn.start
                     rangeEnd = textColumn.end
+                    currentBackgroundColor = backgroundColor
                     currentBgImage = bgImage
                     currentBgImageFit = bgImageFit
                     currentBgImageScale = bgImageScale
                     active = true
                 }
-                bgImage.isNotEmpty() && bgImage == currentBgImage && bgImageFit == currentBgImageFit && bgImageScale == currentBgImageScale -> {
+                hasBackground && shouldContinue -> {
                     rangeEnd = textColumn.end
                 }
-                bgImage.isNotEmpty() -> {
-                    drawBgImageSegment(canvas, rangeStart, rangeEnd, currentBgImage, currentBgImageFit, currentBgImageScale)
+                hasBackground -> {
+                    flushActive()
                     rangeStart = textColumn.start
                     rangeEnd = textColumn.end
+                    currentBackgroundColor = backgroundColor
                     currentBgImage = bgImage
                     currentBgImageFit = bgImageFit
                     currentBgImageScale = bgImageScale
+                    active = true
                 }
             }
             if (active && index == columns.lastIndex) {
                 flushActive()
             }
         }
+    }
+
+    private fun drawBackgroundColorSegment(
+        canvas: Canvas,
+        startX: Float,
+        endX: Float,
+        color: Int,
+    ) {
+        val paint = PaintPool.obtain()
+        paint.style = android.graphics.Paint.Style.FILL
+        paint.color = color
+        canvas.drawRect(startX, bgPaddingTop, endX, height - bgPaddingBottom, paint)
+        PaintPool.recycle(paint)
     }
 
     /**
