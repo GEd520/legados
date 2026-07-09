@@ -55,6 +55,10 @@ import kotlin.math.min
 class TextActionMenu(private val context: Context, private val callBack: CallBack) :
     PopupWindow(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT) {
 
+    private companion object {
+        private const val PRIMARY_MENU_LIMIT = 7
+    }
+
     /** 菜单布局绑定对象 */
     private val binding = PopupActionMenuBinding.inflate(LayoutInflater.from(context))
     
@@ -169,9 +173,9 @@ class TextActionMenu(private val context: Context, private val callBack: CallBac
         moreMenuItems.clear()
         
         // 将菜单项分为可见项（前6项）和更多项（第6项之后）
-        if (menuItems.size > 6) {
-            visibleMenuItems.addAll(menuItems.subList(0, 6))
-            moreMenuItems.addAll(menuItems.subList(6, menuItems.size))
+        if (menuItems.size > PRIMARY_MENU_LIMIT) {
+            visibleMenuItems.addAll(menuItems.subList(0, PRIMARY_MENU_LIMIT))
+            moreMenuItems.addAll(menuItems.subList(PRIMARY_MENU_LIMIT, menuItems.size))
         } else {
             // 如果菜单项少于7个，全部显示在主菜单
             visibleMenuItems.addAll(menuItems)
@@ -186,6 +190,7 @@ class TextActionMenu(private val context: Context, private val callBack: CallBac
         menu.findItem(R.id.menu_dict)?.setIcon(R.drawable.ic_translate)
         menu.findItem(R.id.menu_web_search)?.setIcon(R.drawable.ic_search)
         menu.findItem(R.id.menu_text_menu_config)?.setIcon(R.drawable.ic_settings)
+        menu.findItem(R.id.menu_highlight_rule_config)?.setIcon(R.drawable.ic_magic_star)
         menu.findItem(R.id.menu_search_content)?.setIcon(R.drawable.ic_search_hint)
         menu.findItem(R.id.menu_browser)?.setIcon(R.drawable.ic_web)
         menu.findItem(R.id.menu_share_str)?.setIcon(R.drawable.ic_share)
@@ -348,7 +353,14 @@ class TextActionMenu(private val context: Context, private val callBack: CallBac
         RecyclerAdapter<MenuItemImpl, ItemTextBinding>(context) {
 
         override fun getItemId(position: Int): Long {
-            return position.toLong()
+            return getItem(position)?.let { item ->
+                if (item.itemId != Menu.NONE) {
+                    item.itemId.toLong()
+                } else {
+                    item.intent?.component?.flattenToShortString()?.hashCode()?.toLong()
+                        ?: item.title.hashCode().toLong()
+                }
+            } ?: -1L
         }
 
         override fun getViewBinding(parent: ViewGroup): ItemTextBinding {

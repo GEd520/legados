@@ -94,6 +94,7 @@ import io.legado.app.ui.book.read.config.BgTextConfigDialog.Companion.BG_COLOR
 import io.legado.app.ui.book.read.config.BgTextConfigDialog.Companion.TEXT_ACCENT_COLOR
 import io.legado.app.ui.book.read.config.BgTextConfigDialog.Companion.TEXT_COLOR
 import io.legado.app.ui.book.read.config.BgTextConfigDialog.Companion.UNDERLINE_COLOR
+import io.legado.app.ui.book.read.config.HighlightRuleConfigDialog
 import io.legado.app.ui.book.read.config.MoreConfigDialog
 import io.legado.app.ui.book.read.config.ReadAloudActivity
 import io.legado.app.ui.book.read.config.ReadAloudDialog
@@ -1144,6 +1145,11 @@ class ReadBookActivity : BaseReadBookActivity(),
 
             R.id.menu_text_menu_config -> {
                 showDialogFragment(TextMenuConfigDialog())
+                return true
+            }
+
+            R.id.menu_highlight_rule_config -> {
+                showDialogFragment(HighlightRuleConfigDialog())
                 return true
             }
 

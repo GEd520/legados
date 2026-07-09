@@ -31,6 +31,10 @@
         android:title="@string/menu_config" />
 
     <item
+        android:id="@+id/menu_highlight_rule_config"
+        android:title="@string/highlight_rule_config" />
+
+    <item
         android:id="@+id/menu_search_content"
         android:title="@string/search_content"
         app:showAsAction="never" />
