@@ -352,12 +352,13 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
         applyBottomNavigationGlassOutline(bottomNavigationGlass, if (floating) 24f.dpToPx() else 0f)
         if (liquid) {
             bottomNavigationGlassView.visible()
-            setupBottomLiquidGlass(bottomNavigationGlassView, config, if (floating) 24f.dpToPx() else 0f)
+            setupBottomLiquidGlass(bottomNavigationGlassView, config, if (floating) 24f.dpToPx() else 0f, bgColor)
             bottomNavigationShellOverlay.background = createLiquidGlassShellDrawable(
                 glassLevel = config.opacity.coerceIn(0, 100) / 100f,
                 cornerRadius = if (floating) 24f.dpToPx() else 0f,
                 effectMode = config.effectMode,
-                bgColor = bgColor
+                bgColor = bgColor,
+                strokeColor = resolveBottomNavigationBorderColor(config)
             )
         } else {
             bottomNavigationGlassView.invisible()
@@ -381,20 +382,22 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
     private fun setupBottomLiquidGlass(
         liquidGlassView: StableLiquidGlassView,
         config: NavigationBarConfig,
-        cornerRadius: Float
+        cornerRadius: Float,
+        bgColor: Int
     ) {
         val level = config.opacity.coerceIn(0, 100) / 100f
         val frosted = config.effectMode == NavigationBarConfig.EFFECT_FROSTED
+        val tintColor = Color.rgb(Color.red(bgColor), Color.green(bgColor), Color.blue(bgColor))
         liquidGlassView.bind(binding.contentContainer)
         liquidGlassView.setCornerRadius(cornerRadius)
         liquidGlassView.setRefractionHeight(if (frosted) 10f.dpToPx() else (14f + level * 10f).dpToPx())
         liquidGlassView.setRefractionOffset(if (frosted) 30f.dpToPx() else (42f + level * 18f).dpToPx())
         liquidGlassView.setBlurRadius(if (frosted) 22f + level * 20f else 8f + level * 14f)
         liquidGlassView.setDispersion(if (frosted) 0.06f else 0.24f + level * 0.24f)
-        liquidGlassView.setTintAlpha(if (frosted) 0.08f + level * 0.12f else 0.025f + level * 0.045f)
-        liquidGlassView.setTintColorRed(1f)
-        liquidGlassView.setTintColorGreen(1f)
-        liquidGlassView.setTintColorBlue(1f)
+        liquidGlassView.setTintAlpha(if (frosted) 0.012f + level * 0.268f else 0.004f + level * 0.156f)
+        liquidGlassView.setTintColorRed(Color.red(tintColor) / 255f)
+        liquidGlassView.setTintColorGreen(Color.green(tintColor) / 255f)
+        liquidGlassView.setTintColorBlue(Color.blue(tintColor) / 255f)
         liquidGlassView.setDraggableEnabled(false)
         liquidGlassView.setElasticEnabled(false)
         liquidGlassView.setTouchEffectEnabled(false)
@@ -405,27 +408,33 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
         glassLevel: Float,
         cornerRadius: Float,
         effectMode: String,
-        bgColor: Int
+        bgColor: Int,
+        strokeColor: Int?
     ): GradientDrawable {
-        val baseColor = bgColor
+        val baseColor = Color.rgb(Color.red(bgColor), Color.green(bgColor), Color.blue(bgColor))
         val isLight = ColorUtils.isColorLight(baseColor)
-        val surfaceColor = if (isLight) Color.WHITE else Color.rgb(22, 24, 28)
+        val neutralSurface = if (isLight) Color.WHITE else Color.rgb(22, 24, 28)
+        val surfaceColor = ColorUtils.blendColors(
+            baseColor,
+            neutralSurface,
+            if (effectMode == NavigationBarConfig.EFFECT_FROSTED) 0.26f else 0.14f
+        )
         val fallbackBoost = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) 0.08f else 0f
         val frosted = effectMode == NavigationBarConfig.EFFECT_FROSTED
         val startAlpha = if (frosted) {
-            (0.26f + glassLevel * 0.24f + fallbackBoost).coerceIn(0f, 0.62f)
+            (0.025f + glassLevel * 0.615f + fallbackBoost).coerceIn(0f, 0.76f)
         } else {
-            (0.10f + glassLevel * 0.10f + fallbackBoost * 0.55f).coerceIn(0f, 0.28f)
+            (0.004f + glassLevel * 0.386f + fallbackBoost * 0.55f).coerceIn(0f, 0.48f)
         }
         val centerAlpha = if (frosted) {
-            (0.20f + glassLevel * 0.18f + fallbackBoost * 0.65f).coerceIn(0f, 0.48f)
+            (0.018f + glassLevel * 0.462f + fallbackBoost * 0.65f).coerceIn(0f, 0.58f)
         } else {
-            (0.05f + glassLevel * 0.07f + fallbackBoost * 0.35f).coerceIn(0f, 0.20f)
+            (0.003f + glassLevel * 0.267f + fallbackBoost * 0.35f).coerceIn(0f, 0.34f)
         }
         val endAlpha = if (frosted) {
-            (0.16f + glassLevel * 0.15f + fallbackBoost * 0.45f).coerceIn(0f, 0.40f)
+            (0.012f + glassLevel * 0.348f + fallbackBoost * 0.45f).coerceIn(0f, 0.46f)
         } else {
-            (0.04f + glassLevel * 0.06f + fallbackBoost * 0.30f).coerceIn(0f, 0.16f)
+            (0.002f + glassLevel * 0.198f + fallbackBoost * 0.30f).coerceIn(0f, 0.26f)
         }
         val strokeAlpha = if (frosted) {
             (0.20f + glassLevel * 0.16f).coerceIn(0f, 0.44f)
@@ -442,7 +451,7 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
         ).apply {
             shape = GradientDrawable.RECTANGLE
             setCornerRadius(cornerRadius)
-            setStroke(1.dpToPx(), ColorUtils.withAlpha(surfaceColor, strokeAlpha))
+            setStroke(1.dpToPx(), strokeColor ?: ColorUtils.withAlpha(surfaceColor, strokeAlpha))
         }
     }
 
@@ -452,9 +461,7 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
             standard -> 0f
             else -> 24f.dpToPx()
         }
-        val strokeColor = config.borderColor?.let {
-            ColorUtils.withAlpha(it, config.borderAlpha.coerceIn(0, 100) / 100f)
-        }
+        val strokeColor = resolveBottomNavigationBorderColor(config)
         if (!standard && config.effectMode != NavigationBarConfig.EFFECT_SOLID) {
             return createBottomNavigationGlassDrawable(config, bgColor, radius, strokeColor)
         }
@@ -466,6 +473,12 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
                 if (!standard && strokeColor != null) 1.dpToPx() else 0,
                 strokeColor ?: Color.TRANSPARENT
             )
+        }
+    }
+
+    private fun resolveBottomNavigationBorderColor(config: NavigationBarConfig): Int? {
+        return config.borderColor?.let {
+            ColorUtils.withAlpha(it, config.borderAlpha.coerceIn(0, 100) / 100f)
         }
     }
 
@@ -524,7 +537,7 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
             setColor(Color.TRANSPARENT)
             setStroke(
                 1.dpToPx(),
-                adjustAlpha(strokeColor ?: getCompatColor(R.color.glass_stroke), opacityFactor)
+                strokeColor ?: adjustAlpha(getCompatColor(R.color.glass_stroke), opacityFactor)
             )
         }
         val shadow = GradientDrawable().apply {
@@ -550,8 +563,8 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
             NavigationBarConfig.EFFECT_FROSTED -> if (light) Color.WHITE else Color.rgb(52, 58, 68)
             else -> getCompatColor(R.color.glass_bar)
         }
-        val ratio = if (effectMode == NavigationBarConfig.EFFECT_FROSTED) 0.62f else 0.42f
-        val alpha = opacityFactor * if (effectMode == NavigationBarConfig.EFFECT_FROSTED) 0.90f else 0.52f
+        val ratio = if (effectMode == NavigationBarConfig.EFFECT_FROSTED) 0.34f else 0.18f
+        val alpha = opacityFactor * if (effectMode == NavigationBarConfig.EFFECT_FROSTED) 0.96f else 0.78f
         val rgb = ColorUtils.blendColors(baseRgb, materialTint, ratio)
         return ColorUtils.withAlpha(rgb, alpha.coerceIn(0f, 1f))
     }
