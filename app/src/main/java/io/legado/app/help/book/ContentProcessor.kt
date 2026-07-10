@@ -103,6 +103,7 @@ class ContentProcessor private constructor(
         var sameTitleRemoved = false
         var effectiveReplaceRules: ArrayList<ReplaceRule>? = null
         val replaceBook by lazy { book.toReplaceBook() }
+        val useHtmlMap = mutableMapOf<String, String>()
         if (content != "null") {
             //去除重复标题
             val fileName = chapter.getFileName("nr")
@@ -151,6 +152,13 @@ class ContentProcessor private constructor(
             } catch (e: Exception) {
                 AppLog.put("去除重复标题出错\n${e.localizedMessage}", e)
             }
+            if (AppConfig.adaptSpecialStyle) { //html处理
+                mContent = AppPattern.useHtmlRegex.replace(mContent) { matchResult ->
+                    val placeholder = "\uE000LEGADO_USEHTML_${useHtmlMap.size}\uE001"
+                    useHtmlMap[placeholder] = matchResult.value
+                    placeholder
+                }
+            }
             if (reSegment && book.getReSegment()) {
                 //重新分段
                 mContent = ContentHelp.reSegment(mContent, chapter.title)
@@ -164,14 +172,6 @@ class ContentProcessor private constructor(
                     }
                 } catch (_: Exception) {
                     appCtx.toastOnUi("简繁转换出错")
-                }
-            }
-            val useHtmlMap = mutableMapOf<String, String>()
-            if (AppConfig.adaptSpecialStyle) { //html处理
-                mContent = AppPattern.useHtmlRegex.replace(mContent) { matchResult ->
-                    val placeholder = "特殊格式的占位不应该被看见${useHtmlMap.size}。"
-                    useHtmlMap[placeholder] = "\n${matchResult.value.replace("\n","")}\n"
-                    placeholder
                 }
             }
             if (useReplace && book.getUseReplaceRule()) {
@@ -213,9 +213,6 @@ class ContentProcessor private constructor(
                 }
                 mContent = protectedContent.restore(mContent)
             }
-            useHtmlMap.forEach { (placeholder, originalContent) ->
-                mContent = mContent.replace(placeholder, originalContent)
-            }
         }
         if (includeTitle) {
             //重新添加标题
@@ -234,6 +231,10 @@ class ContentProcessor private constructor(
                 it.code <= 0x20 || it == '　'
             }
             if (paragraph.isNotEmpty()) {
+                useHtmlMap[paragraph]?.let {
+                    contents.add(it)
+                    return@forEach
+                }
                 if (contents.isEmpty() && includeTitle) {
                     contents.add(paragraph)
                 } else {
