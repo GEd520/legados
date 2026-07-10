@@ -32,7 +32,10 @@ import io.legado.app.utils.viewbindingdelegate.viewBinding
 class HighlightRuleGroupManageDialog @JvmOverloads constructor(
     private val onChanged: (oldGroup: String?, newGroup: String?) -> Unit = { _, _ -> },
     private val onSelectGroup: (String?) -> Unit = {},
-) : HighlightRuleBottomSheetFragment(R.layout.dialog_highlight_rule_group_manage) {
+) : HighlightRuleBottomSheetFragment(
+    R.layout.dialog_highlight_rule_group_manage,
+    useFadeAnimation = true,
+) {
 
     private val binding by viewBinding(DialogHighlightRuleGroupManageBinding::bind)
     private val adapter by lazy { GroupAdapter(requireContext()) }

@@ -31,7 +31,11 @@ class HighlightRuleEditDialog @JvmOverloads constructor(
     private val sourceRule: HighlightRule? = null,
     private val defaultGroup: String? = null,
     private val onSave: (HighlightRule) -> Unit = {},
-) : HighlightRuleBottomSheetFragment(R.layout.dialog_highlight_rule_edit, true),
+) : HighlightRuleBottomSheetFragment(
+    R.layout.dialog_highlight_rule_edit,
+    adaptationSoftKeyboard = true,
+    useFadeAnimation = true,
+),
     ColorPickerDialogListener {
 
     private val binding by viewBinding(DialogHighlightRuleEditBinding::bind)

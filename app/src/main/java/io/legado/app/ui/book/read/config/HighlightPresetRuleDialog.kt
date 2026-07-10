@@ -24,7 +24,10 @@ import io.legado.app.utils.viewbindingdelegate.viewBinding
 class HighlightPresetRuleDialog @JvmOverloads constructor(
     private val defaultGroup: String? = null,
     private val onAddRule: (HighlightRule) -> Unit = {},
-) : HighlightRuleBottomSheetFragment(R.layout.dialog_highlight_preset_rule) {
+) : HighlightRuleBottomSheetFragment(
+    R.layout.dialog_highlight_preset_rule,
+    useFadeAnimation = true,
+) {
 
     private val binding by viewBinding(DialogHighlightPresetRuleBinding::bind)
     private val adapter by lazy { PresetRuleAdapter(requireContext()) }

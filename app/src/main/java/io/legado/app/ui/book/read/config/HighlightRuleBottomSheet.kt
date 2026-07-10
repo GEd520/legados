@@ -1,5 +1,6 @@
 package io.legado.app.ui.book.read.config
 
+import android.app.Dialog
 import android.content.DialogInterface
 import android.graphics.Color
 import android.os.Bundle
@@ -8,7 +9,6 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
 import androidx.annotation.LayoutRes
-import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.FragmentManager
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
@@ -21,25 +21,25 @@ import splitties.systemservices.windowManager
 abstract class HighlightRuleBottomSheetFragment(
     @LayoutRes layoutId: Int,
     private val adaptationSoftKeyboard: Boolean = false,
+    private val useFadeAnimation: Boolean = false,
 ) : BottomSheetDialogFragment(layoutId) {
 
     private var onDismissListener: DialogInterface.OnDismissListener? = null
-    private var parentDialogDecor: View? = null
 
     fun setOnDismissListener(listener: DialogInterface.OnDismissListener?) {
         onDismissListener = listener
     }
 
+    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
+        return super.onCreateDialog(savedInstanceState).also { dialog ->
+            if (useFadeAnimation && !AppConfig.isEInkMode) {
+                dialog.window?.setWindowAnimations(R.style.TextActionMenuAnimation)
+            }
+        }
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        parentDialogDecor = generateSequence(parentFragment) { it.parentFragment }
-            .filterIsInstance<DialogFragment>()
-            .firstOrNull()
-            ?.dialog
-            ?.window
-            ?.decorView
-            ?.also { it.visibility = View.INVISIBLE }
-
         view.setBackgroundColor(Color.TRANSPARENT)
         if (adaptationSoftKeyboard) {
             view.findViewById<View>(R.id.vw_bg)?.setOnClickListener(null)
@@ -91,8 +91,6 @@ abstract class HighlightRuleBottomSheetFragment(
     }
 
     override fun onDismiss(dialog: DialogInterface) {
-        parentDialogDecor?.visibility = View.VISIBLE
-        parentDialogDecor = null
         super.onDismiss(dialog)
         val listener = onDismissListener
         onDismissListener = null
