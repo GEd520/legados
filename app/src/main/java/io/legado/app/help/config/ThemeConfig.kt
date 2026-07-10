@@ -487,12 +487,8 @@ object ThemeConfig {
                     getPrefInt(PreferKey.cNPrimary, getCompatColor(R.color.default_night_primary))
                 val accent =
                     getPrefInt(PreferKey.cNAccent, getCompatColor(R.color.default_night_accent))
-                var background =
+                val background =
                     getPrefInt(PreferKey.cNBackground, getCompatColor(R.color.default_night_background))
-                if (ColorUtils.isColorLight(background)) {
-                    background = getCompatColor(R.color.default_night_background)
-                    putPrefInt(PreferKey.cNBackground, background)
-                }
                 val bBackground =
                     getPrefInt(PreferKey.cNBBackground, getCompatColor(R.color.default_night_bottom_background))
                 val transparentNavBar =
@@ -511,12 +507,8 @@ object ThemeConfig {
                     getPrefInt(PreferKey.cPrimary, getCompatColor(R.color.default_primary))
                 val accent =
                     getPrefInt(PreferKey.cAccent, getCompatColor(R.color.default_accent))
-                var background =
+                val background =
                     getPrefInt(PreferKey.cBackground, getCompatColor(R.color.default_background))
-                if (!ColorUtils.isColorLight(background)) {
-                    background = getCompatColor(R.color.default_background)
-                    putPrefInt(PreferKey.cBackground, background)
-                }
                 val bBackground =
                     getPrefInt(PreferKey.cBBackground, getCompatColor(R.color.default_bottom_background))
                 val transparentNavBar =

@@ -11,15 +11,13 @@ import android.view.View
 import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import io.legado.app.R
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.config.ReadBookConfig
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.theme.accentColor
-import io.legado.app.lib.theme.bottomBackground
-import io.legado.app.lib.theme.getPrimaryTextColor
 import io.legado.app.ui.widget.text.StrokeTextView
-import io.legado.app.utils.ColorUtils
 import io.legado.app.utils.dpToPx
 
 /**
@@ -91,9 +89,7 @@ class TextFontWeightConverter(context: Context, attrs: AttributeSet?) :
         }
 
         fun updateCoarseSelection() {
-            val bg = context.bottomBackground
-            val isLight = ColorUtils.isColorLight(bg)
-            val textColor = context.getPrimaryTextColor(isLight)
+            val textColor = dialogPrimaryTextColor()
             updateSelection(coarseView ?: return, currentBoldValue, context.accentColor, textColor)
         }
         
@@ -193,9 +189,7 @@ class TextFontWeightConverter(context: Context, attrs: AttributeSet?) :
         buttonText: String, 
         onButtonClick: (TextView) -> Unit
     ): LinearLayout {
-        val bg = context.bottomBackground
-        val isLight = ColorUtils.isColorLight(bg)
-        val textColor = context.getPrimaryTextColor(isLight)
+        val textColor = dialogPrimaryTextColor()
         val accentColor = context.accentColor
         
         return LinearLayout(context).apply {
@@ -228,9 +222,7 @@ class TextFontWeightConverter(context: Context, attrs: AttributeSet?) :
         currentValue: Int,
         onValueChanged: (Int) -> Unit
     ): LinearLayout {
-        val bg = context.bottomBackground
-        val isLight = ColorUtils.isColorLight(bg)
-        val textColor = context.getPrimaryTextColor(isLight)
+        val textColor = dialogPrimaryTextColor()
         val accentColor = context.accentColor
         
         return LinearLayout(context).apply linearLayout@{
@@ -266,9 +258,8 @@ class TextFontWeightConverter(context: Context, attrs: AttributeSet?) :
         currentTitleValue: Int,
         onValueChanged: (Int, Int) -> Unit
     ): LinearLayout {
-        val bg = context.bottomBackground
-        val isLight = ColorUtils.isColorLight(bg)
-        val textColor = context.getPrimaryTextColor(isLight)
+        val textColor = dialogPrimaryTextColor()
+        val secondaryTextColor = dialogSecondaryTextColor()
         val accentColor = context.accentColor
         
         var textValue = currentTextValue
@@ -322,7 +313,7 @@ class TextFontWeightConverter(context: Context, attrs: AttributeSet?) :
             }
             
             // 正文标签容器
-            val textLabelsContainer = createLabelsContainer(textColor)
+            val textLabelsContainer = createLabelsContainer(secondaryTextColor)
             
             // 分隔空间
             val spacer = View(context).apply {
@@ -374,7 +365,7 @@ class TextFontWeightConverter(context: Context, attrs: AttributeSet?) :
             }
             
             // 标题标签容器
-            val titleLabelsContainer = createLabelsContainer(textColor)
+            val titleLabelsContainer = createLabelsContainer(secondaryTextColor)
             
             // 添加所有视图
             addView(contentLabel)
@@ -412,6 +403,14 @@ class TextFontWeightConverter(context: Context, attrs: AttributeSet?) :
                 gravity = Gravity.END
             })
         }
+    }
+
+    private fun dialogPrimaryTextColor(): Int {
+        return ContextCompat.getColor(context, R.color.primaryText)
+    }
+
+    private fun dialogSecondaryTextColor(): Int {
+        return ContextCompat.getColor(context, R.color.secondaryText)
     }
 
     private fun getFontWeightName(value: Int, names: Array<String>): String {
