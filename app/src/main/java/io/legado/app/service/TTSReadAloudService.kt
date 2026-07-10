@@ -19,11 +19,8 @@ import io.legado.app.utils.LogUtils
 import io.legado.app.utils.fromJsonObject
 import io.legado.app.utils.servicePendingIntent
 import io.legado.app.utils.toastOnUi
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.withTimeoutOrNull
-import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.ensureActive
 import kotlin.coroutines.coroutineContext
 
 /**
@@ -36,7 +33,6 @@ class TTSReadAloudService : BaseReadAloudService(), TextToSpeech.OnInitListener 
     private var ttsInitFinish = false
     private var speakJob: Coroutine<*>? = null
     private val utteranceListener = TTSUtteranceListener()
-    private val utteranceWaiters = ConcurrentHashMap<String, CompletableDeferred<Boolean>>()
 
     @Volatile
     private var speakingToken = 0
@@ -77,7 +73,6 @@ class TTSReadAloudService : BaseReadAloudService(), TextToSpeech.OnInitListener 
     fun clearTTS() {
         speakJob?.cancel()
         speakingToken++
-        completeAllUtterances(false)
         textToSpeech?.runCatching {
             setOnUtteranceProgressListener(null)
             stop()
@@ -121,45 +116,51 @@ class TTSReadAloudService : BaseReadAloudService(), TextToSpeech.OnInitListener 
         LogUtils.d(TAG, "朗读列表大小 ${contentList.size}")
         LogUtils.d(TAG, "朗读页数 ${textChapter?.pageSize}")
         val tts = textToSpeech ?: throw NoStackTraceException("tts is null")
-        while (coroutineContext.isActive && token == speakingToken && !pause) {
-            if (nowSpeak !in contentList.indices) {
-                playStop()
-                delay(1000)
-                nextChapter()
-                return
-            }
-            var text = contentList[nowSpeak]
+        while (nowSpeak in contentList.indices && contentList[nowSpeak].matches(AppPattern.notReadAloudRegex)) {
+            if (!moveToNextParagraph()) return
+        }
+        val startIndex = nowSpeak
+        if (startIndex !in contentList.indices) {
+            playStop()
+            delay(1000)
+            nextChapter()
+            return
+        }
+        var hasAddedText = false
+        for (index in startIndex until contentList.size) {
+            coroutineContext.ensureActive()
+            if (token != speakingToken || pause) return
+            var text = contentList[index]
             if (text.matches(AppPattern.notReadAloudRegex)) {
-                if (!moveToNextParagraph()) return
                 continue
             }
-            if (paragraphStartPos > 0) {
+            if (paragraphStartPos > 0 && index == startIndex) {
                 text = text.substring(paragraphStartPos.coerceAtMost(text.length))
             }
-            upParagraphStartProgress()
-            val utteranceId = utteranceId(nowSpeak, token)
-            val waiter = CompletableDeferred<Boolean>()
-            utteranceWaiters[utteranceId] = waiter
+            if (!hasAddedText) {
+                upParagraphStartProgress()
+            }
+            val queueMode = if (hasAddedText) TextToSpeech.QUEUE_ADD else TextToSpeech.QUEUE_FLUSH
             val result = tts.runCatching {
-                speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
+                speak(text, queueMode, null, utteranceId(index, token))
             }.getOrElse {
-                utteranceWaiters.remove(utteranceId)
                 AppLog.put("tts朗读出错\n${it.localizedMessage}", it, true)
                 TextToSpeech.ERROR
             }
             if (result == TextToSpeech.ERROR) {
-                utteranceWaiters.remove(utteranceId)
-                retryTts()
-                return
+                if (hasAddedText) {
+                    AppLog.put("tts朗读出错:$text")
+                } else {
+                    retryTts()
+                    return
+                }
             }
-            val completed = waitCurrentParagraphDone(utteranceId, waiter, token, text.length)
-            if (token != speakingToken || pause || !coroutineContext.isActive) return
-            if (!completed) {
-                retryTts()
-                return
-            }
-            ttsRetryCount = 0
-            if (!moveToNextParagraph()) return
+            hasAddedText = true
+        }
+        if (!hasAddedText && token == speakingToken && !pause) {
+            playStop()
+            delay(1000)
+            nextChapter()
         }
     }
 
@@ -174,23 +175,6 @@ class TTSReadAloudService : BaseReadAloudService(), TextToSpeech.OnInitListener 
         AppLog.put("tts出错, 尝试重新初始化($ttsRetryCount/3)")
         clearTTS()
         initTts()
-    }
-
-    private suspend fun waitCurrentParagraphDone(
-        utteranceId: String,
-        waiter: CompletableDeferred<Boolean>,
-        token: Int,
-        textLength: Int
-    ): Boolean {
-        val timeout = (60_000L + textLength * 120L).coerceIn(90_000L, 600_000L)
-        val result = withTimeoutOrNull(timeout) {
-            waiter.await()
-        }
-        utteranceWaiters.remove(utteranceId)
-        if (result == null && token == speakingToken && !pause && coroutineContext.isActive) {
-            AppLog.put("tts朗读等待超时:$utteranceId")
-        }
-        return result == true
     }
 
     private fun upParagraphStartProgress() {
@@ -235,21 +219,25 @@ class TTSReadAloudService : BaseReadAloudService(), TextToSpeech.OnInitListener 
         return value.toIntOrNull()
     }
 
-    private fun completeUtterance(utteranceId: String?, success: Boolean) {
-        utteranceId ?: return
-        utteranceWaiters.remove(utteranceId)?.complete(success)
+    private fun parseUtteranceToken(utteranceId: String?): Int? {
+        val value = utteranceId
+            ?.takeIf { it.startsWith(AppConst.APP_TAG) }
+            ?.substringAfter('_', "")
+            ?.takeIf { it.isNotBlank() }
+            ?: return null
+        return value.toIntOrNull()
     }
 
-    private fun completeAllUtterances(success: Boolean) {
-        utteranceWaiters.values.forEach { it.complete(success) }
-        utteranceWaiters.clear()
+    private fun isCurrentUtterance(utteranceId: String?): Boolean {
+        return parseUtteranceToken(utteranceId) == speakingToken
     }
 
     private fun upRangeProgress(utteranceId: String?, start: Int) {
+        if (!isCurrentUtterance(utteranceId)) return
         val index = parseUtteranceIndex(utteranceId) ?: return
         if (index != nowSpeak) return
         textChapter?.let {
-            val progress = readAloudNumber + paragraphStartPos + start
+            val progress = readAloudNumber + start
             if (pageIndex + 1 < it.pageSize
                 && progress > it.getReadLength(pageIndex + 1)
             ) {
@@ -264,11 +252,15 @@ class TTSReadAloudService : BaseReadAloudService(), TextToSpeech.OnInitListener 
 
         override fun onStart(utteranceId: String?) {
             LogUtils.d(TAG, "onStart nowSpeak:$nowSpeak pageIndex:$pageIndex utteranceId:$utteranceId")
+            if (!isCurrentUtterance(utteranceId)) return
+            upParagraphStartProgress()
         }
 
         override fun onDone(utteranceId: String?) {
             LogUtils.d(TAG, "onDone utteranceId:$utteranceId")
-            completeUtterance(utteranceId, true)
+            if (!isCurrentUtterance(utteranceId)) return
+            ttsRetryCount = 0
+            moveToNextParagraph()
         }
 
         override fun onRangeStart(utteranceId: String?, start: Int, end: Int, frame: Int) {
@@ -279,13 +271,15 @@ class TTSReadAloudService : BaseReadAloudService(), TextToSpeech.OnInitListener 
 
         override fun onError(utteranceId: String?, errorCode: Int) {
             LogUtils.d(TAG, "onError utteranceId:$utteranceId errorCode:$errorCode")
-            completeUtterance(utteranceId, false)
+            if (!isCurrentUtterance(utteranceId)) return
+            moveToNextParagraph()
         }
 
         @Deprecated("Deprecated in Java")
         override fun onError(utteranceId: String?) {
             LogUtils.d(TAG, "onError utteranceId:$utteranceId")
-            completeUtterance(utteranceId, false)
+            if (!isCurrentUtterance(utteranceId)) return
+            moveToNextParagraph()
         }
 
     }
@@ -293,7 +287,6 @@ class TTSReadAloudService : BaseReadAloudService(), TextToSpeech.OnInitListener 
     override fun playStop() {
         ttsRetryCount = 0
         speakingToken++
-        completeAllUtterances(false)
         textToSpeech?.runCatching {
             stop()
         }
@@ -322,7 +315,6 @@ class TTSReadAloudService : BaseReadAloudService(), TextToSpeech.OnInitListener 
         ttsRetryCount = 0
         speakJob?.cancel()
         speakingToken++
-        completeAllUtterances(false)
         textToSpeech?.runCatching {
             stop()
         }
