@@ -5,14 +5,12 @@ import android.content.Intent
 import android.graphics.PorterDuff
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
-import android.view.Gravity
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import androidx.appcompat.widget.PopupMenu
 import androidx.recyclerview.widget.LinearLayoutManager
 import io.legado.app.R
-import io.legado.app.base.BaseDialogFragment
 import io.legado.app.base.adapter.ItemViewHolder
 import io.legado.app.base.adapter.RecyclerAdapter
 import io.legado.app.constant.EventBus
@@ -34,11 +32,10 @@ import io.legado.app.utils.observeEvent
 import io.legado.app.utils.postEvent
 import io.legado.app.utils.putPrefString
 import io.legado.app.utils.sendToClip
-import io.legado.app.utils.setLayout
 import io.legado.app.utils.toastOnUi
 import io.legado.app.utils.viewbindingdelegate.viewBinding
 
-class HighlightRuleConfigDialog : BaseDialogFragment(R.layout.dialog_highlight_rule_config),
+class HighlightRuleConfigDialog : HighlightRuleBottomSheetFragment(R.layout.dialog_highlight_rule_config),
     PopupMenu.OnMenuItemClickListener {
 
     private val binding by viewBinding(DialogHighlightRuleConfigBinding::bind)
@@ -53,19 +50,8 @@ class HighlightRuleConfigDialog : BaseDialogFragment(R.layout.dialog_highlight_r
     private var previewBgColor = 0
     private var previewStrokeColor = 0
 
-    override fun onStart() {
-        super.onStart()
-        setLayout(ViewGroup.LayoutParams.MATCH_PARENT, 0.85f)
-        dialog?.window?.setGravity(Gravity.BOTTOM)
-        dialog?.window?.setBackgroundDrawableResource(R.drawable.shape_highlight_rule_sheet)
-    }
-
     override fun onFragmentCreated(view: View, savedInstanceState: Bundle?) {
         initTheme()
-        attachBottomSheetDismiss(
-            binding.dragHandle,
-            binding.sheetContainer
-        ) { dismissAllowingStateLoss() }
 
         binding.recyclerView.layoutManager = LinearLayoutManager(requireContext())
         binding.recyclerView.adapter = adapter

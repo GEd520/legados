@@ -4,12 +4,10 @@ import android.content.Context
 import android.graphics.PorterDuff
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
-import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.LinearLayoutManager
 import io.legado.app.R
-import io.legado.app.base.BaseDialogFragment
 import io.legado.app.base.adapter.ItemViewHolder
 import io.legado.app.base.adapter.RecyclerAdapter
 import io.legado.app.constant.EventBus
@@ -21,13 +19,12 @@ import io.legado.app.lib.theme.getPrimaryTextColor
 import io.legado.app.lib.theme.getSecondaryTextColor
 import io.legado.app.utils.ColorUtils
 import io.legado.app.utils.observeEvent
-import io.legado.app.utils.setLayout
 import io.legado.app.utils.viewbindingdelegate.viewBinding
 
 class HighlightPresetRuleDialog @JvmOverloads constructor(
     private val defaultGroup: String? = null,
     private val onAddRule: (HighlightRule) -> Unit = {},
-) : BaseDialogFragment(R.layout.dialog_highlight_preset_rule) {
+) : HighlightRuleBottomSheetFragment(R.layout.dialog_highlight_preset_rule) {
 
     private val binding by viewBinding(DialogHighlightPresetRuleBinding::bind)
     private val adapter by lazy { PresetRuleAdapter(requireContext()) }
@@ -39,19 +36,8 @@ class HighlightPresetRuleDialog @JvmOverloads constructor(
     private var cardStrokeColor = 0
     private var previewBgColor = 0
 
-    override fun onStart() {
-        super.onStart()
-        setLayout(ViewGroup.LayoutParams.MATCH_PARENT, 0.85f)
-        dialog?.window?.setGravity(Gravity.BOTTOM)
-        dialog?.window?.setBackgroundDrawableResource(R.drawable.shape_highlight_rule_sheet)
-    }
-
     override fun onFragmentCreated(view: View, savedInstanceState: Bundle?) {
         initTheme()
-        attachBottomSheetDismiss(
-            binding.dragHandle,
-            binding.sheetContainer
-        ) { dismissAllowingStateLoss() }
         binding.recyclerView.layoutManager = LinearLayoutManager(requireContext())
         binding.recyclerView.adapter = adapter
         adapter.setItems(presetRules)

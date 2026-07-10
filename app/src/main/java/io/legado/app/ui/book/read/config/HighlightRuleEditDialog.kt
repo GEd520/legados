@@ -4,10 +4,8 @@ import android.graphics.Color
 import android.graphics.PorterDuff
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
-import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
-import android.view.WindowManager
 import android.widget.ArrayAdapter
 import android.widget.SeekBar
 import androidx.annotation.ColorInt
@@ -15,7 +13,6 @@ import androidx.core.widget.doAfterTextChanged
 import com.jaredrummler.android.colorpicker.ColorPickerDialog
 import com.jaredrummler.android.colorpicker.ColorPickerDialogListener
 import io.legado.app.R
-import io.legado.app.base.BaseDialogFragment
 import io.legado.app.constant.EventBus
 import io.legado.app.databinding.DialogHighlightRuleEditBinding
 import io.legado.app.lib.theme.accentColor
@@ -25,7 +22,6 @@ import io.legado.app.lib.theme.getSecondaryTextColor
 import io.legado.app.utils.ColorUtils
 import io.legado.app.utils.RealPathUtil
 import io.legado.app.utils.observeEvent
-import io.legado.app.utils.setLayout
 import io.legado.app.utils.toastOnUi
 import io.legado.app.utils.viewbindingdelegate.viewBinding
 import io.legado.app.ui.book.read.page.entities.TextLine
@@ -35,7 +31,8 @@ class HighlightRuleEditDialog @JvmOverloads constructor(
     private val sourceRule: HighlightRule? = null,
     private val defaultGroup: String? = null,
     private val onSave: (HighlightRule) -> Unit = {},
-) : BaseDialogFragment(R.layout.dialog_highlight_rule_edit, true), ColorPickerDialogListener {
+) : HighlightRuleBottomSheetFragment(R.layout.dialog_highlight_rule_edit, true),
+    ColorPickerDialogListener {
 
     private val binding by viewBinding(DialogHighlightRuleEditBinding::bind)
     private lateinit var editingRule: HighlightRule
@@ -53,24 +50,12 @@ class HighlightRuleEditDialog @JvmOverloads constructor(
         }
     }
 
-    override fun onStart() {
-        super.onStart()
-        setLayout(ViewGroup.LayoutParams.MATCH_PARENT, 0.85f)
-        dialog?.window?.setGravity(Gravity.BOTTOM)
-        dialog?.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
-        dialog?.window?.setBackgroundDrawableResource(R.drawable.shape_highlight_rule_sheet)
-    }
-
     override fun onFragmentCreated(view: View, savedInstanceState: Bundle?) {
         initTheme()
         editingRule = sourceRule?.copy() ?: HighlightRule(
             group = defaultGroup ?: HighlightRuleGroupStore.DEFAULT_GROUP
         )
         groupItems = HighlightRuleGroupStore.load(requireContext())
-        attachBottomSheetDismiss(
-            binding.dragHandle,
-            binding.sheetContainer
-        ) { dismissAllowingStateLoss() }
 
         binding.tvPageTitle.text =
             getString(if (sourceRule == null) R.string.highlight_rule_add else R.string.highlight_rule_edit)
