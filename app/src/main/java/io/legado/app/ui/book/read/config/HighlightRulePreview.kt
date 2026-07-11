@@ -2,18 +2,18 @@ package io.legado.app.ui.book.read.config
 
 import android.text.SpannableStringBuilder
 import android.text.Spanned
-import android.text.style.BackgroundColorSpan
 import android.text.style.ForegroundColorSpan
 object HighlightRulePreview {
 
-    fun build(rule: HighlightRule): CharSequence {
+    fun build(rule: HighlightRule, defaultTextColor: Int = 0xFF111111.toInt()): CharSequence {
         val text = rule.normalizedSampleText()
         val spannable = SpannableStringBuilder(text)
         val regex = kotlin.runCatching { Regex(rule.pattern) }.getOrNull() ?: return spannable
-        regex.findAll(text).forEachIndexed { index, match ->
+        regex.findAll(text).forEach { match ->
             val start = match.range.first
             val end = match.range.last + 1
-            val textColor = rule.textColor ?: 0xFF111111.toInt()
+            if (start >= end) return@forEach
+            val textColor = rule.textColor ?: defaultTextColor
             val accentColor = rule.underlineColor ?: rule.textColor ?: 0xFF63C37D.toInt()
             val underlineWidth = rule.underlineWidth
             val underlineOffset = rule.underlineOffset
@@ -58,12 +58,14 @@ object HighlightRulePreview {
                                 Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
                             )
                         } else {
-                            spannable.setSpan(
-                                ForegroundColorSpan(textColor),
-                                start,
-                                end,
-                                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                            )
+                            rule.textColor?.let {
+                                spannable.setSpan(
+                                    ForegroundColorSpan(it),
+                                    start,
+                                    end,
+                                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                                )
+                            }
                         }
                     }
                     else -> {
@@ -93,24 +95,17 @@ object HighlightRulePreview {
                                 )
                             }
                             else -> {
-                                spannable.setSpan(
-                                    ForegroundColorSpan(textColor),
-                                    start,
-                                    end,
-                                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                                )
+                                rule.textColor?.let {
+                                    spannable.setSpan(
+                                        ForegroundColorSpan(it),
+                                        start,
+                                        end,
+                                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                                    )
+                                }
                             }
                         }
                     }
-                }
-                if (index == 0 && rule.underlineMode != 4 && rule.underlineMode != 5) {
-                    val baseColor = rule.textColor ?: rule.underlineColor ?: 0xFF63C37D.toInt()
-                    spannable.setSpan(
-                        BackgroundColorSpan((0x33 shl 24) or (baseColor and 0x00FFFFFF)),
-                        start,
-                        end,
-                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                    )
                 }
             }
         }

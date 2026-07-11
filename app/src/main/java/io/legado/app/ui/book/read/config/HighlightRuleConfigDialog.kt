@@ -384,7 +384,7 @@ class HighlightRuleConfigDialog : HighlightRuleBottomSheetFragment(R.layout.dial
             binding.tvTitle.text = item.name.ifBlank { getString(R.string.highlight_rule_unnamed) }
             binding.tvDesc.text = item.styleSummary()
             binding.tvPattern.text = "${item.group} / ${item.targetScopeLabel()} / ${item.displayPattern()}"
-            binding.tvPreview.text = HighlightRulePreview.build(item)
+            binding.tvPreview.text = HighlightRulePreview.build(item, primaryTextColor)
 
             val density = binding.root.context.resources.displayMetrics.density
             binding.root.background = GradientDrawable().apply {

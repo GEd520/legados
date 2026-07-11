@@ -182,6 +182,7 @@ class HighlightRuleEditDialog @JvmOverloads constructor(
         binding.tvBgImagePick.setTextColor(primaryTextColor)
         binding.etSampleText.setTextColor(primaryTextColor)
         binding.etSampleText.setHintTextColor(secondaryTextColor)
+        binding.tvPreview.setTextColor(primaryTextColor)
 
         binding.tvRegexToggle.setTextColor(primaryTextColor)
         binding.tvRegexToggle.background?.mutate()?.setTint(bg)
@@ -571,7 +572,8 @@ class HighlightRuleEditDialog @JvmOverloads constructor(
                 bgImage = bgInput.imagePath,
                 bgImageFit = binding.spBgImageFit.selectedItemPosition,
                 bgImageScale = (binding.sbBgImageScale.progress.coerceAtLeast(1) / 10f).coerceIn(0.1f, 5f)
-            )
+            ),
+            primaryTextColor
         )
     }
 
