@@ -3,6 +3,7 @@ package io.legado.app.ui.book.read.config
 import android.content.Context
 import io.legado.app.constant.PreferKey
 import io.legado.app.utils.GSON
+import io.legado.app.utils.MD5Utils
 import io.legado.app.utils.fromJsonArray
 import io.legado.app.utils.getPrefBoolean
 import io.legado.app.utils.getPrefString
@@ -20,9 +21,9 @@ object HighlightRuleStore {
         val rules: List<HighlightRule> = emptyList(),
         val groups: List<String> = emptyList(),
         val currentGroup: String = "",
-        val dialogEnabled: Boolean = true,
-        val bookTitleEnabled: Boolean = true,
-        val bracketNoteEnabled: Boolean = true,
+        val dialogEnabled: Boolean? = null,
+        val bookTitleEnabled: Boolean? = null,
+        val bracketNoteEnabled: Boolean? = null,
     )
 
     @Volatile
@@ -99,9 +100,9 @@ object HighlightRuleStore {
             safeRule.copy(bgImage = restoredBgImage)
         }
         save(context, rules)
-        context.putPrefBoolean(PreferKey.highlightRuleDialog, backupData.dialogEnabled)
-        context.putPrefBoolean(PreferKey.highlightRuleBookTitle, backupData.bookTitleEnabled)
-        context.putPrefBoolean(PreferKey.highlightRuleBracketNote, backupData.bracketNoteEnabled)
+        context.putPrefBoolean(PreferKey.highlightRuleDialog, backupData.dialogEnabled ?: true)
+        context.putPrefBoolean(PreferKey.highlightRuleBookTitle, backupData.bookTitleEnabled ?: true)
+        context.putPrefBoolean(PreferKey.highlightRuleBracketNote, backupData.bracketNoteEnabled ?: true)
         val groups = HighlightRuleGroupStore.load(context)
         context.putPrefString(
             PreferKey.highlightRuleCurrentGroup,
@@ -118,6 +119,14 @@ object HighlightRuleStore {
             .filter { it.exists() && it.isFile }
             .distinctBy { it.absolutePath }
             .toList()
+    }
+
+    fun backupBgFileName(path: String): String {
+        val extension = File(path).extension
+            .takeIf { it.length in 1..10 && it.all(Char::isLetterOrDigit) }
+            ?.let { ".$it" }
+            .orEmpty()
+        return "${MD5Utils.md5Encode(path)}$extension"
     }
 
     private fun createDefaultRules(context: Context): List<HighlightRule> {
@@ -358,18 +367,20 @@ object HighlightRuleStore {
     ): String? {
         val path = bgImage ?: return null
         if (path.isBlank() || path.startsWith("assets://")) return path
-        val rootPath = backupRootPath ?: return path
-        val backupFile = File(rootPath, "$backupBgDirName${File.separator}${File(path).name}")
-            .takeIf { it.exists() && it.isFile }
-            ?: return path
+        val originalFile = File(path)
+        val rootPath = backupRootPath ?: return path.takeIf { originalFile.isFile }
+        val backupDir = File(rootPath, backupBgDirName)
+        val backupFile = sequenceOf(
+            File(backupDir, backupBgFileName(path)),
+            File(backupDir, originalFile.name)
+        ).firstOrNull { it.isFile }
+            ?: return path.takeIf { originalFile.isFile }
         val dir = File(context.filesDir, "bg_images")
         if (!dir.exists()) {
             dir.mkdirs()
         }
-        val targetFile = File(dir, backupFile.name)
-        if (!targetFile.exists() || targetFile.length() != backupFile.length()) {
-            backupFile.copyTo(targetFile, overwrite = true)
-        }
+        val targetFile = File(dir, backupBgFileName(path))
+        backupFile.copyTo(targetFile, overwrite = true)
         return targetFile.absolutePath
     }
 

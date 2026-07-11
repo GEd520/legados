@@ -279,7 +279,8 @@ object Backup {
         if (bgFiles.isEmpty()) return
         val targetDir = File(rootPath, HighlightRuleStore.backupBgDirName).createFolderIfNotExist()
         bgFiles.forEach { bgFile ->
-            bgFile.copyTo(File(targetDir, bgFile.name), overwrite = true)
+            val backupName = HighlightRuleStore.backupBgFileName(bgFile.absolutePath)
+            bgFile.copyTo(File(targetDir, backupName), overwrite = true)
         }
     }
 
