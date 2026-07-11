@@ -4,11 +4,14 @@ import android.app.Dialog
 import android.content.DialogInterface
 import android.graphics.Color
 import android.os.Bundle
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.Window
 import android.view.WindowManager
 import android.widget.FrameLayout
 import androidx.annotation.LayoutRes
+import androidx.appcompat.view.WindowCallbackWrapper
 import androidx.fragment.app.FragmentManager
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
@@ -25,6 +28,7 @@ abstract class HighlightRuleBottomSheetFragment(
 ) : BottomSheetDialogFragment(layoutId) {
 
     private var onDismissListener: DialogInterface.OnDismissListener? = null
+    private var originalWindowCallback: Window.Callback? = null
 
     fun setOnDismissListener(listener: DialogInterface.OnDismissListener?) {
         onDismissListener = listener
@@ -81,13 +85,23 @@ abstract class HighlightRuleBottomSheetFragment(
             height = ViewGroup.LayoutParams.MATCH_PARENT
         }
 
-        BottomSheetBehavior.from(bottomSheet).apply {
+        val behavior = BottomSheetBehavior.from(bottomSheet).apply {
             peekHeight = sheetHeight
             skipCollapsed = true
             isHideable = true
             isDraggable = true
+            isDraggableOnNestedScroll = false
             state = BottomSheetBehavior.STATE_EXPANDED
         }
+        restrictDraggingToHeader(behavior)
+    }
+
+    override fun onStop() {
+        dialog?.window?.let { window ->
+            originalWindowCallback?.let { window.callback = it }
+        }
+        originalWindowCallback = null
+        super.onStop()
     }
 
     override fun onDismiss(dialog: DialogInterface) {
@@ -109,6 +123,41 @@ abstract class HighlightRuleBottomSheetFragment(
     abstract fun onFragmentCreated(view: View, savedInstanceState: Bundle?)
 
     open fun observeLiveBus() {
+    }
+
+    private fun restrictDraggingToHeader(behavior: BottomSheetBehavior<FrameLayout>) {
+        val window = dialog?.window ?: return
+        val sheet = view?.findViewById<View>(R.id.sheet_container) ?: return
+        val header = view?.findViewById<View>(R.id.drag_header) ?: return
+        val callback = window.callback ?: return
+        if (originalWindowCallback != null) return
+
+        originalWindowCallback = callback
+        window.callback = object : WindowCallbackWrapper(callback) {
+            override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+                if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                    behavior.isDraggable = event.isInsideHeader(sheet, header)
+                }
+                return super.dispatchTouchEvent(event).also {
+                    if (event.actionMasked == MotionEvent.ACTION_UP ||
+                        event.actionMasked == MotionEvent.ACTION_CANCEL
+                    ) {
+                        behavior.isDraggable = true
+                    }
+                }
+            }
+        }
+    }
+
+    private fun MotionEvent.isInsideHeader(sheet: View, header: View): Boolean {
+        val sheetLocation = IntArray(2)
+        val headerLocation = IntArray(2)
+        sheet.getLocationOnScreen(sheetLocation)
+        header.getLocationOnScreen(headerLocation)
+        return rawX >= sheetLocation[0] &&
+            rawX <= sheetLocation[0] + sheet.width &&
+            rawY >= sheetLocation[1] &&
+            rawY <= headerLocation[1] + header.height
     }
 
     private companion object {
