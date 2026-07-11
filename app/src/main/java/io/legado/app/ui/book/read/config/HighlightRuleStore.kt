@@ -74,6 +74,7 @@ object HighlightRuleStore {
         }
         cachedRules = normalized
         context.putPrefString(PreferKey.highlightRuleItems, GSON.toJson(normalized))
+        syncBuiltinEnabledPreferences(context, normalized)
         HighlightRuleGroupStore.ensureFromRules(context, normalized)
         val usedPaths = normalized.mapNotNull { it.bgImage }.toSet()
         TextLine.cleanupUnusedBgImages(context, usedPaths)
@@ -109,9 +110,15 @@ object HighlightRuleStore {
             safeRule.copy(bgImage = restoredBgImage)
         }
         save(context, rules)
-        context.putPrefBoolean(PreferKey.highlightRuleDialog, backupData.dialogEnabled ?: true)
-        context.putPrefBoolean(PreferKey.highlightRuleBookTitle, backupData.bookTitleEnabled ?: true)
-        context.putPrefBoolean(PreferKey.highlightRuleBracketNote, backupData.bracketNoteEnabled ?: true)
+        if (rules.none { it.id == "dialog_default" }) {
+            context.putPrefBoolean(PreferKey.highlightRuleDialog, backupData.dialogEnabled ?: true)
+        }
+        if (rules.none { it.id == "book_title_default" }) {
+            context.putPrefBoolean(PreferKey.highlightRuleBookTitle, backupData.bookTitleEnabled ?: true)
+        }
+        if (rules.none { it.id == "bracket_note_default" }) {
+            context.putPrefBoolean(PreferKey.highlightRuleBracketNote, backupData.bracketNoteEnabled ?: true)
+        }
         val groups = HighlightRuleGroupStore.load(context)
         context.putPrefString(
             PreferKey.highlightRuleCurrentGroup,
@@ -402,6 +409,18 @@ object HighlightRuleStore {
         }
         return garbledMarkers.any { inspectText.contains(it) } ||
             legacyBuiltinPatterns[rule.id] == rule.pattern
+    }
+
+    private fun syncBuiltinEnabledPreferences(context: Context, rules: List<HighlightRule>) {
+        rules.firstOrNull { it.id == "dialog_default" }?.let {
+            context.putPrefBoolean(PreferKey.highlightRuleDialog, it.enabled)
+        }
+        rules.firstOrNull { it.id == "book_title_default" }?.let {
+            context.putPrefBoolean(PreferKey.highlightRuleBookTitle, it.enabled)
+        }
+        rules.firstOrNull { it.id == "bracket_note_default" }?.let {
+            context.putPrefBoolean(PreferKey.highlightRuleBracketNote, it.enabled)
+        }
     }
 
     private val builtinIds = setOf(

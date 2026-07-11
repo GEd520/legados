@@ -33,6 +33,16 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/menu_enable_all"
+        android:title="@string/highlight_rule_enable_all"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/menu_disable_all"
+        android:title="@string/highlight_rule_disable_all"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/menu_share"
         android:icon="@drawable/ic_share"
         android:title="分享规则"

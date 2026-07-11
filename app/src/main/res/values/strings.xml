@@ -743,6 +743,12 @@
     <string name="highlight_rule_reset_confirm">Reset all highlight rules to default presets?</string>
     <string name="highlight_rule_delete_confirm">Delete rule \"%1$s\"?</string>
     <string name="highlight_rule_enabled">Enable this rule</string>
+    <string name="highlight_rule_enable_all">Enable all rules</string>
+    <string name="highlight_rule_disable_all">Disable all rules</string>
+    <string name="highlight_rule_enable_group">Enable this group</string>
+    <string name="highlight_rule_disable_group">Disable this group</string>
+    <string name="highlight_rule_batch_changed">Updated %d rules</string>
+    <string name="highlight_rule_enabled_count">%1$d rules · %2$d enabled</string>
     <string name="highlight_rule_name">Rule name</string>
     <string name="highlight_rule_name_hint">For example: dialogue, title, annotation</string>
     <string name="highlight_rule_name_required">Rule name cannot be empty</string>

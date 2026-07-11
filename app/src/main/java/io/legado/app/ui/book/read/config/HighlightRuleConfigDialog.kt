@@ -140,12 +140,27 @@ class HighlightRuleConfigDialog : HighlightRuleBottomSheetFragment(R.layout.dial
             R.id.menu_preset -> showPresetRules()
             R.id.menu_import -> importRulesFromClipboard()
             R.id.menu_group -> showGroupManager()
+            R.id.menu_enable_all -> setAllRulesEnabled(true)
+            R.id.menu_disable_all -> setAllRulesEnabled(false)
             R.id.menu_share -> shareRules(getFilteredRules())
             R.id.menu_export -> exportRulesToClipboard(getFilteredRules())
             R.id.menu_reset -> resetRules()
             else -> return false
         }
         return true
+    }
+
+    private fun setAllRulesEnabled(enabled: Boolean) {
+        val changed = rules.count { it.enabled != enabled }
+        if (changed == 0) {
+            context?.toastOnUi(getString(R.string.highlight_rule_batch_changed, 0))
+            return
+        }
+        rules.replaceAll { rule ->
+            if (rule.enabled == enabled) rule else rule.copy(enabled = enabled)
+        }
+        syncRules()
+        context?.toastOnUi(getString(R.string.highlight_rule_batch_changed, changed))
     }
 
     private fun loadRules() {

@@ -729,6 +729,12 @@
     <string name="highlight_rule_reset_confirm">将高亮规则恢复为默认预置？</string>
     <string name="highlight_rule_delete_confirm">删除规则“%1$s”？</string>
     <string name="highlight_rule_enabled">启用这条规则</string>
+    <string name="highlight_rule_enable_all">全部启用</string>
+    <string name="highlight_rule_disable_all">全部关闭</string>
+    <string name="highlight_rule_enable_group">启用该分组</string>
+    <string name="highlight_rule_disable_group">关闭该分组</string>
+    <string name="highlight_rule_batch_changed">已更新 %d 条规则</string>
+    <string name="highlight_rule_enabled_count">%1$d 条规则 · 已启用 %2$d 条</string>
     <string name="highlight_rule_name">规则名称</string>
     <string name="highlight_rule_name_hint">例如：对话、书名号、旁白注释</string>
     <string name="highlight_rule_name_required">规则名称不能为空</string>

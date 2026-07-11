@@ -25,6 +25,7 @@ import io.legado.app.utils.ColorUtils
 import io.legado.app.utils.GSON
 import io.legado.app.utils.dpToPx
 import io.legado.app.utils.observeEvent
+import io.legado.app.utils.postEvent
 import io.legado.app.utils.sendToClip
 import io.legado.app.utils.toastOnUi
 import io.legado.app.utils.viewbindingdelegate.viewBinding
@@ -202,6 +203,9 @@ class HighlightRuleGroupManageDialog @JvmOverloads constructor(
     private fun showItemMenu(group: String, anchor: View) {
         PopupMenu(requireContext(), anchor).apply {
             menuInflater.inflate(R.menu.highlight_rule_group_item, menu)
+            val groupRules = rules.filter { it.group == group }
+            menu.findItem(R.id.menu_enable_group)?.isVisible = groupRules.any { !it.enabled }
+            menu.findItem(R.id.menu_disable_group)?.isVisible = groupRules.any { it.enabled }
             if (group == HighlightRuleGroupStore.DEFAULT_GROUP) {
                 menu.findItem(R.id.menu_rename_group)?.isVisible = false
                 menu.findItem(R.id.menu_delete)?.isVisible = false
@@ -210,12 +214,27 @@ class HighlightRuleGroupManageDialog @JvmOverloads constructor(
                 when (item.itemId) {
                     R.id.menu_rename_group -> showGroupInputDialog(group)
                     R.id.menu_export_group -> exportGroup(group)
+                    R.id.menu_enable_group -> setGroupEnabled(group, true)
+                    R.id.menu_disable_group -> setGroupEnabled(group, false)
                     R.id.menu_delete -> deleteGroup(group)
                     else -> return@setOnMenuItemClickListener false
                 }
                 true
             }
         }.show()
+    }
+
+    private fun setGroupEnabled(group: String, enabled: Boolean) {
+        val changed = rules.count { it.group == group && it.enabled != enabled }
+        if (changed == 0) return
+        rules.replaceAll { rule ->
+            if (rule.group == group && rule.enabled != enabled) rule.copy(enabled = enabled) else rule
+        }
+        HighlightRuleStore.save(requireContext(), rules)
+        loadData()
+        onChanged(null, null)
+        postEvent(EventBus.UP_CONFIG, arrayListOf(5))
+        context?.toastOnUi(getString(R.string.highlight_rule_batch_changed, changed))
     }
 
     private fun groupCount(group: String): Int {
@@ -264,7 +283,12 @@ class HighlightRuleGroupManageDialog @JvmOverloads constructor(
 
             binding.tvTitle.text = item
             binding.tvTitle.setTextColor(primaryTextColor)
-            binding.tvCount.text = "${groupCount(item)} 条规则"
+            val groupRules = rules.filter { it.group == item }
+            binding.tvCount.text = getString(
+                R.string.highlight_rule_enabled_count,
+                groupRules.size,
+                groupRules.count { it.enabled }
+            )
             binding.tvCount.setTextColor(secondaryTextColor)
             binding.tvEdit.setTextColor(
                 if (ColorUtils.isColorLight(accentColor)) 0xFF000000.toInt() else 0xFFFFFFFF.toInt()
