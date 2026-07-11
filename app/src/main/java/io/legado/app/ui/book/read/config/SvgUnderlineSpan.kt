@@ -4,13 +4,17 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.text.style.ReplacementSpan
 import io.legado.app.utils.dpToPx
+import kotlin.math.roundToInt
 
 class SvgUnderlineSpan(
     private val textColor: Int,
     private val underlineColor: Int,
     private val underlineWidth: Float = 1f,
     private val svgPath: String,
+    private val underlineOffset: Float = 2f,
 ) : ReplacementSpan() {
+
+    private val offsetPx = underlineOffset.dpToPx()
 
     override fun getSize(
         paint: Paint,
@@ -23,8 +27,8 @@ class SvgUnderlineSpan(
             val metrics = paint.fontMetricsInt
             fm.top = metrics.top
             fm.ascent = metrics.ascent
-            fm.descent = metrics.descent
-            fm.bottom = metrics.bottom
+            fm.descent = metrics.descent + offsetPx.roundToInt()
+            fm.bottom = metrics.bottom + offsetPx.roundToInt()
         }
         return paint.measureText(text, start, end).toInt()
     }
@@ -52,7 +56,7 @@ class SvgUnderlineSpan(
                 val textWidth = paint.measureText(textStr)
                 val baseWidth = 100f
                 val baseY = 50f
-                val lineY = y + 6.dpToPx()
+                val lineY = y + offsetPx
                 
                 val underlinePaint = Paint(paint).apply {
                     color = underlineColor

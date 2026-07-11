@@ -4,6 +4,7 @@ data class HighlightRule(
     var id: String = System.currentTimeMillis().toString(),
     var name: String = "",
     var pattern: String = "",
+    var isRegex: Boolean? = null,
     var sampleText: String = "",
     var group: String = HighlightRuleGroupStore.DEFAULT_GROUP,
     var targetScope: Int = TARGET_ALL,
@@ -19,6 +20,10 @@ data class HighlightRule(
     var bgImageFit: Int = 0,
     var bgImageScale: Float = 1f,
 ) {
+
+    fun compilePattern(): Regex {
+        return Regex(if (isRegex == false) Regex.escape(pattern) else pattern)
+    }
 
     fun styleSummary(): String {
         val parts = ArrayList<String>(4)

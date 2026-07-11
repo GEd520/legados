@@ -110,6 +110,10 @@ class HighlightRuleGroupManageDialog @JvmOverloads constructor(
     }
 
     private fun showGroupInputDialog(source: String?) {
+        if (source == HighlightRuleGroupStore.DEFAULT_GROUP) {
+            context?.toastOnUi("默认分组不能重命名")
+            return
+        }
         val editText = EditText(requireContext()).apply {
             setText(source.orEmpty())
             setSelection(text.length)
@@ -199,6 +203,7 @@ class HighlightRuleGroupManageDialog @JvmOverloads constructor(
         PopupMenu(requireContext(), anchor).apply {
             menuInflater.inflate(R.menu.highlight_rule_group_item, menu)
             if (group == HighlightRuleGroupStore.DEFAULT_GROUP) {
+                menu.findItem(R.id.menu_rename_group)?.isVisible = false
                 menu.findItem(R.id.menu_delete)?.isVisible = false
             }
             setOnMenuItemClickListener { item: MenuItem ->

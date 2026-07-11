@@ -8,7 +8,7 @@ object HighlightRulePreview {
     fun build(rule: HighlightRule, defaultTextColor: Int = 0xFF111111.toInt()): CharSequence {
         val text = rule.normalizedSampleText()
         val spannable = SpannableStringBuilder(text)
-        val regex = kotlin.runCatching { Regex(rule.pattern) }.getOrNull() ?: return spannable
+        val regex = kotlin.runCatching { rule.compilePattern() }.getOrNull() ?: return spannable
         regex.findAll(text).forEach { match ->
             val start = match.range.first
             val end = match.range.last + 1
@@ -52,7 +52,7 @@ object HighlightRulePreview {
                         val svgPath = rule.underlineSvgPath
                         if (!svgPath.isNullOrBlank()) {
                             spannable.setSpan(
-                                SvgUnderlineSpan(textColor, accentColor, underlineWidth, svgPath),
+                                SvgUnderlineSpan(textColor, accentColor, underlineWidth, svgPath, underlineOffset),
                                 start,
                                 end,
                                 Spanned.SPAN_EXCLUSIVE_EXCLUSIVE

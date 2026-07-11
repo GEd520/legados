@@ -9,6 +9,7 @@ import android.graphics.Shader
 import android.text.style.ReplacementSpan
 import io.legado.app.ui.book.read.page.entities.TextLine
 import io.legado.app.utils.dpToPx
+import kotlin.math.roundToInt
 
 /**
  * 背景图+下划线 Span，用于高亮规则匹配区域
@@ -36,7 +37,7 @@ class BgImageSpan(
     private val underlineOffset: Float = 6f,
 ) : ReplacementSpan() {
 
-    private val offsetPx = underlineOffset.toInt().dpToPx()  // 距离转换为像素
+    private val preciseOffsetPx = underlineOffset.dpToPx()
 
     override fun getSize(
         paint: Paint,
@@ -49,8 +50,9 @@ class BgImageSpan(
             val metrics = paint.fontMetricsInt
             fm.top = metrics.top
             fm.ascent = metrics.ascent
-            fm.descent = metrics.descent + if (underlineMode != 0) offsetPx else 0
-            fm.bottom = metrics.bottom + if (underlineMode != 0) offsetPx else 0
+            val extraSpace = if (underlineMode != 0) preciseOffsetPx.roundToInt() else 0
+            fm.descent = metrics.descent + extraSpace
+            fm.bottom = metrics.bottom + extraSpace
         }
         return paint.measureText(text, start, end).toInt()
     }
@@ -126,11 +128,11 @@ class BgImageSpan(
         canvas.drawText(text, start, end, x, y.toFloat(), paint)
 
         if (underlineMode != 0) {
-            drawUnderline(canvas, x, x + width, y + offsetPx, paint)
+            drawUnderline(canvas, x, x + width, y + preciseOffsetPx, paint)
         }
     }
 
-    private fun drawUnderline(canvas: Canvas, startX: Float, endX: Float, lineY: Int, paint: Paint) {
+    private fun drawUnderline(canvas: Canvas, startX: Float, endX: Float, lineY: Float, paint: Paint) {
         val ulPaint = Paint(paint).apply {
             color = underlineColor
             style = Paint.Style.STROKE
@@ -138,18 +140,18 @@ class BgImageSpan(
             isAntiAlias = true
         }
         when (underlineMode) {
-            1 -> canvas.drawLine(startX, lineY.toFloat(), endX, lineY.toFloat(), ulPaint)
+            1 -> canvas.drawLine(startX, lineY, endX, lineY, ulPaint)
             2 -> {
                 ulPaint.pathEffect = android.graphics.DashPathEffect(floatArrayOf(10f, 10f), 0f)
-                canvas.drawLine(startX, lineY.toFloat(), endX, lineY.toFloat(), ulPaint)
+                canvas.drawLine(startX, lineY, endX, lineY, ulPaint)
             }
             3 -> {
                 val path = android.graphics.Path()
                 val waveAmplitude = 3.dpToPx().toFloat()
                 val waveLength = 12.dpToPx().toFloat()
-                path.moveTo(startX, lineY.toFloat())
+                path.moveTo(startX, lineY)
                 var currentX = startX
-                val endY = lineY.toFloat()
+                val endY = lineY
                 while (currentX < endX) {
                     val nextX = (currentX + waveLength).coerceAtMost(endX)
                     val midX = (currentX + nextX) / 2
@@ -167,7 +169,7 @@ class BgImageSpan(
             4 -> {
                 val lineGap = 3.dpToPx()
                 val line2Y = lineY + lineGap + underlineWidth.dpToPx()
-                canvas.drawLine(startX, lineY.toFloat(), endX, lineY.toFloat(), ulPaint)
+                canvas.drawLine(startX, lineY, endX, lineY, ulPaint)
                 canvas.drawLine(startX, line2Y, endX, line2Y, ulPaint)
             }
         }

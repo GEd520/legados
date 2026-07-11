@@ -132,7 +132,7 @@ class TextChapterLayout(
             kotlin.runCatching {
                 CompiledHighlightRule(
                     rule = rule,
-                    regex = Regex(rule.pattern)
+                    regex = rule.compilePattern()
                 )
             }.getOrNull()
         }
@@ -1398,7 +1398,7 @@ class TextChapterLayout(
 
     private fun applyHighlightRulesFromStore(spannable: SpannableStringBuilder): SpannableStringBuilder {
         HighlightRuleStore.loadEnabled(appCtx).forEach { rule ->
-            val regex = kotlin.runCatching { Regex(rule.pattern) }.getOrNull() ?: return@forEach
+            val regex = kotlin.runCatching { rule.compilePattern() }.getOrNull() ?: return@forEach
             applyRuleSpans(spannable, rule, regex)
         }
         return spannable
@@ -1654,7 +1654,8 @@ class TextChapterLayout(
             val textWidths1 = textWidths.subList(bodyIndent.length, textWidths.size)
             addCharsToLineMiddle(
                 book, absStartX, textLine, text1, textPaint,
-                desiredWidth, x, textWidths1, srcList, clickList, styledText, lineStart + bodyIndent.length
+                desiredWidth, x, textWidths1, srcList, clickList, styledText,
+                lineStart + words.take(bodyIndent.length).sumOf { it.length }
             )
         }
     }
@@ -1693,6 +1694,7 @@ class TextChapterLayout(
             val d = residualWidth / spaceSize
             textLine.wordSpacing = d
             var x = startX
+            var textIndex = lineStart
             for (index in words.indices) {
                 val char = words[index]
                 val cw = textWidths[index]
@@ -1704,9 +1706,10 @@ class TextChapterLayout(
                 addCharToLine(
                     book, absStartX, textLine, char,
                     x, x1, index + 1 == words.size, srcList,
-                    clickList, styledText, lineStart + index
+                    clickList, styledText, textIndex
                 )
                 x = x1
+                textIndex += char.length
             }
         } else {
             val gapCount: Int = words.lastIndex
@@ -1714,6 +1717,7 @@ class TextChapterLayout(
             textLine.extraLetterSpacingOffsetX = -d / 2
             textLine.extraLetterSpacing = d / textPaint.textSize
             var x = startX
+            var textIndex = lineStart
             for (index in words.indices) {
                 val char = words[index]
                 val cw = textWidths[index]
@@ -1721,9 +1725,10 @@ class TextChapterLayout(
                 addCharToLine(
                     book, absStartX, textLine, char,
                     x, x1, index + 1 == words.size, srcList,
-                    clickList, styledText, lineStart + index
+                    clickList, styledText, textIndex
                 )
                 x = x1
+                textIndex += char.length
             }
         }
         exceed(absStartX, textLine, words)
@@ -1747,6 +1752,7 @@ class TextChapterLayout(
     ) {
         val indentLength = paragraphIndent.length
         var x = startX
+        var textIndex = lineStart
         textLine.startX = absStartX + startX
         for (index in words.indices) {
             val char = words[index]
@@ -1763,9 +1769,10 @@ class TextChapterLayout(
                 srcList,
                 clickList,
                 styledText,
-                lineStart + index
+                textIndex
             )
             x = x1
+            textIndex += char.length
             if (hasIndent && index == indentLength - 1) {
                 textLine.indentWidth = x
             }

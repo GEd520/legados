@@ -5,6 +5,7 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.text.style.ReplacementSpan
 import io.legado.app.utils.dpToPx
+import kotlin.math.roundToInt
 
 /**
  * 波浪线下划线 Span
@@ -20,9 +21,9 @@ class WaveUnderlineSpan(
     private val underlineOffset: Float = 6f,
 ) : ReplacementSpan() {
 
-    private val offsetPx = underlineOffset.toInt().dpToPx()  // 距离转换为像素
+    private val preciseOffsetPx = underlineOffset.dpToPx()
+
     private val waveAmplitude = 3.dpToPx().toFloat()  // 波浪振幅
-    private val extraSpace = offsetPx + waveAmplitude.toInt()  // 额外空间（距离+振幅）
 
     override fun getSize(
         paint: Paint,
@@ -35,8 +36,9 @@ class WaveUnderlineSpan(
             val metrics = paint.fontMetricsInt
             fm.top = metrics.top
             fm.ascent = metrics.ascent
-            fm.descent = metrics.descent + extraSpace
-            fm.bottom = metrics.bottom + extraSpace
+            val preciseExtraSpace = (preciseOffsetPx + waveAmplitude).roundToInt()
+            fm.descent = metrics.descent + preciseExtraSpace
+            fm.bottom = metrics.bottom + preciseExtraSpace
         }
         return paint.measureText(text, start, end).toInt()
     }
@@ -57,7 +59,7 @@ class WaveUnderlineSpan(
         canvas.drawText(textStr, x, y.toFloat(), paint)
 
         val width = paint.measureText(text, start, end)
-        val lineY = y + offsetPx
+        val lineY = y + preciseOffsetPx
         val waveLength = 12.dpToPx().toFloat()
         val wavePaint = Paint(paint).apply {
             color = underlineColor
@@ -65,18 +67,18 @@ class WaveUnderlineSpan(
             strokeWidth = underlineWidth.dpToPx()
             isAntiAlias = true
         }
-        val path = Path().apply { moveTo(x, lineY.toFloat()) }
+        val path = Path().apply { moveTo(x, lineY) }
         var currentX = x
         val endX = x + width
         while (currentX < endX) {
             val nextX = (currentX + waveLength).coerceAtMost(endX)
             val midX = (currentX + nextX) / 2
-            path.quadTo(midX, lineY - waveAmplitude, nextX, lineY.toFloat())
+            path.quadTo(midX, lineY - waveAmplitude, nextX, lineY)
             currentX = nextX
             if (currentX < endX) {
                 val nextX2 = (currentX + waveLength).coerceAtMost(endX)
                 val midX2 = (currentX + nextX2) / 2
-                path.quadTo(midX2, lineY + waveAmplitude, nextX2, lineY.toFloat())
+                path.quadTo(midX2, lineY + waveAmplitude, nextX2, lineY)
                 currentX = nextX2
             }
         }

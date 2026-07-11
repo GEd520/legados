@@ -57,8 +57,10 @@ class HighlightRuleEditDialog @JvmOverloads constructor(
     override fun onFragmentCreated(view: View, savedInstanceState: Bundle?) {
         initTheme()
         editingRule = sourceRule?.copy() ?: HighlightRule(
-            group = defaultGroup ?: HighlightRuleGroupStore.DEFAULT_GROUP
+            group = defaultGroup ?: HighlightRuleGroupStore.DEFAULT_GROUP,
+            isRegex = false
         )
+        isRegexMode = editingRule.isRegex != false
         groupItems = HighlightRuleGroupStore.load(requireContext())
 
         binding.tvPageTitle.text =
@@ -95,6 +97,7 @@ class HighlightRuleEditDialog @JvmOverloads constructor(
 
         bindData()
         bindEvents()
+        updateRegexToggle()
         updatePreview()
     }
 
@@ -275,6 +278,7 @@ class HighlightRuleEditDialog @JvmOverloads constructor(
         binding.tvRegexToggle.setOnClickListener {
             isRegexMode = !isRegexMode
             updateRegexToggle()
+            updatePreview()
         }
         binding.tvWidthMinus.setOnClickListener {
             adjustWidth(-0.5f)
@@ -523,6 +527,7 @@ class HighlightRuleEditDialog @JvmOverloads constructor(
             id = editingRule.id.ifBlank { System.currentTimeMillis().toString() },
             name = name.ifBlank { pattern },
             pattern = pattern,
+            isRegex = isRegexMode,
             sampleText = binding.etSampleText.text?.toString().orEmpty(),
             group = groupItems.getOrElse(binding.spGroup.selectedItemPosition) {
                 HighlightRuleGroupStore.DEFAULT_GROUP
@@ -557,6 +562,7 @@ class HighlightRuleEditDialog @JvmOverloads constructor(
             editingRule.copy(
                 name = binding.etName.text?.toString().orEmpty(),
                 pattern = pattern,
+                isRegex = isRegexMode,
                 sampleText = binding.etSampleText.text?.toString().orEmpty(),
                 group = groupItems.getOrElse(binding.spGroup.selectedItemPosition) {
                     HighlightRuleGroupStore.DEFAULT_GROUP
@@ -579,6 +585,7 @@ class HighlightRuleEditDialog @JvmOverloads constructor(
 
     private fun validatePattern(pattern: String): String? {
         if (pattern.isBlank()) return null
+        if (!isRegexMode) return null
         return kotlin.runCatching { Regex(pattern) }.exceptionOrNull()?.localizedMessage
     }
 

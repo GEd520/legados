@@ -5,6 +5,7 @@ import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.text.style.ReplacementSpan
 import io.legado.app.utils.dpToPx
+import kotlin.math.roundToInt
 
 /**
  * 虚线下划线 Span
@@ -20,7 +21,7 @@ class DashUnderlineSpan(
     private val underlineOffset: Float = 6f,
 ) : ReplacementSpan() {
 
-    private val offsetPx = underlineOffset.toInt().dpToPx()  // 距离转换为像素
+    private val preciseOffsetPx = underlineOffset.dpToPx()
 
     override fun getSize(
         paint: Paint,
@@ -33,8 +34,8 @@ class DashUnderlineSpan(
             val metrics = paint.fontMetricsInt
             fm.top = metrics.top
             fm.ascent = metrics.ascent
-            fm.descent = metrics.descent + offsetPx
-            fm.bottom = metrics.bottom + offsetPx
+            fm.descent = metrics.descent + preciseOffsetPx.roundToInt()
+            fm.bottom = metrics.bottom + preciseOffsetPx.roundToInt()
         }
         return paint.measureText(text, start, end).toInt()
     }
@@ -55,7 +56,7 @@ class DashUnderlineSpan(
         canvas.drawText(textStr, x, y.toFloat(), paint)
 
         val width = paint.measureText(text, start, end)
-        val lineY = y + offsetPx
+        val lineY = y + preciseOffsetPx
         val dashPaint = Paint(paint).apply {
             color = underlineColor
             style = Paint.Style.STROKE
@@ -63,6 +64,6 @@ class DashUnderlineSpan(
             pathEffect = DashPathEffect(floatArrayOf(10f, 10f), 0f)
             isAntiAlias = true
         }
-        canvas.drawLine(x, lineY.toFloat(), x + width, lineY.toFloat(), dashPaint)
+        canvas.drawLine(x, lineY, x + width, lineY, dashPaint)
     }
 }
