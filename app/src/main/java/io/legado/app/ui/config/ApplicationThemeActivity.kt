@@ -38,6 +38,12 @@ private const val MENU_CREATE = 6101
 private const val MENU_IMPORT = 6102
 private const val MENU_EXPORT = 6103
 
+private data class ApplicationThemeListItem(
+    val config: ApplicationThemeManager.Config,
+    val summary: String,
+    val isCurrent: Boolean
+)
+
 class ApplicationThemeActivity : BaseActivity<ActivityThemeManageBinding>() {
 
     override val binding by viewBinding(ActivityThemeManageBinding::inflate)
@@ -89,7 +95,7 @@ class ApplicationThemeActivity : BaseActivity<ActivityThemeManageBinding>() {
         importTheme.launch {
             mode = HandleFileContract.FILE
             title = getString(R.string.application_theme_import)
-            allowExtensions = arrayOf("json")
+            allowExtensions = arrayOf("zip", "json")
         }
     }
 
@@ -101,7 +107,13 @@ class ApplicationThemeActivity : BaseActivity<ActivityThemeManageBinding>() {
                 contentResolver.openInputStream(uri)?.use { input ->
                     FileOutputStream(file).use { output -> input.copyTo(output) }
                 } ?: error(getString(R.string.file_not_exist))
-                withContext(Dispatchers.IO) { ApplicationThemeManager.importFile(file) }
+                withContext(Dispatchers.IO) {
+                    try {
+                        ApplicationThemeManager.importFile(file)
+                    } finally {
+                        file.delete()
+                    }
+                }
             }.onSuccess {
                 toastOnUi(R.string.import_success)
                 refresh()
@@ -119,7 +131,7 @@ class ApplicationThemeActivity : BaseActivity<ActivityThemeManageBinding>() {
                 exportTheme.launch {
                     mode = HandleFileContract.EXPORT
                     title = getString(R.string.application_theme_export)
-                    fileData = HandleFileContract.FileData(file.name, file, "application/json")
+                    fileData = HandleFileContract.FileData(file.name, file, "application/zip")
                     onlyOtherActions = true
                     otherActions = arrayListOf(
                         SelectItem(getString(R.string.sys_folder_picker), HandleFileContract.DIR),
@@ -134,10 +146,28 @@ class ApplicationThemeActivity : BaseActivity<ActivityThemeManageBinding>() {
     }
 
     private fun refresh() {
-        val items = ApplicationThemeManager.load()
-        adapter.setItems(items)
-        binding.tvMsg.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
-        binding.tvMsg.text = getString(R.string.application_theme_empty)
+        lifecycleScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    ApplicationThemeManager.load().map { config ->
+                        ApplicationThemeListItem(
+                            config = config,
+                            summary = ApplicationThemeManager.summary(this@ApplicationThemeActivity, config),
+                            isCurrent = ApplicationThemeManager.isCurrent(this@ApplicationThemeActivity, config)
+                        )
+                    }
+                }
+            }.onSuccess { items ->
+                    adapter.setItems(items)
+                    binding.tvMsg.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
+                    binding.tvMsg.text = getString(R.string.application_theme_empty)
+                }
+                .onFailure {
+                    adapter.setItems(emptyList())
+                    binding.tvMsg.visibility = View.VISIBLE
+                    binding.tvMsg.text = it.localizedMessage ?: getString(R.string.error)
+                }
+            }
     }
 
     private fun showNameDialog(config: ApplicationThemeManager.Config? = null) {
@@ -218,7 +248,7 @@ class ApplicationThemeActivity : BaseActivity<ActivityThemeManageBinding>() {
     }
 
     private inner class Adapter(context: Context) :
-        RecyclerAdapter<ApplicationThemeManager.Config, ItemThemeConfigBinding>(context) {
+        RecyclerAdapter<ApplicationThemeListItem, ItemThemeConfigBinding>(context) {
 
         override fun getViewBinding(parent: ViewGroup): ItemThemeConfigBinding {
             return ItemThemeConfigBinding.inflate(inflater, parent, false)
@@ -227,23 +257,23 @@ class ApplicationThemeActivity : BaseActivity<ActivityThemeManageBinding>() {
         override fun convert(
             holder: ItemViewHolder,
             binding: ItemThemeConfigBinding,
-            item: ApplicationThemeManager.Config,
+            item: ApplicationThemeListItem,
             payloads: MutableList<Any>
         ) = binding.run {
-            tvName.text = item.name
-            tvInfo.text = ApplicationThemeManager.summary(context, item)
+            val config = item.config
+            tvName.text = config.name
+            tvInfo.text = item.summary
             tvInfo.maxLines = 2
             tvBuiltin.visibility = View.GONE
             tvEdit.visibility = View.VISIBLE
             cbSelect.visibility = View.GONE
             ivShare.visibility = View.GONE
             ivDelete.visibility = View.GONE
-            val current = ApplicationThemeManager.isCurrent(context, item)
-            ivCurrent.visibility = if (current) View.VISIBLE else View.GONE
-            tvApply.text = getString(if (current) R.string.applied else R.string.apply)
-            val primary = runCatching { Color.parseColor(item.dayTheme?.primaryColor) }
+            ivCurrent.visibility = if (item.isCurrent) View.VISIBLE else View.GONE
+            tvApply.text = getString(if (item.isCurrent) R.string.applied else R.string.apply)
+            val primary = runCatching { Color.parseColor(config.dayTheme?.primaryColor) }
                 .getOrDefault(context.getColor(R.color.primary))
-            val background = runCatching { Color.parseColor(item.dayTheme?.backgroundColor) }
+            val background = runCatching { Color.parseColor(config.dayTheme?.backgroundColor) }
                 .getOrDefault(context.getColor(R.color.background))
             previewContainer.background = rounded(background)
             previewPrimary.background = rounded(primary)
@@ -253,16 +283,16 @@ class ApplicationThemeActivity : BaseActivity<ActivityThemeManageBinding>() {
 
         override fun registerListener(holder: ItemViewHolder, binding: ItemThemeConfigBinding) {
             binding.tvApply.setOnClickListener {
-                getItem(holder.layoutPosition)?.let(::apply)
+                getItem(holder.layoutPosition)?.config?.let(::apply)
             }
             binding.tvMore.setOnClickListener {
-                getItem(holder.layoutPosition)?.let(::showActions)
+                getItem(holder.layoutPosition)?.config?.let(::showActions)
             }
             binding.tvEdit.setOnClickListener {
-                getItem(holder.layoutPosition)?.let(::openEditor)
+                getItem(holder.layoutPosition)?.config?.let(::openEditor)
             }
             binding.root.setOnClickListener {
-                getItem(holder.layoutPosition)?.let(::apply)
+                getItem(holder.layoutPosition)?.config?.let(::apply)
             }
         }
 

@@ -22,7 +22,11 @@ class ApplicationThemeEditActivity : BaseActivity<ActivityApplicationThemeEditBi
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         val id = intent.getStringExtra(EXTRA_ID).orEmpty()
-        config = ApplicationThemeManager.find(id)
+        config = runCatching { ApplicationThemeManager.find(id) }.getOrElse {
+            toastOnUi(it.localizedMessage ?: getString(R.string.error))
+            finish()
+            return
+        }
         if (config == null) {
             toastOnUi(R.string.error)
             finish()
