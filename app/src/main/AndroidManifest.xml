@@ -246,6 +246,12 @@
             android:name=".ui.config.ThemeManageActivity"
             android:launchMode="standard" />
         <activity
+            android:name=".ui.config.ApplicationThemeActivity"
+            android:launchMode="standard" />
+        <activity
+            android:name=".ui.config.ApplicationThemeEditActivity"
+            android:launchMode="standard" />
+        <activity
             android:name=".ui.config.TopBarManageActivity"
             android:launchMode="standard" />
         <!-- 搜索界面 -->

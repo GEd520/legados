@@ -222,6 +222,7 @@ class ThemeConfigFragment : PreferenceFragment(),
 
             PreferKey.bgImage -> selectBgAction(false)
             PreferKey.bgImageN -> selectBgAction(true)
+            "applicationThemeManage" -> startActivity<ApplicationThemeActivity>()
             "themeList" -> startActivity<ThemeManageActivity>()
             "saveDayTheme",
             "saveNightTheme" -> alertSaveTheme(key)

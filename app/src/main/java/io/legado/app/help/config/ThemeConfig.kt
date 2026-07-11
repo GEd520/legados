@@ -306,7 +306,7 @@ object ThemeConfig {
         return null
     }
 
-    fun applyConfig(context: Context, config: Config) {
+    fun applyConfig(context: Context, config: Config, applyNow: Boolean = true) {
         try {
             if (needClearImg) {
                 needClearImg = false
@@ -373,8 +373,10 @@ object ThemeConfig {
                 context.putPrefString(PreferKey.bgImage, backgroundPath)
                 context.putPrefInt(PreferKey.bgImageBlurring, backgroundBlur)
             }
-            AppConfig.isNightTheme = isNightTheme
-            applyDayNight(context)
+            if (applyNow) {
+                AppConfig.isNightTheme = isNightTheme
+                applyDayNight(context)
+            }
         } catch (e: Exception) {
             AppLog.put("设置主题出错\n$e", e, true)
         }
