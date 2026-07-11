@@ -143,6 +143,7 @@ class BookshelfFragment1() : BaseBookshelfFragment(R.layout.fragment_bookshelf1)
                 bookGroups.clear()
                 bookGroups.addAll(data)
                 adapter.notifyDataSetChanged()
+                stabilizeMultilineTabs()
                 updateGroupSwitchTitle()
                 selectLastTab()
                 for (i in 0 until adapter.count) {
@@ -151,6 +152,24 @@ class BookshelfFragment1() : BaseBookshelfFragment(R.layout.fragment_bookshelf1)
                         true
                     }
                 }
+            }
+        }
+    }
+
+    private fun stabilizeMultilineTabs() {
+        bookGroups.forEachIndexed { index, group ->
+            if (!group.groupName.contains('\n') && !group.groupName.contains('\r')) return@forEachIndexed
+            tabLayout.getTabAt(index)?.customView = TextView(requireContext()).apply {
+                text = group.groupName.replace("\r\n", "\n").replace('\r', '\n')
+                gravity = Gravity.CENTER
+                includeFontPadding = false
+                setLines(2)
+                textSize = 14f
+                setTextColor(tabLayout.tabTextColors)
+                layoutParams = ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
             }
         }
     }
