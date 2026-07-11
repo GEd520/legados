@@ -92,6 +92,43 @@ class CoverGalleryRepository {
         refreshDefaultCover()
     }
 
+    suspend fun addImages(context: Context, groupId: Long, uris: List<Uri>): BatchAddResult =
+        withContext(IO) {
+            val uniqueUris = uris.distinct()
+            val existingPaths = dao.getGroupWithImagesNow(groupId)
+                ?.images
+                .orEmpty()
+                .mapTo(hashSetOf()) { it.path }
+            var nextOrder = (dao.getMaxImageOrder(groupId) ?: -1) + 1
+            var skippedCount = 0
+            var failedCount = 0
+            val images = ArrayList<CoverGalleryImage>(uniqueUris.size)
+
+            uniqueUris.forEach { uri ->
+                runCatching { copyImageToCovers(context, uri) }
+                    .onSuccess { path ->
+                        if (!existingPaths.add(path)) {
+                            skippedCount++
+                        } else {
+                            images.add(
+                                CoverGalleryImage(
+                                    groupId = groupId,
+                                    path = path,
+                                    order = nextOrder++
+                                )
+                            )
+                        }
+                    }
+                    .onFailure { failedCount++ }
+            }
+
+            if (images.isNotEmpty()) {
+                dao.insertImages(*images.toTypedArray())
+                refreshDefaultCover()
+            }
+            BatchAddResult(images.size, skippedCount, failedCount)
+        }
+
     suspend fun deleteImage(imageId: Long) {
         dao.deleteImage(imageId)
         refreshDefaultCover()
@@ -353,6 +390,12 @@ class CoverGalleryRepository {
     data class ZipImportResult(
         val groupName: String,
         val imageCount: Int
+    )
+
+    data class BatchAddResult(
+        val addedCount: Int,
+        val skippedCount: Int,
+        val failedCount: Int
     )
 
     class NoCoverGalleryImageException(message: String) : IllegalArgumentException(message)

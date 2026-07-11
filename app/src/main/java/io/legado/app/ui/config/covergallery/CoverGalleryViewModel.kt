@@ -63,6 +63,30 @@ class CoverGalleryViewModel : ViewModel() {
         }
     }
 
+    fun addImages(context: Context, groupId: Long, uris: List<Uri>) {
+        if (uris.isEmpty()) return
+        viewModelScope.launch {
+            runCatching {
+                repository.addImages(context.applicationContext, groupId, uris)
+            }.onSuccess { result ->
+                val details = buildList {
+                    add("成功添加 ${result.addedCount} 张")
+                    if (result.skippedCount > 0) add("跳过重复 ${result.skippedCount} 张")
+                    if (result.failedCount > 0) add("失败 ${result.failedCount} 张")
+                }
+                _messageDialog.value = CoverGalleryMessageDialog(
+                    title = if (result.failedCount == 0) "添加完成" else "部分图片添加失败",
+                    message = details.joinToString("，")
+                )
+            }.onFailure {
+                _messageDialog.value = CoverGalleryMessageDialog(
+                    title = "添加失败",
+                    message = it.localizedMessage ?: "无法添加所选图片"
+                )
+            }
+        }
+    }
+
     fun exportGroupZip(
         context: Context,
         groupWithImages: CoverGalleryGroupWithImages,
