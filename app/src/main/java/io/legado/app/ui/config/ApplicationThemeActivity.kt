@@ -2,6 +2,7 @@ package io.legado.app.ui.config
 
 import android.content.Context
 import android.graphics.Color
+import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.net.Uri
@@ -10,14 +11,18 @@ import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import io.legado.app.R
 import io.legado.app.base.BaseActivity
 import io.legado.app.base.adapter.ItemViewHolder
 import io.legado.app.base.adapter.RecyclerAdapter
+import io.legado.app.constant.EventBus
 import io.legado.app.databinding.ActivityThemeManageBinding
 import io.legado.app.databinding.ItemThemeConfigBinding
+import io.legado.app.help.config.AppConfig
 import io.legado.app.help.config.ApplicationThemeManager
+import io.legado.app.help.config.ThemeConfig
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.dialogs.SelectItem
 import io.legado.app.lib.dialogs.selector
@@ -25,6 +30,7 @@ import io.legado.app.ui.widget.recycler.VerticalDivider
 import io.legado.app.ui.file.HandleFileContract
 import io.legado.app.utils.externalFiles
 import io.legado.app.utils.getFile
+import io.legado.app.utils.observeEvent
 import io.legado.app.utils.toastOnUi
 import io.legado.app.utils.startActivity
 import io.legado.app.utils.viewbindingdelegate.viewBinding
@@ -32,6 +38,7 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.io.FileOutputStream
 
 private const val MENU_CREATE = 6101
@@ -70,6 +77,12 @@ class ApplicationThemeActivity : BaseActivity<ActivityThemeManageBinding>() {
     override fun onResume() {
         super.onResume()
         refresh()
+    }
+
+    override fun observeLiveBus() {
+        observeEvent<String>(EventBus.RECREATE) {
+            adapter.notifyDataSetChanged()
+        }
     }
 
     override fun onCompatCreateOptionsMenu(menu: Menu): Boolean {
@@ -271,14 +284,22 @@ class ApplicationThemeActivity : BaseActivity<ActivityThemeManageBinding>() {
             ivDelete.visibility = View.GONE
             ivCurrent.visibility = if (item.isCurrent) View.VISIBLE else View.GONE
             tvApply.text = getString(if (item.isCurrent) R.string.applied else R.string.apply)
-            val primary = runCatching { Color.parseColor(config.dayTheme?.primaryColor) }
-                .getOrDefault(context.getColor(R.color.primary))
-            val background = runCatching { Color.parseColor(config.dayTheme?.backgroundColor) }
-                .getOrDefault(context.getColor(R.color.background))
-            previewContainer.background = rounded(background)
-            previewPrimary.background = rounded(primary)
-            previewBar1.background = rounded(primary)
-            previewBar2.background = rounded(primary)
+            val isNight = AppConfig.isNightTheme
+            val previewTheme = if (isNight) config.nightTheme else config.dayTheme
+            val background = parseThemeColor(
+                previewTheme?.backgroundColor,
+                if (isNight) R.color.default_night_background else R.color.default_background
+            )
+            val primary = parseThemeColor(
+                previewTheme?.primaryColor,
+                if (isNight) R.color.default_night_primary else R.color.default_primary
+            )
+            previewContainer.elevation = 8.dp.toFloat()
+            previewContainer.translationZ = 2.dp.toFloat()
+            previewContainer.background = previewBackgroundDrawable(previewTheme, background)
+            previewPrimary.background = rounded(primary, 4f)
+            previewBar1.background = rounded(primary, 2f, 77)
+            previewBar2.background = rounded(primary, 2f, 51)
         }
 
         override fun registerListener(holder: ItemViewHolder, binding: ItemThemeConfigBinding) {
@@ -296,10 +317,35 @@ class ApplicationThemeActivity : BaseActivity<ActivityThemeManageBinding>() {
             }
         }
 
-        private fun rounded(color: Int) = GradientDrawable().apply {
+        private fun rounded(color: Int, radius: Float, opacity: Int = 255) = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
-            cornerRadius = 8f * resources.displayMetrics.density
+            cornerRadius = radius
             setColor(color)
+            alpha = opacity
         }
     }
+
+    private fun parseThemeColor(value: String?, fallback: Int): Int {
+        return runCatching { Color.parseColor(value) }
+            .getOrDefault(ContextCompat.getColor(this, fallback))
+    }
+
+    private fun previewBackgroundDrawable(
+        theme: ThemeConfig.Config?,
+        fallbackColor: Int
+    ): Drawable {
+        val path = theme?.backgroundImgPath
+        val image = when {
+            path.isNullOrBlank() -> null
+            path.startsWith("http", ignoreCase = true) -> null
+            File(path).isFile -> Drawable.createFromPath(path)
+            else -> null
+        }
+        return image ?: GradientDrawable().apply {
+            cornerRadius = 10f
+            setColor(fallbackColor)
+        }
+    }
+
+    private val Int.dp: Int get() = (this * resources.displayMetrics.density).toInt()
 }
