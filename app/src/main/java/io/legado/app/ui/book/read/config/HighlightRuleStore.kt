@@ -1,6 +1,8 @@
 package io.legado.app.ui.book.read.config
 
 import android.content.Context
+import androidx.annotation.Keep
+import com.google.gson.annotations.SerializedName
 import io.legado.app.constant.PreferKey
 import io.legado.app.utils.GSON
 import io.legado.app.utils.MD5Utils
@@ -17,12 +19,19 @@ object HighlightRuleStore {
     const val backupFileName = "highlightRule.json"
     const val backupBgDirName = "highlightRuleBg"
 
+    @Keep
     data class BackupData(
+        @SerializedName(value = "rules", alternate = ["a"])
         val rules: List<HighlightRule> = emptyList(),
+        @SerializedName(value = "groups", alternate = ["b"])
         val groups: List<String> = emptyList(),
+        @SerializedName(value = "currentGroup", alternate = ["c"])
         val currentGroup: String = "",
+        @SerializedName(value = "dialogEnabled", alternate = ["d"])
         val dialogEnabled: Boolean? = null,
+        @SerializedName(value = "bookTitleEnabled", alternate = ["e"])
         val bookTitleEnabled: Boolean? = null,
+        @SerializedName(value = "bracketNoteEnabled", alternate = ["f"])
         val bracketNoteEnabled: Boolean? = null,
     )
 

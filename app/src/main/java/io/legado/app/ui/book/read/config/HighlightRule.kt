@@ -1,23 +1,45 @@
 package io.legado.app.ui.book.read.config
 
+import androidx.annotation.Keep
+import com.google.gson.annotations.SerializedName
+
+@Keep
 data class HighlightRule(
+    @SerializedName(value = "id", alternate = ["a"])
     var id: String = System.currentTimeMillis().toString(),
+    @SerializedName(value = "name", alternate = ["b"])
     var name: String = "",
+    @SerializedName(value = "pattern", alternate = ["c"])
     var pattern: String = "",
+    @SerializedName(value = "isRegex", alternate = ["d"])
     var isRegex: Boolean? = null,
+    @SerializedName(value = "sampleText", alternate = ["e"])
     var sampleText: String = "",
+    @SerializedName(value = "group", alternate = ["f"])
     var group: String = HighlightRuleGroupStore.DEFAULT_GROUP,
+    @SerializedName(value = "targetScope", alternate = ["g"])
     var targetScope: Int = TARGET_ALL,
+    @SerializedName(value = "enabled", alternate = ["h"])
     var enabled: Boolean = true,
+    @SerializedName(value = "textColor", alternate = ["i"])
     var textColor: Int? = null,
+    @SerializedName(value = "underlineMode", alternate = ["j"])
     var underlineMode: Int = 0,
+    @SerializedName(value = "underlineColor", alternate = ["k"])
     var underlineColor: Int? = null,
+    @SerializedName(value = "underlineWidth", alternate = ["l"])
     var underlineWidth: Float = 1f,
+    @SerializedName(value = "underlineOffset", alternate = ["m"])
     var underlineOffset: Float = 2f,
+    @SerializedName(value = "underlineSvgPath", alternate = ["n"])
     var underlineSvgPath: String? = null,
+    @SerializedName(value = "backgroundColor", alternate = ["o"])
     var backgroundColor: Int? = null,
+    @SerializedName(value = "bgImage", alternate = ["p"])
     var bgImage: String? = null,
+    @SerializedName(value = "bgImageFit", alternate = ["q"])
     var bgImageFit: Int = 0,
+    @SerializedName(value = "bgImageScale", alternate = ["r"])
     var bgImageScale: Float = 1f,
 ) {
 

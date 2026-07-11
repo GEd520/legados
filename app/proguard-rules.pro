@@ -141,6 +141,10 @@ cn.hutool.core.util.**{*;}
 -keepnames class * extends java.lang.Throwable
 -keepclassmembernames,allowobfuscation class * extends java.lang.Throwable{*;}
 
+# Highlight rule backup JSON must stay compatible between debug and release builds.
+-keep class io.legado.app.ui.book.read.config.HighlightRule { *; }
+-keep class io.legado.app.ui.book.read.config.HighlightRuleStore$BackupData { *; }
+
 # Sora Editor
 -keep class org.eclipse.tm4e.** { *; }
 -keep class org.joni.** { *; }

@@ -356,7 +356,13 @@ object BackupFileValidator {
             val jsonObject = JSONObject(jsonText)
             val requiredFields = getRequiredObjectFields(fileName)
             val missingFields = requiredFields.filter { field ->
-                !jsonObject.has(field) || jsonObject.isNull(field)
+                val hasRequiredField = jsonObject.has(field) && !jsonObject.isNull(field)
+                val hasLegacyHighlightRules =
+                    fileName == HighlightRuleStore.backupFileName &&
+                        field == "rules" &&
+                        jsonObject.has("a") &&
+                        !jsonObject.isNull("a")
+                !hasRequiredField && !hasLegacyHighlightRules
             }
             if (missingFields.isNotEmpty()) {
                 return ValidationResult(
