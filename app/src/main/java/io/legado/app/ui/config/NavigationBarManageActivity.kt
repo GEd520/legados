@@ -198,7 +198,8 @@ class NavigationBarManageActivity : BaseActivity<ActivityNavigationBarManageBind
             isBuiltin = false,
             layoutMode = NavigationBarConfig.LAYOUT_FLOATING,
             effectMode = NavigationBarConfig.EFFECT_GLASS,
-            opacity = 100
+            opacity = 100,
+            borderColor = Color.TRANSPARENT
         )
 
         showEditDialog(config, isEdit) { updatedConfig ->
@@ -273,7 +274,7 @@ class NavigationBarManageActivity : BaseActivity<ActivityNavigationBarManageBind
                 addView(optionRow(getString(R.string.bottom_bar_border_color), config.borderColorText()) {
                     selectBorderColor(config)
                 })
-                if (config.borderColor != null) {
+                if (config.borderColor?.let { Color.alpha(it) > 0 } == true) {
                     addView(optionRow(getString(R.string.bottom_bar_border_alpha), "${config.borderAlpha}%") {
                         editBorderAlpha(config)
                     })
@@ -492,7 +493,7 @@ class NavigationBarManageActivity : BaseActivity<ActivityNavigationBarManageBind
         selector(getString(R.string.bottom_bar_border_color), actions) { _, index ->
             when (index) {
                 0 -> {
-                    config.borderColor = null
+                    config.borderColor = Color.TRANSPARENT
                     refreshEditDialog()
                 }
                 1 -> {
@@ -553,7 +554,9 @@ class NavigationBarManageActivity : BaseActivity<ActivityNavigationBarManageBind
     override fun onDialogDismissed(dialogId: Int) = Unit
 
     private fun NavigationBarConfig.borderColorText(): String {
-        return borderColor?.let { String.format("#%06X", 0xFFFFFF and it) }
+        return borderColor
+            ?.takeIf { Color.alpha(it) > 0 }
+            ?.let { String.format("#%06X", 0xFFFFFF and it) }
             ?: getString(R.string.transparent)
     }
 

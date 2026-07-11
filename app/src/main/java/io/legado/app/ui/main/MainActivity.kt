@@ -478,7 +478,11 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
 
     private fun resolveBottomNavigationBorderColor(config: NavigationBarConfig): Int? {
         return config.borderColor?.let {
-            ColorUtils.withAlpha(it, config.borderAlpha.coerceIn(0, 100) / 100f)
+            if (Color.alpha(it) == 0) {
+                Color.TRANSPARENT
+            } else {
+                ColorUtils.withAlpha(it, config.borderAlpha.coerceIn(0, 100) / 100f)
+            }
         }
     }
 
