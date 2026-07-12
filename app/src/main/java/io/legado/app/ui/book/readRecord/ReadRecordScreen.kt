@@ -1,8 +1,9 @@
 package io.legado.app.ui.book.readRecord
 
 import android.graphics.Bitmap
-import androidx.compose.animation.AnimatedVisibility
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -13,6 +14,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -21,11 +23,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -71,6 +80,35 @@ fun ReadRecordScreen(
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
     val topBarColors = readRecordTopBarColors()
     val searchFieldColor = readRecordCardContainerColor()
+    val searchFocusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+    var searchHasFocus by remember { mutableStateOf(false) }
+    var searchFieldValue by remember {
+        val text = state.searchKey.orEmpty()
+        mutableStateOf(TextFieldValue(text, TextRange(text.length)))
+    }
+
+    fun closeSearch() {
+        showSearch = false
+        focusManager.clearFocus()
+    }
+
+    BackHandler(enabled = showSearch && !state.isSelectionMode) {
+        closeSearch()
+    }
+
+    LaunchedEffect(showSearch, state.isSelectionMode) {
+        if (showSearch && !state.isSelectionMode) {
+            searchFocusRequester.requestFocus()
+        }
+    }
+
+    LaunchedEffect(state.searchKey) {
+        val text = state.searchKey.orEmpty()
+        if (text != searchFieldValue.text) {
+            searchFieldValue = TextFieldValue(text, TextRange(text.length))
+        }
+    }
 
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var pendingDeleteAction by remember { mutableStateOf<(() -> Unit)?>(null) }
@@ -208,67 +246,164 @@ fun ReadRecordScreen(
                 }
             } else {
                 PageTopBarContainer(colors = topBarColors) {
-                    TopAppBar(
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = Color.Transparent,
-                            scrolledContainerColor = Color.Transparent,
-                            navigationIconContentColor = topBarColors.contentColor,
-                            titleContentColor = topBarColors.contentColor,
-                            actionIconContentColor = topBarColors.contentColor
-                        ),
-                        title = {
-                            Column {
-                                Text(
-                                    text = "阅读记录",
-                                    style = MaterialTheme.typography.titleLarge.copy(fontSize = 20.sp, fontWeight = FontWeight.Medium)
-                                )
-                                Text(
-                                    text = when (displayMode) {
-                                        DisplayMode.AGGREGATE -> "汇总视图"
-                                        DisplayMode.TIMELINE -> "时间线视图"
-                                        DisplayMode.LATEST -> "最后阅读"
-                                        DisplayMode.READ_TIME -> "阅读时长"
+                    if (showSearch) {
+                        TopAppBar(
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = Color.Transparent,
+                                scrolledContainerColor = Color.Transparent,
+                                navigationIconContentColor = topBarColors.contentColor,
+                                titleContentColor = topBarColors.contentColor
+                            ),
+                            navigationIcon = {
+                                IconButton(onClick = ::closeSearch) {
+                                    Icon(Icons.Default.ArrowBack, contentDescription = "退出搜索")
+                                }
+                            },
+                            title = {
+                                val searchShape = RoundedCornerShape(8.dp)
+                                BasicTextField(
+                                    value = searchFieldValue,
+                                    onValueChange = { value ->
+                                        searchFieldValue = value
+                                        if (value.text != state.searchKey.orEmpty()) {
+                                            viewModel.setSearchKey(value.text)
+                                        }
                                     },
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = topBarColors.contentColor.copy(alpha = 0.72f)
-                                )
-                            }
-                        },
-                        navigationIcon = {
-                            IconButton(onClick = onBackClick) {
-                                Icon(Icons.Default.ArrowBack, contentDescription = "返回")
-                            }
-                        },
-                        actions = {
-                            IconButton(onClick = { showSearch = !showSearch }) {
-                                Icon(Icons.Default.Search, contentDescription = "搜索")
-                            }
-                            IconButton(onClick = { showCalendar = true }) {
-                                Icon(Icons.Default.CalendarMonth, contentDescription = "日历")
-                            }
-                            IconButton(onClick = {
-                                viewModel.setDisplayMode(
-                                    when (displayMode) {
-                                        DisplayMode.AGGREGATE -> DisplayMode.TIMELINE
-                                        DisplayMode.TIMELINE -> DisplayMode.LATEST
-                                        DisplayMode.LATEST -> DisplayMode.READ_TIME
-                                        DisplayMode.READ_TIME -> DisplayMode.AGGREGATE
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp)
+                                        .padding(end = 8.dp)
+                                        .focusRequester(searchFocusRequester)
+                                        .onFocusChanged { searchHasFocus = it.isFocused },
+                                    textStyle = MaterialTheme.typography.bodyMedium.copy(
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    ),
+                                    singleLine = true,
+                                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                                    decorationBox = { innerTextField ->
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .clip(searchShape)
+                                                .background(searchFieldColor)
+                                                .border(
+                                                    width = 1.dp,
+                                                    color = if (searchHasFocus) {
+                                                        MaterialTheme.colorScheme.primary
+                                                    } else {
+                                                        MaterialTheme.colorScheme.outline
+                                                    },
+                                                    shape = searchShape
+                                                )
+                                                .padding(start = 12.dp, end = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Search,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(20.dp),
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Box(
+                                                modifier = Modifier.weight(1f),
+                                                contentAlignment = Alignment.CenterStart
+                                            ) {
+                                                if (searchFieldValue.text.isEmpty()) {
+                                                    Text(
+                                                        text = "搜索书籍",
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        maxLines = 1
+                                                    )
+                                                }
+                                                innerTextField()
+                                            }
+                                            IconButton(
+                                                onClick = {
+                                                    if (searchFieldValue.text.isEmpty()) {
+                                                        closeSearch()
+                                                    } else {
+                                                        searchFieldValue = TextFieldValue("")
+                                                        viewModel.setSearchKey("")
+                                                    }
+                                                },
+                                                modifier = Modifier.size(40.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Clear,
+                                                    contentDescription = "清除或退出搜索",
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                        }
                                     }
                                 )
-                            }) {
-                                Icon(
-                                    imageVector = when (displayMode) {
-                                        DisplayMode.AGGREGATE -> Icons.Default.Timeline
-                                        DisplayMode.TIMELINE -> Icons.Default.List
-                                        DisplayMode.LATEST -> Icons.Default.AutoAwesome
-                                        DisplayMode.READ_TIME -> Icons.Default.Schedule
-                                    },
-                                    contentDescription = "切换视图"
-                                )
                             }
-                        },
-                        scrollBehavior = scrollBehavior
-                    )
+                        )
+                    } else {
+                        TopAppBar(
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = Color.Transparent,
+                                scrolledContainerColor = Color.Transparent,
+                                navigationIconContentColor = topBarColors.contentColor,
+                                titleContentColor = topBarColors.contentColor,
+                                actionIconContentColor = topBarColors.contentColor
+                            ),
+                            title = {
+                                Column {
+                                    Text(
+                                        text = "阅读记录",
+                                        style = MaterialTheme.typography.titleLarge.copy(fontSize = 20.sp, fontWeight = FontWeight.Medium)
+                                    )
+                                    Text(
+                                        text = when (displayMode) {
+                                            DisplayMode.AGGREGATE -> "汇总视图"
+                                            DisplayMode.TIMELINE -> "时间线视图"
+                                            DisplayMode.LATEST -> "最后阅读"
+                                            DisplayMode.READ_TIME -> "阅读时长"
+                                        },
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = topBarColors.contentColor.copy(alpha = 0.72f)
+                                    )
+                                }
+                            },
+                            navigationIcon = {
+                                IconButton(onClick = onBackClick) {
+                                    Icon(Icons.Default.ArrowBack, contentDescription = "返回")
+                                }
+                            },
+                            actions = {
+                                IconButton(onClick = { showSearch = true }) {
+                                    Icon(Icons.Default.Search, contentDescription = "搜索")
+                                }
+                                IconButton(onClick = { showCalendar = true }) {
+                                    Icon(Icons.Default.CalendarMonth, contentDescription = "日历")
+                                }
+                                IconButton(onClick = {
+                                    viewModel.setDisplayMode(
+                                        when (displayMode) {
+                                            DisplayMode.AGGREGATE -> DisplayMode.TIMELINE
+                                            DisplayMode.TIMELINE -> DisplayMode.LATEST
+                                            DisplayMode.LATEST -> DisplayMode.READ_TIME
+                                            DisplayMode.READ_TIME -> DisplayMode.AGGREGATE
+                                        }
+                                    )
+                                }) {
+                                    Icon(
+                                        imageVector = when (displayMode) {
+                                            DisplayMode.AGGREGATE -> Icons.Default.Timeline
+                                            DisplayMode.TIMELINE -> Icons.Default.List
+                                            DisplayMode.LATEST -> Icons.Default.AutoAwesome
+                                            DisplayMode.READ_TIME -> Icons.Default.Schedule
+                                        },
+                                        contentDescription = "切换视图"
+                                    )
+                                }
+                            },
+                            scrollBehavior = scrollBehavior
+                        )
+                    }
                 }
             }
         },
@@ -279,37 +414,6 @@ fun ReadRecordScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            AnimatedVisibility(visible = showSearch) {
-                OutlinedTextField(
-                    value = state.searchKey ?: "",
-                    onValueChange = { viewModel.setSearchKey(it) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    placeholder = { Text("搜索书籍") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                    trailingIcon = {
-                        if (state.searchKey?.isNotEmpty() == true) {
-                            IconButton(onClick = { viewModel.setSearchKey("") }) {
-                                Icon(Icons.Default.Clear, contentDescription = "清除")
-                            }
-                        }
-                    },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = searchFieldColor,
-                        unfocusedContainerColor = searchFieldColor,
-                        disabledContainerColor = searchFieldColor,
-                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                        focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    ),
-                    singleLine = true
-                )
-            }
-
             if (state.isLoading) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
