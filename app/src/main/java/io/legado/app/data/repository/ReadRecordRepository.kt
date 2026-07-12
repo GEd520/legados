@@ -174,14 +174,9 @@ class ReadRecordRepository(
 
     fun getTimelineSessions(
         query: String,
-        date: String?,
-        limit: Int
+        date: String?
     ): Flow<List<ReadRecordSession>> {
-        return dao.getTimelineSessions(query, date, limit)
-    }
-
-    fun getTimelineSessionCount(query: String, date: String?): Flow<Int> {
-        return dao.getTimelineSessionCount(query, date)
+        return dao.getTimelineSessions(query, date)
     }
 
     fun getBookSessions(bookName: String, bookAuthor: String): Flow<List<ReadRecordSession>> {
@@ -390,7 +385,14 @@ class ReadRecordRepository(
     }
 
     suspend fun deleteSession(session: ReadRecordSession) {
-        dao.deleteSession(session)
+        deleteSessions(session, listOf(session.id))
+    }
+
+    suspend fun deleteSessions(session: ReadRecordSession, sessionIds: List<Long>) {
+        if (sessionIds.isEmpty()) return
+        sessionIds.distinct().chunked(IMPORT_BATCH_SIZE).forEach { batch ->
+            dao.deleteSessionsByIds(batch)
+        }
 
         val dateString = formatDate(session.startTime)
         val remainingSessions =

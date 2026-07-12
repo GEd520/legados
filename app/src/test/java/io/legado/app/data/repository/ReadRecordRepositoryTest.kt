@@ -18,6 +18,40 @@ import java.time.ZoneId
 class ReadRecordRepositoryTest {
 
     @Test
+    fun deleteMergedTimelineSessionsRemovesTheWholeGroup() = runBlocking {
+        val dao = FakeReadRecordDao()
+        val repository = ReadRecordRepository(dao) { CURRENT_DEVICE_ID }
+        val start = LocalDateTime.of(2026, 7, 12, 10, 0)
+            .atZone(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+        val first = ReadRecordSession(1L, CURRENT_DEVICE_ID, "Book", "Author", start, start + 1_000L, 10L)
+        val second = ReadRecordSession(2L, CURRENT_DEVICE_ID, "Book", "Author", start + 2_000L, start + 3_000L, 20L)
+        val remaining = ReadRecordSession(3L, CURRENT_DEVICE_ID, "Book", "Author", start + 30_000L, start + 31_000L, 30L)
+        dao.insert(ReadRecord(CURRENT_DEVICE_ID, "Book", "Author", 3_000L, start + 31_000L))
+        dao.insertDetail(
+            ReadRecordDetail(
+                CURRENT_DEVICE_ID,
+                "Book",
+                "Author",
+                "2026-07-12",
+                3_000L,
+                60L,
+                start,
+                start + 31_000L
+            )
+        )
+        dao.insertSessions(listOf(first, second, remaining))
+
+        repository.deleteSessions(first, listOf(first.id, second.id))
+
+        assertEquals(1, dao.getSessionsCount())
+        val detail = dao.getDetail(CURRENT_DEVICE_ID, "Book", "Author", "2026-07-12")
+        assertEquals(1_000L, detail?.readTime)
+        assertEquals(30L, detail?.readWords)
+    }
+
+    @Test
     fun importAggregateOnlyBackupKeepsReadTime() = runBlocking {
         val dao = FakeReadRecordDao()
         val repository = ReadRecordRepository(dao) { CURRENT_DEVICE_ID }
@@ -396,6 +430,10 @@ class ReadRecordRepositoryTest {
             sessions.removeAll { it.id == session.id }
         }
 
+        override suspend fun deleteSessionsByIds(sessionIds: List<Long>) {
+            sessions.removeAll { it.id in sessionIds }
+        }
+
         override suspend fun clear() {
             records.clear()
         }
@@ -552,14 +590,9 @@ class ReadRecordRepositoryTest {
 
         override fun getTimelineSessions(
             query: String,
-            date: String?,
-            limit: Int
+            date: String?
         ): Flow<List<ReadRecordSession>> {
-            return flowOf(filteredTimelineSessions(query, date).take(limit).map { it.copy() })
-        }
-
-        override fun getTimelineSessionCount(query: String, date: String?): Flow<Int> {
-            return flowOf(filteredTimelineSessions(query, date).size)
+            return flowOf(filteredTimelineSessions(query, date).map { it.copy() })
         }
 
         override suspend fun getAllSessionsList(): List<ReadRecordSession> {

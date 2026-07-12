@@ -39,6 +39,9 @@ interface ReadRecordDao {
     @Delete
     suspend fun deleteSession(session: ReadRecordSession)
 
+    @Query("DELETE FROM readRecordSession WHERE id IN (:sessionIds)")
+    suspend fun deleteSessionsByIds(sessionIds: List<Long>)
+
     @Query("DELETE FROM readRecord")
     suspend fun clear()
 
@@ -138,20 +141,10 @@ interface ReadRecordDao {
         SELECT * FROM readRecordSession
         WHERE (:query = '' OR bookName LIKE '%' || :query || '%' OR bookAuthor LIKE '%' || :query || '%')
             AND (:date IS NULL OR date(startTime / 1000, 'unixepoch', 'localtime') = :date)
-        ORDER BY startTime DESC
-        LIMIT :limit
+        ORDER BY startTime DESC, id DESC
         """
     )
-    fun getTimelineSessions(query: String, date: String?, limit: Int): Flow<List<ReadRecordSession>>
-
-    @Query(
-        """
-        SELECT COUNT(*) FROM readRecordSession
-        WHERE (:query = '' OR bookName LIKE '%' || :query || '%' OR bookAuthor LIKE '%' || :query || '%')
-            AND (:date IS NULL OR date(startTime / 1000, 'unixepoch', 'localtime') = :date)
-        """
-    )
-    fun getTimelineSessionCount(query: String, date: String?): Flow<Int>
+    fun getTimelineSessions(query: String, date: String?): Flow<List<ReadRecordSession>>
 
     @Query("SELECT * FROM readRecordSession")
     suspend fun getAllSessionsList(): List<ReadRecordSession>

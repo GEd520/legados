@@ -13,7 +13,10 @@ import io.legado.app.data.repository.ReadRecordRepository
 import io.legado.app.utils.getPrefInt
 import io.legado.app.utils.putPrefInt
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -22,6 +25,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -32,6 +36,7 @@ import java.util.concurrent.ConcurrentHashMap
 import splitties.init.appCtx
 
 private typealias RecordIdentity = Triple<String, String, String>
+private data class BookMetadataKey(val bookName: String, val bookAuthor: String)
 
 data class ReadRecordUiState(
     val isLoading: Boolean = true,
@@ -39,7 +44,7 @@ data class ReadRecordUiState(
     val todayReadTime: Long = 0,
     val todayBookCount: Int = 0,
     val groupedRecords: Map<String, List<ReadRecordDetail>> = emptyMap(),
-    val timelineRecords: Map<String, List<ReadRecordSession>> = emptyMap(),
+    val timelineRecords: Map<String, List<TimelineSessionItem>> = emptyMap(),
     val latestRecords: List<ReadRecord> = emptyList(),
     val readTimeRecords: List<ReadRecord> = emptyList(),
     val selectedDate: LocalDate? = null,
@@ -47,8 +52,6 @@ data class ReadRecordUiState(
     val dailyReadCounts: Map<LocalDate, Int> = emptyMap(),
     val dailyReadTimes: Map<LocalDate, Long> = emptyMap(),
     val isTimelineLoaded: Boolean = false,
-    val timelineSessionCount: Int = 0,
-    val hasMoreTimelineSessions: Boolean = false,
     val isSelectionMode: Boolean = false,
     val selectedRecords: Set<RecordIdentity> = emptySet()
 )
@@ -66,8 +69,8 @@ class ReadRecordViewModel : ViewModel() {
     private val repository = ReadRecordRepository(appDb.readRecordDao)
     private val bookRepository = BookRepository()
 
-    private val coverPathCache = ConcurrentHashMap<String, String?>()
-    private val chapterTitleCache = ConcurrentHashMap<String, String?>()
+    private val coverPathCache = ConcurrentHashMap<BookMetadataKey, Deferred<String?>>()
+    private val chapterTitleCache = ConcurrentHashMap<BookMetadataKey, Deferred<String?>>()
 
     private val _displayMode = MutableStateFlow(loadDisplayMode())
     val displayMode = _displayMode.asStateFlow()
@@ -75,7 +78,6 @@ class ReadRecordViewModel : ViewModel() {
     private val _selectedDate = MutableStateFlow<LocalDate?>(null)
     private val _isSelectionMode = MutableStateFlow(false)
     private val _selectedRecords = MutableStateFlow<Set<RecordIdentity>>(emptySet())
-    private val _timelineSessionLimit = MutableStateFlow(TIMELINE_PAGE_SIZE)
 
     init {
         viewModelScope.launch {
@@ -111,25 +113,20 @@ class ReadRecordViewModel : ViewModel() {
     private val timelineDataFlow = combine(
         _searchKey,
         _displayMode,
-        _selectedDate,
-        _timelineSessionLimit
-    ) { query, displayMode, selectedDate, limit ->
+        _selectedDate
+    ) { query, displayMode, selectedDate ->
         TimelineLoadRequest(
             query = query,
             date = selectedDate?.format(DateTimeFormatter.ISO_LOCAL_DATE),
-            limit = limit,
             shouldLoad = displayMode == DisplayMode.TIMELINE
         )
     }.flatMapLatest { request ->
         if (request.shouldLoad) {
-            combine(
-                repository.getTimelineSessions(request.query, request.date, request.limit),
-                repository.getTimelineSessionCount(request.query, request.date)
-            ) { sessions, totalCount ->
-                TimelineLoadedData(request, sessions, totalCount)
+            repository.getTimelineSessions(request.query, request.date).map { sessions ->
+                TimelineLoadedData(request, sessions)
             }
         } else {
-            flowOf(TimelineLoadedData(request, emptyList(), 0))
+            flowOf(TimelineLoadedData(request, emptyList()))
         }
     }
 
@@ -148,8 +145,7 @@ class ReadRecordViewModel : ViewModel() {
                 details = base.details,
                 latestRecords = base.latestRecords,
                 sessions = timeline.sessions,
-                isTimelineLoaded = timeline.request.shouldLoad,
-                timelineTotalCount = timeline.totalCount
+                isTimelineLoaded = timeline.request.shouldLoad
             )
         } else {
             LoadedData(
@@ -158,8 +154,7 @@ class ReadRecordViewModel : ViewModel() {
                 details = base.details,
                 latestRecords = base.latestRecords,
                 sessions = emptyList(),
-                isTimelineLoaded = false,
-                timelineTotalCount = 0
+                isTimelineLoaded = false
             )
         }
     }
@@ -200,7 +195,7 @@ class ReadRecordViewModel : ViewModel() {
             .asSequence()
             .groupBy { it.startTime.toLocalDateString() }
             .mapValues { (_, sessions) ->
-                mergeContinuousSessions(sessions).reversed()
+                mergeContinuousReadRecordSessions(sessions).reversed()
             }
             .toSortedMap(compareByDescending { it })
 
@@ -271,9 +266,7 @@ class ReadRecordViewModel : ViewModel() {
             searchKey = searchKey,
             dailyReadCounts = dailyCounts,
             dailyReadTimes = dailyTimes,
-            isTimelineLoaded = data.isTimelineLoaded,
-            timelineSessionCount = data.sessions.size,
-            hasMoreTimelineSessions = data.sessions.size < data.timelineTotalCount
+            isTimelineLoaded = data.isTimelineLoaded
         )
     }.flowOn(Dispatchers.Default)
 
@@ -293,28 +286,16 @@ class ReadRecordViewModel : ViewModel() {
     )
 
     fun setSearchKey(query: String) {
-        _timelineSessionLimit.value = TIMELINE_PAGE_SIZE
         _searchKey.value = query
     }
 
     fun setDisplayMode(mode: DisplayMode) {
-        _timelineSessionLimit.value = TIMELINE_PAGE_SIZE
         _displayMode.value = mode
         appCtx.putPrefInt(PreferKey.readRecordDisplayMode, mode.ordinal)
     }
 
     fun setSelectedDate(date: LocalDate?) {
-        _timelineSessionLimit.value = TIMELINE_PAGE_SIZE
         _selectedDate.value = date
-    }
-
-    fun loadMoreTimelineSessions() {
-        if (_displayMode.value != DisplayMode.TIMELINE ||
-            !uiState.value.hasMoreTimelineSessions
-        ) {
-            return
-        }
-        _timelineSessionLimit.value += TIMELINE_PAGE_SIZE
     }
 
     fun deleteDetail(detail: ReadRecordDetail) {
@@ -323,6 +304,12 @@ class ReadRecordViewModel : ViewModel() {
 
     fun deleteSession(session: ReadRecordSession) {
         viewModelScope.launch { repository.deleteSession(session) }
+    }
+
+    fun deleteTimelineSession(item: TimelineSessionItem) {
+        viewModelScope.launch {
+            repository.deleteSessions(item.session, item.sourceSessionIds)
+        }
     }
 
     fun deleteReadRecord(record: ReadRecord) {
@@ -336,47 +323,26 @@ class ReadRecordViewModel : ViewModel() {
         }
     }
 
-    private fun mergeContinuousSessions(sessions: List<ReadRecordSession>): List<ReadRecordSession> {
-        if (sessions.isEmpty()) return emptyList()
-        val sortedSessions = sessions.sortedBy { it.startTime }
-        val mergedList = mutableListOf<ReadRecordSession>()
-        mergedList.add(sortedSessions.first().copy())
-
-        val gapLimit = 20 * 60 * 1000L
-
-        for (i in 1 until sortedSessions.size) {
-            val current = sortedSessions[i]
-            val last = mergedList.last()
-            if (current.bookName == last.bookName &&
-                current.bookAuthor == last.bookAuthor &&
-                (current.startTime - last.endTime) <= gapLimit
-            ) {
-                mergedList[mergedList.lastIndex] = last.copy(endTime = maxOf(last.endTime, current.endTime))
-            } else {
-                mergedList.add(current.copy())
-            }
-        }
-        return mergedList
-    }
-
     suspend fun getChapterTitle(bookName: String, bookAuthor: String, chapterIndexLong: Long): String? {
         return bookRepository.getChapterTitle(bookName, bookAuthor, chapterIndexLong.toInt())
     }
 
     suspend fun getBookDurChapterTitle(bookName: String, bookAuthor: String): String? {
-        val key = cacheKey(bookName, bookAuthor)
-        chapterTitleCache[key]?.let { return it }
-        val result = bookRepository.getBookDurChapterTitle(bookName, bookAuthor)
-        result?.let { chapterTitleCache[key] = it }
-        return result
+        val key = BookMetadataKey(bookName, bookAuthor)
+        return chapterTitleCache.computeIfAbsent(key) {
+            viewModelScope.async(Dispatchers.IO, start = CoroutineStart.LAZY) {
+                bookRepository.getBookDurChapterTitle(bookName, bookAuthor)
+            }
+        }.await()
     }
 
     suspend fun getBookCover(bookName: String, bookAuthor: String): String? {
-        val key = cacheKey(bookName, bookAuthor)
-        coverPathCache[key]?.let { return it }
-        val result = bookRepository.getBookCoverByNameAndAuthor(bookName, bookAuthor)
-        result?.let { coverPathCache[key] = it }
-        return result
+        val key = BookMetadataKey(bookName, bookAuthor)
+        return coverPathCache.computeIfAbsent(key) {
+            viewModelScope.async(Dispatchers.IO, start = CoroutineStart.LAZY) {
+                bookRepository.getBookCoverByNameAndAuthor(bookName, bookAuthor)
+            }
+        }.await()
     }
 
     fun getConfiguredDefaultCover(): String? {
@@ -462,7 +428,11 @@ class ReadRecordViewModel : ViewModel() {
             }
             DisplayMode.TIMELINE -> {
                 allIdentities.addAll(uiState.value.timelineRecords.values.flatten().map { 
-                    recordIdentity(it.deviceId, it.bookName, it.bookAuthor) 
+                    recordIdentity(
+                        it.session.deviceId,
+                        it.session.bookName,
+                        it.session.bookAuthor
+                    )
                 })
             }
         }
@@ -527,8 +497,7 @@ class ReadRecordViewModel : ViewModel() {
         val details: List<ReadRecordDetail>,
         val latestRecords: List<ReadRecord>,
         val sessions: List<ReadRecordSession>,
-        val isTimelineLoaded: Boolean,
-        val timelineTotalCount: Int
+        val isTimelineLoaded: Boolean
     )
 
     private data class BaseLoadedData(
@@ -541,21 +510,14 @@ class ReadRecordViewModel : ViewModel() {
     private data class TimelineLoadRequest(
         val query: String,
         val date: String?,
-        val limit: Int,
         val shouldLoad: Boolean
     )
 
     private data class TimelineLoadedData(
         val request: TimelineLoadRequest,
-        val sessions: List<ReadRecordSession>,
-        val totalCount: Int
+        val sessions: List<ReadRecordSession>
     )
 
-    private fun cacheKey(bookName: String, bookAuthor: String) = "$bookName|$bookAuthor"
-
-    private companion object {
-        const val TIMELINE_PAGE_SIZE = 300
-    }
 }
 
 private fun Long.toLocalDateString(): String {

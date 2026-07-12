@@ -19,6 +19,15 @@
         android:background="@drawable/bg_theme_preview_card"
         android:elevation="4dp">
 
+        <androidx.appcompat.widget.AppCompatImageView
+            android:id="@+id/preview_background"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:visibility="gone"
+            tools:src="@drawable/bg_theme_preview_card"
+            tools:visibility="visible" />
+
         <!-- 预览内容 -->
         <View
             android:id="@+id/preview_primary"

@@ -62,6 +62,8 @@ import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 
+private val timelineTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReadRecordScreen(
@@ -90,6 +92,8 @@ fun ReadRecordScreen(
     }
 
     fun closeSearch() {
+        searchFieldValue = TextFieldValue("")
+        viewModel.setSearchKey("")
         showSearch = false
         focusManager.clearFocus()
     }
@@ -551,8 +555,10 @@ private fun BookCoverImage(
 
 private fun loadReadRecordCoverBitmap(context: android.content.Context, coverPath: String?): Bitmap? {
     if (coverPath.isNullOrBlank()) return null
+    val density = context.resources.displayMetrics.density
     return runCatching {
         ImageLoader.loadBitmap(context, coverPath)
+            .override((48 * density).toInt(), (64 * density).toInt())
             .submit()
             .get()
     }.getOrNull()
@@ -598,7 +604,10 @@ private fun LazyListScope.RecordListContent(
         }
         DisplayMode.TIMELINE -> {
             state.timelineRecords.forEach { (date, sessions) ->
-                item(key = "timeline_header_$date") {
+                item(
+                    key = "timeline_header_$date",
+                    contentType = "timeline_header"
+                ) {
                     TimelineDateHeader(
                         date = date,
                         totalDuration = runCatching {
@@ -608,8 +617,10 @@ private fun LazyListScope.RecordListContent(
                 }
                 itemsIndexed(
                     items = sessions,
-                    key = { _, session -> "timeline_item_${date}|${session.id}" }
-                ) { index, session ->
+                    key = { _, item -> "timeline_item_${date}|${item.session.id}" },
+                    contentType = { _, _ -> "timeline_session" }
+                ) { index, item ->
+                    val session = item.session
                     TimelineSessionView(
                         session = session,
                         isLast = index == sessions.size - 1,
@@ -628,26 +639,10 @@ private fun LazyListScope.RecordListContent(
                                 viewModel.enterSelectionMode(session)
                             }
                         },
-                        onDelete = { onConfirmDelete { viewModel.deleteSession(session) } }
+                        onDelete = {
+                            onConfirmDelete { viewModel.deleteTimelineSession(item) }
+                        }
                     )
-                }
-            }
-            if (state.hasMoreTimelineSessions) {
-                item(key = "timeline_load_more_${state.timelineSessionCount}") {
-                    LaunchedEffect(state.timelineSessionCount) {
-                        viewModel.loadMoreTimelineSessions()
-                    }
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            strokeWidth = 2.dp
-                        )
-                    }
                 }
             }
         }
@@ -785,16 +780,23 @@ private fun TimelineSessionView(
     onLongClick: () -> Unit,
     onDelete: () -> Unit
 ) {
-    val startTime = formatTime(session.startTime)
+    val startTime = remember(session.startTime) { formatTime(session.startTime) }
     val timelineAccentColor = readRecordTimelineAccentColor()
     val secondaryTextColor = readRecordSecondaryTextColor()
-    
-    val deleteAction = rememberSwipeDeleteAction(onDelete)
-    var chapterTitle by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(session.bookName, session.bookAuthor) {
-        chapterTitle = viewModel.getBookDurChapterTitle(session.bookName, session.bookAuthor)
+    val deleteAction = rememberSwipeDeleteAction(onDelete)
+    var fallbackChapterTitle by remember(session.bookName, session.bookAuthor) {
+        mutableStateOf<String?>(null)
     }
+    LaunchedEffect(session.bookName, session.bookAuthor, session.durChapterTitle) {
+        fallbackChapterTitle = if (session.durChapterTitle.isBlank()) {
+            viewModel.getBookDurChapterTitle(session.bookName, session.bookAuthor)
+        } else {
+            null
+        }
+    }
+    val chapterTitle = session.durChapterTitle.ifBlank { fallbackChapterTitle.orEmpty() }
+        .ifBlank { null }
     
     if (isSelectionMode) {
         Row(
@@ -821,16 +823,13 @@ private fun TimelineSessionView(
                         modifier = Modifier
                             .width(2.dp)
                             .height(48.dp)
-                            .shadow(2.dp, RoundedCornerShape(1.dp), clip = false)
                             .background(timelineAccentColor.copy(alpha = 0.7f))
                     )
                 }
                 Surface(
                     shape = CircleShape,
                     color = timelineAccentColor,
-                    modifier = Modifier
-                        .size(12.dp)
-                        .shadow(3.dp, CircleShape, clip = false)
+                    modifier = Modifier.size(12.dp)
                 ) {}
             }
             
@@ -910,16 +909,13 @@ private fun TimelineSessionView(
                             modifier = Modifier
                                 .width(2.dp)
                                 .height(48.dp)
-                                .shadow(2.dp, RoundedCornerShape(1.dp), clip = false)
                                 .background(timelineAccentColor.copy(alpha = 0.7f))
                         )
                     }
                     Surface(
                         shape = CircleShape,
                         color = timelineAccentColor,
-                        modifier = Modifier
-                            .size(12.dp)
-                            .shadow(3.dp, CircleShape, clip = false)
+                        modifier = Modifier.size(12.dp)
                     ) {}
                 }
                 
@@ -1487,7 +1483,7 @@ private fun formatTime(timestamp: Long): String {
     return Instant.ofEpochMilli(timestamp)
         .atZone(ZoneId.systemDefault())
         .toLocalTime()
-        .format(DateTimeFormatter.ofPattern("HH:mm"))
+        .format(timelineTimeFormatter)
 }
 
 private fun formatTotalReadTime(totalMs: Long): String {

@@ -2,7 +2,6 @@ package io.legado.app.ui.config
 
 import android.content.Context
 import android.graphics.Color
-import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.net.Uri
@@ -13,6 +12,7 @@ import android.view.ViewGroup
 import android.widget.EditText
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.bumptech.glide.Glide
 import io.legado.app.R
 import io.legado.app.base.BaseActivity
 import io.legado.app.base.adapter.ItemViewHolder
@@ -22,7 +22,6 @@ import io.legado.app.databinding.ActivityThemeManageBinding
 import io.legado.app.databinding.ItemThemeConfigBinding
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.config.ApplicationThemeManager
-import io.legado.app.help.config.ThemeConfig
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.dialogs.SelectItem
 import io.legado.app.lib.dialogs.selector
@@ -296,7 +295,21 @@ class ApplicationThemeActivity : BaseActivity<ActivityThemeManageBinding>() {
             )
             previewContainer.elevation = 8.dp.toFloat()
             previewContainer.translationZ = 2.dp.toFloat()
-            previewContainer.background = previewBackgroundDrawable(previewTheme, background)
+            previewContainer.background = rounded(background, 10f)
+            val backgroundPath = previewTheme?.backgroundImgPath
+                ?.takeIf { !it.startsWith("http", ignoreCase = true) && File(it).isFile }
+            Glide.with(previewBackground).clear(previewBackground)
+            if (backgroundPath == null) {
+                previewBackground.visibility = View.GONE
+                previewBackground.setImageDrawable(null)
+            } else {
+                previewBackground.visibility = View.VISIBLE
+                Glide.with(previewBackground)
+                    .load(File(backgroundPath))
+                    .override(74.dp, 102.dp)
+                    .centerCrop()
+                    .into(previewBackground)
+            }
             previewPrimary.background = rounded(primary, 4f)
             previewBar1.background = rounded(primary, 2f, 77)
             previewBar2.background = rounded(primary, 2f, 51)
@@ -328,23 +341,6 @@ class ApplicationThemeActivity : BaseActivity<ActivityThemeManageBinding>() {
     private fun parseThemeColor(value: String?, fallback: Int): Int {
         return runCatching { Color.parseColor(value) }
             .getOrDefault(ContextCompat.getColor(this, fallback))
-    }
-
-    private fun previewBackgroundDrawable(
-        theme: ThemeConfig.Config?,
-        fallbackColor: Int
-    ): Drawable {
-        val path = theme?.backgroundImgPath
-        val image = when {
-            path.isNullOrBlank() -> null
-            path.startsWith("http", ignoreCase = true) -> null
-            File(path).isFile -> Drawable.createFromPath(path)
-            else -> null
-        }
-        return image ?: GradientDrawable().apply {
-            cornerRadius = 10f
-            setColor(fallbackColor)
-        }
     }
 
     private val Int.dp: Int get() = (this * resources.displayMetrics.density).toInt()
