@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -45,6 +46,9 @@ data class ReadRecordUiState(
     val searchKey: String? = null,
     val dailyReadCounts: Map<LocalDate, Int> = emptyMap(),
     val dailyReadTimes: Map<LocalDate, Long> = emptyMap(),
+    val isTimelineLoaded: Boolean = false,
+    val timelineSessionCount: Int = 0,
+    val hasMoreTimelineSessions: Boolean = false,
     val isSelectionMode: Boolean = false,
     val selectedRecords: Set<RecordIdentity> = emptySet()
 )
@@ -71,6 +75,7 @@ class ReadRecordViewModel : ViewModel() {
     private val _selectedDate = MutableStateFlow<LocalDate?>(null)
     private val _isSelectionMode = MutableStateFlow(false)
     private val _selectedRecords = MutableStateFlow<Set<RecordIdentity>>(emptySet())
+    private val _timelineSessionLimit = MutableStateFlow(TIMELINE_PAGE_SIZE)
 
     init {
         viewModelScope.launch {
@@ -92,37 +97,80 @@ class ReadRecordViewModel : ViewModel() {
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    private val loadedDataFlow = _searchKey
-        .flatMapLatest { query ->
-            combine(
-                repository.getAllRecordDetails(query),
-                repository.getLatestReadRecords(query),
-                repository.getAllSessions(),
-                repository.getTotalReadTime()
-            ) { details, latest, sessions, totalTime ->
-                LoadedData(totalTime, details, latest, sessions)
-            }
+    private val baseDataFlow = _searchKey.flatMapLatest { query ->
+        combine(
+            repository.getAllRecordDetails(query),
+            repository.getLatestReadRecords(query),
+            repository.getTotalReadTime()
+        ) { details, latest, totalTime ->
+            BaseLoadedData(query, totalTime, details, latest)
         }
+    }
 
-    val uiState: StateFlow<ReadRecordUiState> = combine(
-        loadedDataFlow,
-        _selectedDate,
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val timelineDataFlow = combine(
         _searchKey,
-        _isSelectionMode,
-        _selectedRecords
-    ) { data, selectedDate, searchKey, isSelectionMode, selectedRecords ->
+        _displayMode,
+        _selectedDate,
+        _timelineSessionLimit
+    ) { query, displayMode, selectedDate, limit ->
+        TimelineLoadRequest(
+            query = query,
+            date = selectedDate?.format(DateTimeFormatter.ISO_LOCAL_DATE),
+            limit = limit,
+            shouldLoad = displayMode == DisplayMode.TIMELINE
+        )
+    }.flatMapLatest { request ->
+        if (request.shouldLoad) {
+            combine(
+                repository.getTimelineSessions(request.query, request.date, request.limit),
+                repository.getTimelineSessionCount(request.query, request.date)
+            ) { sessions, totalCount ->
+                TimelineLoadedData(request, sessions, totalCount)
+            }
+        } else {
+            flowOf(TimelineLoadedData(request, emptyList(), 0))
+        }
+    }
+
+    private val loadedDataFlow = combine(
+        baseDataFlow,
+        timelineDataFlow,
+        _selectedDate
+    ) { base, timeline, selectedDate ->
+        val expectedDate = selectedDate?.format(DateTimeFormatter.ISO_LOCAL_DATE)
+        val timelineMatches = base.searchKey == timeline.request.query &&
+            expectedDate == timeline.request.date
+        if (timelineMatches) {
+            LoadedData(
+                searchKey = base.searchKey,
+                totalReadTime = base.totalReadTime,
+                details = base.details,
+                latestRecords = base.latestRecords,
+                sessions = timeline.sessions,
+                isTimelineLoaded = timeline.request.shouldLoad,
+                timelineTotalCount = timeline.totalCount
+            )
+        } else {
+            LoadedData(
+                searchKey = base.searchKey,
+                totalReadTime = base.totalReadTime,
+                details = base.details,
+                latestRecords = base.latestRecords,
+                sessions = emptyList(),
+                isTimelineLoaded = false,
+                timelineTotalCount = 0
+            )
+        }
+    }
+
+    private val contentStateFlow = combine(
+        loadedDataFlow,
+        _selectedDate
+    ) { data, selectedDate ->
+        val searchKey = data.searchKey
         val today = LocalDate.now()
         val dateStr = selectedDate?.format(DateTimeFormatter.ISO_LOCAL_DATE)
-
-        val searchedSessions = data.sessions.filter { session ->
-            searchKey.isEmpty() ||
-                session.bookName.contains(searchKey, ignoreCase = true) ||
-                session.bookAuthor.contains(searchKey, ignoreCase = true)
-        }
-
-        val mergedDailySessions = searchedSessions
-            .groupBy { it.startTime.toLocalDateString() }
-            .mapValues { (_, sessions) -> mergeContinuousSessions(sessions) }
 
         val detailsWithDate = data.details.mapNotNull { detail ->
             parseDetailDate(detail.date)?.let { it to detail }
@@ -148,12 +196,8 @@ class ReadRecordViewModel : ViewModel() {
             dateStr == null || detail.date == dateStr
         }
 
-        val timelineMap = searchedSessions
+        val timelineMap = data.sessions
             .asSequence()
-            .filter { session ->
-                val sDate = session.startTime.toLocalDateString()
-                dateStr == null || sDate == dateStr
-            }
             .groupBy { it.startTime.toLocalDateString() }
             .mapValues { (_, sessions) ->
                 mergeContinuousSessions(sessions).reversed()
@@ -209,12 +253,17 @@ class ReadRecordViewModel : ViewModel() {
             }.sortedByDescending { it.readTime }
         }
 
+        val groupedRecords = filteredDetails
+            .groupBy { it.date }
+            .toSortedMap(compareByDescending { it })
+            .mapValues { (_, details) -> details.sortedByDescending { it.readTime } }
+
         ReadRecordUiState(
             isLoading = false,
             totalReadTime = data.totalReadTime,
             todayReadTime = todayReadTime,
             todayBookCount = todayBookCount,
-            groupedRecords = filteredDetails.groupBy { it.date },
+            groupedRecords = groupedRecords,
             timelineRecords = timelineMap,
             latestRecords = latestRecords,
             readTimeRecords = readTimeRecords,
@@ -222,27 +271,50 @@ class ReadRecordViewModel : ViewModel() {
             searchKey = searchKey,
             dailyReadCounts = dailyCounts,
             dailyReadTimes = dailyTimes,
+            isTimelineLoaded = data.isTimelineLoaded,
+            timelineSessionCount = data.sessions.size,
+            hasMoreTimelineSessions = data.sessions.size < data.timelineTotalCount
+        )
+    }.flowOn(Dispatchers.Default)
+
+    val uiState: StateFlow<ReadRecordUiState> = combine(
+        contentStateFlow,
+        _isSelectionMode,
+        _selectedRecords
+    ) { contentState, isSelectionMode, selectedRecords ->
+        contentState.copy(
             isSelectionMode = isSelectionMode,
             selectedRecords = selectedRecords
         )
-    }.flowOn(Dispatchers.Default)
-        .stateIn(
+    }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = ReadRecordUiState(isLoading = true)
     )
 
     fun setSearchKey(query: String) {
+        _timelineSessionLimit.value = TIMELINE_PAGE_SIZE
         _searchKey.value = query
     }
 
     fun setDisplayMode(mode: DisplayMode) {
+        _timelineSessionLimit.value = TIMELINE_PAGE_SIZE
         _displayMode.value = mode
         appCtx.putPrefInt(PreferKey.readRecordDisplayMode, mode.ordinal)
     }
 
     fun setSelectedDate(date: LocalDate?) {
+        _timelineSessionLimit.value = TIMELINE_PAGE_SIZE
         _selectedDate.value = date
+    }
+
+    fun loadMoreTimelineSessions() {
+        if (_displayMode.value != DisplayMode.TIMELINE ||
+            !uiState.value.hasMoreTimelineSessions
+        ) {
+            return
+        }
+        _timelineSessionLimit.value += TIMELINE_PAGE_SIZE
     }
 
     fun deleteDetail(detail: ReadRecordDetail) {
@@ -450,13 +522,40 @@ class ReadRecordViewModel : ViewModel() {
     }
 
     private data class LoadedData(
+        val searchKey: String,
         val totalReadTime: Long,
         val details: List<ReadRecordDetail>,
         val latestRecords: List<ReadRecord>,
-        val sessions: List<ReadRecordSession>
+        val sessions: List<ReadRecordSession>,
+        val isTimelineLoaded: Boolean,
+        val timelineTotalCount: Int
+    )
+
+    private data class BaseLoadedData(
+        val searchKey: String,
+        val totalReadTime: Long,
+        val details: List<ReadRecordDetail>,
+        val latestRecords: List<ReadRecord>
+    )
+
+    private data class TimelineLoadRequest(
+        val query: String,
+        val date: String?,
+        val limit: Int,
+        val shouldLoad: Boolean
+    )
+
+    private data class TimelineLoadedData(
+        val request: TimelineLoadRequest,
+        val sessions: List<ReadRecordSession>,
+        val totalCount: Int
     )
 
     private fun cacheKey(bookName: String, bookAuthor: String) = "$bookName|$bookAuthor"
+
+    private companion object {
+        const val TIMELINE_PAGE_SIZE = 300
+    }
 }
 
 private fun Long.toLocalDateString(): String {

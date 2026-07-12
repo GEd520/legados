@@ -149,12 +149,7 @@ class ReadRecordRepository(
     }
 
     fun getTotalReadTime(): Flow<Long> {
-        return combine(
-            dao.getAllReadRecordsSortedByLastRead(),
-            dao.getAllDetails()
-        ) { records, details ->
-            applyDetailReadTimes(records, details).sumOf { it.readTime }
-        }
+        return dao.getNormalizedTotalReadTime()
     }
 
     fun getLatestReadRecords(query: String = ""): Flow<List<ReadRecord>> {
@@ -175,6 +170,18 @@ class ReadRecordRepository(
 
     fun getAllSessions(): Flow<List<ReadRecordSession>> {
         return dao.getAllSessions()
+    }
+
+    fun getTimelineSessions(
+        query: String,
+        date: String?,
+        limit: Int
+    ): Flow<List<ReadRecordSession>> {
+        return dao.getTimelineSessions(query, date, limit)
+    }
+
+    fun getTimelineSessionCount(query: String, date: String?): Flow<Int> {
+        return dao.getTimelineSessionCount(query, date)
     }
 
     fun getBookSessions(bookName: String, bookAuthor: String): Flow<List<ReadRecordSession>> {

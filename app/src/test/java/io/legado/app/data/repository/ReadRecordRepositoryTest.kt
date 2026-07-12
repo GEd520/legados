@@ -436,6 +436,20 @@ class ReadRecordRepositoryTest {
             return flowOf(records.sumOf { it.readTime })
         }
 
+        override fun getNormalizedTotalReadTime(): Flow<Long> {
+            val detailTotals = details
+                .groupBy { Triple(it.deviceId, it.bookName, it.bookAuthor) }
+                .mapValues { (_, items) -> items.sumOf { it.readTime } }
+            return flowOf(
+                records.sumOf { record ->
+                    maxOf(
+                        record.readTime,
+                        detailTotals[Triple(record.deviceId, record.bookName, record.bookAuthor)] ?: 0L
+                    )
+                }
+            )
+        }
+
         override fun getReadTimeFlow(deviceId: String, bookName: String, bookAuthor: String): Flow<Long?> {
             return flowOf(
                 records.firstOrNull {
@@ -454,6 +468,16 @@ class ReadRecordRepositoryTest {
 
         override val all: List<ReadRecord>
             get() = records.map { it.copy() }
+
+        override suspend fun getAllReadRecords(limit: Int, offset: Int): List<ReadRecord> {
+            return records
+                .sortedWith(compareBy<ReadRecord> { it.deviceId }.thenBy { it.bookName }.thenBy { it.bookAuthor })
+                .drop(offset)
+                .take(limit)
+                .map { it.copy() }
+        }
+
+        override fun getReadRecordCount(): Int = records.size
 
         override fun searchReadRecordsByLastRead(query: String): Flow<List<ReadRecord>> {
             return flowOf(
@@ -491,6 +515,19 @@ class ReadRecordRepositoryTest {
             return details.map { it.copy() }
         }
 
+        override suspend fun getAllDetailsList(limit: Int, offset: Int): List<ReadRecordDetail> {
+            return details
+                .sortedWith(
+                    compareBy<ReadRecordDetail> { it.deviceId }
+                        .thenBy { it.bookName }
+                        .thenBy { it.bookAuthor }
+                        .thenBy { it.date }
+                )
+                .drop(offset)
+                .take(limit)
+                .map { it.copy() }
+        }
+
         override fun getDetailsCount(): Int {
             return details.size
         }
@@ -513,12 +550,48 @@ class ReadRecordRepositoryTest {
             return flowOf(sessions.sortedByDescending { it.startTime }.map { it.copy() })
         }
 
+        override fun getTimelineSessions(
+            query: String,
+            date: String?,
+            limit: Int
+        ): Flow<List<ReadRecordSession>> {
+            return flowOf(filteredTimelineSessions(query, date).take(limit).map { it.copy() })
+        }
+
+        override fun getTimelineSessionCount(query: String, date: String?): Flow<Int> {
+            return flowOf(filteredTimelineSessions(query, date).size)
+        }
+
         override suspend fun getAllSessionsList(): List<ReadRecordSession> {
             return sessions.map { it.copy() }
         }
 
+        override suspend fun getAllSessionsList(limit: Int, offset: Int): List<ReadRecordSession> {
+            return sessions.sortedBy { it.id }.drop(offset).take(limit).map { it.copy() }
+        }
+
         override fun getSessionsCount(): Int {
             return sessions.size
+        }
+
+        private fun filteredTimelineSessions(
+            query: String,
+            date: String?
+        ): List<ReadRecordSession> {
+            return sessions.asSequence()
+                .filter {
+                    query.isEmpty() ||
+                        it.bookName.contains(query) ||
+                        it.bookAuthor.contains(query)
+                }
+                .filter {
+                    date == null || java.time.Instant.ofEpochMilli(it.startTime)
+                        .atZone(ZoneId.systemDefault())
+                        .toLocalDate()
+                        .toString() == date
+                }
+                .sortedByDescending { it.startTime }
+                .toList()
         }
 
         override fun getSessionsByBookFlow(deviceId: String, bookName: String, bookAuthor: String): Flow<List<ReadRecordSession>> {

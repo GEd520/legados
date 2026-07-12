@@ -63,6 +63,28 @@ interface ReadRecordDao {
     @Query("SELECT SUM(readTime) FROM readRecord")
     fun getTotalReadTime(): Flow<Long?>
 
+    @Query(
+        """
+        SELECT COALESCE(SUM(
+            CASE
+                WHEN COALESCE(detailTotals.detailReadTime, 0) > records.readTime
+                    THEN detailTotals.detailReadTime
+                ELSE records.readTime
+            END
+        ), 0)
+        FROM readRecord AS records
+        LEFT JOIN (
+            SELECT deviceId, bookName, bookAuthor, SUM(readTime) AS detailReadTime
+            FROM readRecordDetail
+            GROUP BY deviceId, bookName, bookAuthor
+        ) AS detailTotals
+            ON detailTotals.deviceId = records.deviceId
+            AND detailTotals.bookName = records.bookName
+            AND detailTotals.bookAuthor = records.bookAuthor
+        """
+    )
+    fun getNormalizedTotalReadTime(): Flow<Long>
+
     @Query("SELECT readTime FROM readRecord WHERE deviceId = :deviceId AND bookName = :bookName AND bookAuthor = :bookAuthor")
     fun getReadTimeFlow(deviceId: String, bookName: String, bookAuthor: String): Flow<Long?>
 
@@ -110,6 +132,26 @@ interface ReadRecordDao {
 
     @Query("SELECT * FROM readRecordSession ORDER BY startTime DESC")
     fun getAllSessions(): Flow<List<ReadRecordSession>>
+
+    @Query(
+        """
+        SELECT * FROM readRecordSession
+        WHERE (:query = '' OR bookName LIKE '%' || :query || '%' OR bookAuthor LIKE '%' || :query || '%')
+            AND (:date IS NULL OR date(startTime / 1000, 'unixepoch', 'localtime') = :date)
+        ORDER BY startTime DESC
+        LIMIT :limit
+        """
+    )
+    fun getTimelineSessions(query: String, date: String?, limit: Int): Flow<List<ReadRecordSession>>
+
+    @Query(
+        """
+        SELECT COUNT(*) FROM readRecordSession
+        WHERE (:query = '' OR bookName LIKE '%' || :query || '%' OR bookAuthor LIKE '%' || :query || '%')
+            AND (:date IS NULL OR date(startTime / 1000, 'unixepoch', 'localtime') = :date)
+        """
+    )
+    fun getTimelineSessionCount(query: String, date: String?): Flow<Int>
 
     @Query("SELECT * FROM readRecordSession")
     suspend fun getAllSessionsList(): List<ReadRecordSession>

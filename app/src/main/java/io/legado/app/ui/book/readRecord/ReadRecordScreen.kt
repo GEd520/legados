@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -414,7 +415,9 @@ fun ReadRecordScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            if (state.isLoading) {
+            if (state.isLoading ||
+                (displayMode == DisplayMode.TIMELINE && !state.isTimelineLoaded)
+            ) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -566,11 +569,11 @@ private fun LazyListScope.RecordListContent(
 ) {
     when (displayMode) {
         DisplayMode.AGGREGATE -> {
-            state.groupedRecords.toSortedMap(compareByDescending { it }).forEach { (date, details) ->
+            state.groupedRecords.forEach { (date, details) ->
                 item(key = "header_$date") {
                     DateHeader(date = date, totalDuration = details.sumOf { it.readTime })
                 }
-                items(items = details.sortedByDescending { it.readTime }, key = { detailRecordKey(date, it) }) { detail ->
+                items(items = details, key = { detailRecordKey(date, it) }) { detail ->
                     RecordDetailItem(
                         detail = detail,
                         viewModel = viewModel,
@@ -603,27 +606,46 @@ private fun LazyListScope.RecordListContent(
                         }.getOrNull()?.let { state.dailyReadTimes[it] } ?: 0L
                     )
                 }
-                sessions.forEachIndexed { index, session ->
-                    item(key = "timeline_item_${date}|${session.id}") {
-                        TimelineSessionView(
-                            session = session,
-                            isLast = index == sessions.size - 1,
-                            viewModel = viewModel,
-                            isSelectionMode = state.isSelectionMode,
-                            isSelected = viewModel.isSelected(session),
-                            onClick = { 
-                                if (state.isSelectionMode) {
-                                    viewModel.toggleRecordSelection(session)
-                                } else {
-                                    onBookClick(session.bookName, session.bookAuthor)
-                                }
-                            },
-                            onLongClick = {
-                                if (!state.isSelectionMode) {
-                                    viewModel.enterSelectionMode(session)
-                                }
-                            },
-                            onDelete = { onConfirmDelete { viewModel.deleteSession(session) } }
+                itemsIndexed(
+                    items = sessions,
+                    key = { _, session -> "timeline_item_${date}|${session.id}" }
+                ) { index, session ->
+                    TimelineSessionView(
+                        session = session,
+                        isLast = index == sessions.size - 1,
+                        viewModel = viewModel,
+                        isSelectionMode = state.isSelectionMode,
+                        isSelected = viewModel.isSelected(session),
+                        onClick = {
+                            if (state.isSelectionMode) {
+                                viewModel.toggleRecordSelection(session)
+                            } else {
+                                onBookClick(session.bookName, session.bookAuthor)
+                            }
+                        },
+                        onLongClick = {
+                            if (!state.isSelectionMode) {
+                                viewModel.enterSelectionMode(session)
+                            }
+                        },
+                        onDelete = { onConfirmDelete { viewModel.deleteSession(session) } }
+                    )
+                }
+            }
+            if (state.hasMoreTimelineSessions) {
+                item(key = "timeline_load_more_${state.timelineSessionCount}") {
+                    LaunchedEffect(state.timelineSessionCount) {
+                        viewModel.loadMoreTimelineSessions()
+                    }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp
                         )
                     }
                 }
