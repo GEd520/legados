@@ -89,7 +89,7 @@ jobs:
         run: ls -la all_apks/
 
       - name: 发布到 GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           name: 阅读双包版 ${{ needs.prepare.outputs.version }}
           tag_name: ${{ needs.prepare.outputs.version }}
